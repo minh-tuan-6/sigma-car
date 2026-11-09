@@ -5239,6 +5239,7 @@ const AppState = {
   }
 
   function renderSellerSubView(tab, dashData, ordersList, apptsList) {
+    const curUser = ApiClient.getCurrentUser() || {};
     const cache = AppState._sellerCache || {};
     const returnsRes = cache.returnsRes || { items: [], stats: {} };
     const warOverview = cache.warOverview || { stats: {}, warranties: [], appointments: [], records: [], centers: [] };
