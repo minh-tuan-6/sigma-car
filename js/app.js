@@ -126,9 +126,9 @@ const AppState = {
             // match
           } else if (targetCat === 'suv' && (cCat.includes('suv') || cCat.includes('crossover'))) {
             // match
-          } else if ((targetCat === 'pickup' || targetCat === 'bán tải') && (subCat.includes('bán tải') || (car.subtitle || '').toLowerCase().includes('bán tải'))) {
+          } else if ((targetCat === 'pickup' || targetCat === 'bán tải') && (cCat.includes('pickup') || cCat.includes('bán tải') || subCat.includes('bán tải') || subCat.includes('pickup') || (car.subtitle || '').toLowerCase().includes('bán tải'))) {
             // match
-          } else if (targetCat === 'mpv' && (subCat.includes('mpv') || (car.name || '').toLowerCase().includes('mpv') || (car.name || '').toLowerCase().includes('xpander') || (car.name || '').toLowerCase().includes('limo'))) {
+          } else if (targetCat === 'mpv' && (cCat.includes('mpv') || subCat.includes('mpv') || (car.name || '').toLowerCase().includes('mpv') || (car.name || '').toLowerCase().includes('xpander') || (car.name || '').toLowerCase().includes('limo'))) {
             // match
           } else {
             return false;
@@ -136,10 +136,13 @@ const AppState = {
         }
       }
 
-      // 2. NHIÊN LIỆU (Điện / Xăng)
+      // 2. NHIÊN LIỆU (Điện / Xăng / Dầu / Hybrid)
       if (fuel && fuel !== 'all') {
         const cFuel = getVehicleFuel(car);
-        if (cFuel !== fuel.toLowerCase()) {
+        const fTarget = fuel.toLowerCase();
+        if (fTarget === 'gas') {
+          if (cFuel !== 'gas' && cFuel !== 'diesel' && cFuel !== 'hybrid') return false;
+        } else if (cFuel !== fTarget) {
           return false;
         }
       }
@@ -222,6 +225,27 @@ const AppState = {
     }
 
     return `Bộ lọc đang áp dụng: ${parts.join(' • ')}`;
+  }
+
+  function getDynamicBrandFilterItems(list = []) {
+    const items = [
+      { key: 'all', label: `Tất cả (${list.length})` },
+      { key: 'data-xe', label: '📋 Data-xe (CAR-001..010)' }
+    ];
+    const seen = new Set();
+    for (const car of list) {
+      const b = (car && car.brand ? String(car.brand).trim() : '');
+      if (!b) continue;
+      const bLow = b.toLowerCase();
+      if (!seen.has(bLow)) {
+        seen.add(bLow);
+        items.push({
+          key: b,
+          label: bLow === 'vinfast' ? 'VinFast (VF2 - VFWILD)' : b
+        });
+      }
+    }
+    return items;
   }
 
   // =================================================================
@@ -707,24 +731,10 @@ const AppState = {
             </div>
           </div>
 
-          <!-- Brand Filter Bar (Excel Data-xe CAR-001..010 & VinFast VF2..VFWILD) -->
+          <!-- Brand Filter Bar (Dynamic across all imported vehicle brands) -->
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:16px; padding-top:14px; border-top:1px solid var(--border-subtle);" id="home-brand-tabs">
             <span style="font-size:12px; font-weight:800; color:var(--text-muted); margin-right:4px;">HÃNG XE:</span>
-            ${[
-              { key: 'all', label: `Tất cả (${AppState.vehiclesList.length})` },
-              { key: 'data-xe', label: '📋 Data-xe (CAR-001..010)' },
-              { key: 'VinFast', label: 'VinFast (VF2 - VFWILD)' },
-              { key: 'Toyota', label: 'Toyota' },
-              { key: 'Honda', label: 'Honda' },
-              { key: 'Ford', label: 'Ford' },
-              { key: 'Hyundai', label: 'Hyundai' },
-              { key: 'Mazda', label: 'Mazda' },
-              { key: 'Mercedes-Benz', label: 'Mercedes-Benz' },
-              { key: 'BMW', label: 'BMW' },
-              { key: 'Kia', label: 'Kia' },
-              { key: 'Mitsubishi', label: 'Mitsubishi' },
-              { key: 'SIGMACAR', label: 'SIGMACAR' }
-            ].map(b => `
+            ${getDynamicBrandFilterItems(AppState.vehiclesList).map(b => `
               <button type="button" class="chip-btn home-brand-chip ${AppState.activeBrandFilter === b.key ? 'active' : ''}" data-brand="${b.key}" style="padding:5px 12px; font-size:12px;">${b.label}</button>
             `).join('')}
           </div>
@@ -1278,21 +1288,7 @@ const AppState = {
             <!-- Brand Filter Bar on New Cars -->
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:16px; padding-top:14px; border-top:1px solid var(--border-subtle);">
               <span style="font-size:12px; font-weight:800; color:var(--text-muted); margin-right:4px;">HÃNG XE:</span>
-              ${[
-                { key: 'all', label: `Tất cả (${AppState.vehiclesList.length})` },
-                { key: 'data-xe', label: '📋 Data-xe (CAR-001..010)' },
-                { key: 'VinFast', label: 'VinFast (VF2 - VFWILD)' },
-                { key: 'Toyota', label: 'Toyota' },
-                { key: 'Honda', label: 'Honda' },
-                { key: 'Ford', label: 'Ford' },
-                { key: 'Hyundai', label: 'Hyundai' },
-                { key: 'Mazda', label: 'Mazda' },
-                { key: 'Mercedes-Benz', label: 'Mercedes-Benz' },
-                { key: 'BMW', label: 'BMW' },
-                { key: 'Kia', label: 'Kia' },
-                { key: 'Mitsubishi', label: 'Mitsubishi' },
-                { key: 'SIGMACAR', label: 'SIGMACAR' }
-              ].map(b => `
+              ${getDynamicBrandFilterItems(AppState.vehiclesList).map(b => `
                 <button type="button" class="chip-btn nc-brand-chip ${AppState.activeBrandFilter === b.key ? 'active' : ''}" data-brand="${b.key}" style="padding:5px 12px; font-size:12px;">${b.label}</button>
               `).join('')}
             </div>
@@ -2175,37 +2171,122 @@ const AppState = {
                 AppState.certifiedList.find(c => c.id === carId) || 
                 AppState.vehiclesList[0];
 
-    const isElectric = !!(car.battery || (car.range && car.range > 0));
-    const spec1Title = isElectric ? "Quãng đường (WLTP/NEDC)" : "Động cơ / Dung tích";
+    // Dispose any inline detail 3D viewer before re-rendering
+    if (window._activeDetail3DViewer) {
+      try { window._activeDetail3DViewer.dispose(); } catch (e) {}
+      window._activeDetail3DViewer = null;
+    }
+
+    const isElectric = !!(car.battery || (car.range && car.range > 0) || getVehicleFuel(car) === 'ev');
+    const spec1Title = isElectric ? "Quãng đường (WLTP/EPA)" : "Động cơ / Dung tích";
     const spec1Val = isElectric ? `${car.range || 500} km` : (car.engine || car.power?.split(',')[0] || 'Xăng / DOHC');
     const spec2Title = "Công suất tối đa";
     const spec2Val = `${car.hp || 200} HP`;
-    const spec3Title = isElectric ? "Dung lượng Pin" : "Hộp số";
+    const spec3Title = isElectric ? "Dung lượng Pin / Kiến trúc" : "Hộp số";
     const spec3Val = isElectric ? (car.battery || 'Pin thế hệ mới') : (car.transmission || 'Tự động');
     const spec4Title = car.acceleration ? "Tăng tốc (0 - 100 km/h)" : "Vận tốc tối đa";
     const spec4Val = car.acceleration ? `${car.acceleration}` : (car.topSpeed || '210 km/h');
 
-    // Multi-angle gallery images
-    const galleryImages = [
-      car.image,
-      'assets/detail-gallery-1.jpg',
-      'assets/detail-gallery-2.jpg',
-      'assets/detail-gallery-3.jpg',
-      'assets/detail-gallery-4.jpg',
-      'assets/detail-gallery-5.jpg'
-    ];
-    const galleryHTML = galleryImages.map((gImg, idx) => `
-      <div class="gallery-thumb-item ${idx === 0 ? 'active' : ''}" data-src="${gImg}">
-        <img src="${gImg}" alt="${car.name} góc nhìn ${idx + 1}">
+    // Build categorized gallery items (supports vehicle-template categorizedImages + legacy fallback)
+    const catImgs = car.categorizedImages || {};
+    const categorizedGalleryItems = [];
+    const addCatItems = (arr, catKey, catLabel) => {
+      if (Array.isArray(arr)) {
+        arr.forEach((src) => {
+          if (src && !categorizedGalleryItems.some(item => item.src === src)) {
+            categorizedGalleryItems.push({ src, category: catKey, label: catLabel });
+          }
+        });
+      }
+    };
+    if (car.image) categorizedGalleryItems.push({ src: car.image, category: 'exterior', label: 'Ngoại thất' });
+    addCatItems(catImgs.exterior, 'exterior', 'Ngoại thất');
+    addCatItems(catImgs.interior, 'interior', 'Nội thất');
+    addCatItems(catImgs.dashboard, 'dashboard', 'Khoang lái');
+    addCatItems(catImgs.engine, 'engine', 'Động cơ & Khung gầm');
+    addCatItems(catImgs.specifications, 'specifications', 'Thông số & Bản vẽ');
+    addCatItems(catImgs.gallery, 'gallery', 'Thư viện');
+
+    if (Array.isArray(car.galleryImages)) {
+      car.galleryImages.forEach(src => {
+        if (src && !categorizedGalleryItems.some(item => item.src === src)) {
+          categorizedGalleryItems.push({ src, category: 'gallery', label: 'Góc nhìn chi tiết' });
+        }
+      });
+    }
+
+    if (categorizedGalleryItems.length <= 1) {
+      [
+        { src: 'assets/detail-gallery-1.jpg', category: 'exterior', label: 'Ngoại thất' },
+        { src: 'assets/detail-gallery-2.jpg', category: 'interior', label: 'Nội thất' },
+        { src: 'assets/detail-gallery-3.jpg', category: 'dashboard', label: 'Khoang lái' },
+        { src: 'assets/detail-gallery-4.jpg', category: 'engine', label: 'Khung gầm & Pin' },
+        { src: 'assets/detail-gallery-5.jpg', category: 'gallery', label: 'Chi tiết' }
+      ].forEach(item => categorizedGalleryItems.push(item));
+    }
+
+    const galleryImages = categorizedGalleryItems.map(i => i.src);
+    const galleryHTML = categorizedGalleryItems.map((item, idx) => `
+      <div class="gallery-thumb-item ${idx === 0 ? 'active' : ''}" data-src="${item.src}" data-cat="${item.category}" data-label="${escapeHtml(item.label)}" title="${escapeHtml(item.label)}">
+        <img src="${item.src}" alt="${escapeHtml(car.name)} - ${escapeHtml(item.label)} ${idx + 1}">
       </div>
     `).join('');
 
     // Dynamic colors
     const colorsHTML = (car.colors && car.colors.length > 0) ? car.colors.map((c, idx) => `
-      <button class="color-swatch-btn ${idx === 0 ? 'active' : ''}" data-img="${c.img || car.image}" style="background:${c.hex || '#1E293B'}; border:1px solid #CBD5E1;" title="${c.name}"></button>
+      <button class="color-swatch-btn ${idx === 0 ? 'active' : ''}" data-img="${c.img || car.image}" data-hex="${c.hex || '#1E293B'}" data-name="${escapeHtml(c.name)}" style="background:${c.hex || '#1E293B'}; border:1px solid #CBD5E1;" title="${escapeHtml(c.name)}${c.type ? ' (' + escapeHtml(c.type) + ')' : ''}"></button>
     `).join('') : `
-      <button class="color-swatch-btn active" data-img="${car.image}" style="background:#0F172A; border:1px solid #CBD5E1;" title="Màu tiêu chuẩn"></button>
+      <button class="color-swatch-btn active" data-img="${car.image}" data-hex="#0F172A" data-name="Màu tiêu chuẩn" style="background:#0F172A; border:1px solid #CBD5E1;" title="Màu tiêu chuẩn"></button>
     `;
+
+    const model3dPath = (car.model3d && car.model3d.glbPath)
+      ? car.model3d.glbPath
+      : (car.id === 'tesla-cybertruck' ? 'assets/models/tesla_cybertruck.glb' : 'assets/models/sigma-car-3d.glb');
+
+    const trimsHTML = (Array.isArray(car.trims) && car.trims.length > 0) ? `
+      <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-xl); padding:32px; margin-top:32px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:18px;">
+          <div>
+            <span class="badge-role" style="background:#EFF6FF; color:#2563EB; font-size:11px; font-weight:800;">CÁC PHIÊN BẢN CẤU HÌNH</span>
+            <h3 style="font-size:21px; font-weight:800; color:var(--text-dark); margin:4px 0 0;">So sánh các phiên bản ${escapeHtml(car.name)}</h3>
+          </div>
+          <span style="font-size:12.5px; color:var(--text-muted);">Dữ liệu chuẩn từ nhà sản xuất</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="dash-data-table" style="font-size:13.5px; min-width:680px;">
+            <thead>
+              <tr style="background:#F8FAFC;">
+                <th style="padding:12px 14px; text-align:left;">Phiên bản</th>
+                <th style="padding:12px 14px; text-align:left;">Giá tham khảo</th>
+                <th style="padding:12px 14px; text-align:left;">Hệ dẫn động</th>
+                <th style="padding:12px 14px; text-align:left;">Công suất</th>
+                <th style="padding:12px 14px; text-align:left;">Quãng đường</th>
+                <th style="padding:12px 14px; text-align:left;">Tăng tốc 0-100</th>
+                <th style="padding:12px 14px; text-align:left;">Vận tốc tối đa</th>
+                <th style="padding:12px 14px; text-align:left;">Sức kéo</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${car.trims.map((t, idx) => `
+                <tr style="${idx === car.trims.length - 1 ? 'background:#F0F9FF;' : ''}">
+                  <td style="padding:12px 14px; font-weight:800; color:var(--text-dark);">
+                    ${escapeHtml(t.name)}
+                    ${t.highlights ? `<div style="font-size:11.5px; font-weight:500; color:var(--text-muted); margin-top:2px;">${escapeHtml(t.highlights)}</div>` : ''}
+                  </td>
+                  <td style="padding:12px 14px; font-weight:800; color:var(--primary);">${escapeHtml(t.priceFormatted || (t.price ? t.price.toLocaleString('vi-VN') + ' VNĐ' : 'Đang cập nhật'))}</td>
+                  <td style="padding:12px 14px;">${escapeHtml(t.drive || car.drive || '-')}</td>
+                  <td style="padding:12px 14px; font-weight:700;">${t.hp ? `${t.hp} HP` : escapeHtml(t.power || '-')}</td>
+                  <td style="padding:12px 14px; font-weight:700; color:#059669;">${t.rangeKm ? `${t.rangeKm} km` : '-'}</td>
+                  <td style="padding:12px 14px;">${escapeHtml(t.acceleration || '-')}</td>
+                  <td style="padding:12px 14px;">${escapeHtml(t.topSpeed || '-')}</td>
+                  <td style="padding:12px 14px;">${escapeHtml(t.towingCapacity || '-')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ` : '';
 
     viewsContainer.innerHTML = `
       <section class="detail-hero-section">
@@ -2213,29 +2294,34 @@ const AppState = {
           <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
             <a href="javascript:void(0)" onclick="window.location.hash='home'">Trang chủ</a> / 
             <a href="javascript:void(0)" onclick="window.location.hash='new-cars'">Dòng xe</a> / 
-            <span style="color:var(--text-dark); font-weight:600;">${car.name}</span>
+            <span style="color:var(--text-dark); font-weight:600;">${escapeHtml(car.name)}</span>
           </div>
 
           <div class="detail-header-row">
             <div>
-              <span class="detail-model-tag">${car.productCode ? `MÃ SP: ${car.productCode} • ` : ''}${car.brand ? car.brand.toUpperCase() : 'SIGMACAR'} • ${car.subCategory ? car.subCategory.toUpperCase() : (isElectric ? 'THUẦN ĐIỆN THÔNG MINH' : 'ĐẲNG CẤP VƯỢT TRỘI')}</span>
-              <h1 class="detail-car-name">${car.name}</h1>
+              <span class="detail-model-tag">${car.productCode ? `MÃ SP: ${escapeHtml(car.productCode)} • ` : ''}${car.brand ? escapeHtml(car.brand.toUpperCase()) : 'SIGMACAR'} • ${car.subCategory ? escapeHtml(car.subCategory.toUpperCase()) : (isElectric ? 'THUẦN ĐIỆN THÔNG MINH' : 'ĐẲNG CẤP VƯỢT TRỘI')}</span>
+              <h1 class="detail-car-name">${escapeHtml(car.name)}</h1>
+              ${car.version ? `<div style="font-size:13.5px; color:var(--text-muted); margin-bottom:6px; font-weight:600;">Phiên bản: ${escapeHtml(car.version)}</div>` : ''}
               <div class="detail-price-text">
-                Giá từ <span class="detail-price-val">${car.priceFormatted}</span>
-                ${car.badge ? `<span class="badge-role" style="margin-left:12px; background:var(--primary-subtle); color:var(--primary); font-size:12px;">${car.badge}</span>` : ''}
+                Giá từ <span class="detail-price-val">${car.salePriceFormatted || car.priceFormatted}</span>
+                ${car.salePriceFormatted && car.priceFormatted && car.salePriceFormatted !== car.priceFormatted ? `<span style="text-decoration:line-through; color:#94A3B8; font-size:14px; margin-left:8px;">${car.priceFormatted}</span>` : ''}
+                ${car.badge ? `<span class="badge-role" style="margin-left:12px; background:var(--primary-subtle); color:var(--primary); font-size:12px;">${escapeHtml(car.badge)}</span>` : ''}
                 <span class="badge-role" style="margin-left:8px; background:#ECFDF5; color:#059669; font-size:12px;">✓ Kho sẵn: ${car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : 5)} xe • Năm SX: ${car.year || 2024}</span>
               </div>
             </div>
 
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-              <button class="btn-secondary" style="padding:10px 18px; font-weight:700; background:#0F172A; color:#38BDF8; border-color:#0284C7;" onclick="window.openVrArShowroom('${car.id}')">
-                🌐 Xem 360° / VR
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button class="btn-secondary" id="btn-detail-toggle-3d" style="padding:10px 16px; font-weight:700; background:#1E293B; color:#38BDF8; border-color:#0284C7;">
+                🧊 Mô hình 3D Tương tác
               </button>
-              <button class="btn-secondary" style="padding:10px 18px; font-weight:700; background:#EFF6FF; color:#1D4ED8; border-color:#93C5FD;" onclick="window.openArAtHome('${car.id}')">
-                📦 Xem AR tại nhà
+              <button class="btn-secondary" style="padding:10px 16px; font-weight:700; background:#0F172A; color:#38BDF8; border-color:#0284C7;" onclick="window.openVrArShowroom('${car.id}')">
+                🥽 Showroom VR 360°
               </button>
-              <button class="btn-secondary" style="padding:10px 18px; font-weight:700;" onclick="window.addCarToCompare('${car.id}')">
-                ⚖️ So sánh xe
+              <button class="btn-secondary" style="padding:10px 16px; font-weight:700; background:#EFF6FF; color:#1D4ED8; border-color:#93C5FD;" onclick="window.openArLive('${car.id}')">
+                📷 Trải nghiệm AR
+              </button>
+              <button class="btn-secondary" style="padding:10px 16px; font-weight:700;" onclick="window.addCarToCompare('${car.id}')">
+                ⚖️ So sánh
               </button>
               <button class="btn-primary" id="btn-detail-book-testdrive">
                 🚗 Đăng ký lái thử
@@ -2244,8 +2330,47 @@ const AppState = {
           </div>
 
           <div class="detail-visualizer-container">
-            <div class="visualizer-main-stage">
-              <img id="detail-car-img" src="${car.image}" alt="${car.name}">
+            <div class="visualizer-main-stage" style="position:relative;">
+              <!-- Image Stage with Zoom Button -->
+              <div id="detail-image-stage-wrap" style="position:relative; width:100%;">
+                <img id="detail-car-img" src="${car.image}" alt="${escapeHtml(car.name)}" style="cursor:zoom-in;" title="Nhấn để phóng to ảnh độ phân giải gốc">
+                <div style="position:absolute; top:14px; right:14px; display:flex; gap:8px; z-index:5;">
+                  <button type="button" id="btn-detail-zoom-img" class="btn-secondary" style="padding:6px 12px; font-size:12px; font-weight:700; background:rgba(15,23,42,0.82); color:#FFFFFF; border:1px solid rgba(255,255,255,0.2); backdrop-filter:blur(6px);">
+                    🔍 Phóng to ảnh HD
+                  </button>
+                  <button type="button" id="btn-detail-stage-3d" class="btn-secondary" style="padding:6px 12px; font-size:12px; font-weight:700; background:rgba(2,132,199,0.9); color:#FFFFFF; border:none;">
+                    🧊 Xem 3D ngay tại đây
+                  </button>
+                </div>
+              </div>
+
+              <!-- Inline Interactive 3D Stage (Hidden until toggled) -->
+              <div id="detail-inline-3d-stage" style="display:none; position:relative; width:100%; height:420px; background:radial-gradient(circle at 50% 40%, #1E293B 0%, #090D16 100%); border-radius:16px; overflow:hidden; margin-bottom:14px;">
+                <div id="detail-inline-3d-canvas" style="width:100%; height:100%;"></div>
+                <div style="position:absolute; top:12px; left:14px; display:flex; gap:8px; align-items:center; z-index:10;">
+                  <span style="background:rgba(15,23,42,0.85); color:#38BDF8; font-size:11.5px; font-weight:800; padding:5px 12px; border-radius:20px; border:1px solid rgba(56,189,248,0.35);">
+                    🧊 MÔ HÌNH 3D GLB TƯƠNG TÁC • KÉO CHUỘT ĐỂ XOAY 360° • LĂN CHUỘT ĐỂ THU PHÓNG
+                  </span>
+                </div>
+                <div style="position:absolute; top:12px; right:14px; display:flex; gap:8px; z-index:10;">
+                  <button type="button" class="btn-secondary" onclick="window.openVrArShowroom('${car.id}')" style="padding:6px 12px; font-size:11.5px; font-weight:700; background:#0284C7; color:#FFFFFF; border:none;">
+                    🥽 Mở toàn màn hình VR
+                  </button>
+                  <button type="button" id="btn-detail-close-3d" class="btn-secondary" style="padding:6px 12px; font-size:11.5px; font-weight:700; background:rgba(255,255,255,0.9); color:#0F172A; border:none;">
+                    🖼️ Quay lại Xem Ảnh
+                  </button>
+                </div>
+              </div>
+
+              <!-- Category Filter Pills for Gallery -->
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 8px;" id="detail-gallery-cat-bar">
+                <button type="button" class="chip-btn detail-gal-cat-btn active" data-gal-cat="all" style="padding:4px 10px; font-size:11.5px;">Tất cả (${categorizedGalleryItems.length})</button>
+                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="exterior" style="padding:4px 10px; font-size:11.5px;">Ngoại thất</button>
+                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="interior" style="padding:4px 10px; font-size:11.5px;">Nội thất</button>
+                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="dashboard" style="padding:4px 10px; font-size:11.5px;">Khoang lái</button>
+                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="engine" style="padding:4px 10px; font-size:11.5px;">Động cơ / Khung gầm</button>
+                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="specifications" style="padding:4px 10px; font-size:11.5px;">Bản vẽ KT</button>
+              </div>
               
               <!-- Multi-angle Gallery Strip -->
               <div class="detail-gallery-strip" id="detail-gallery-strip">
@@ -2254,20 +2379,23 @@ const AppState = {
 
               <!-- Color Switcher -->
               <div class="color-picker-bar">
-                <span style="font-size:12px; font-weight:700; color:var(--text-muted);">MÀU SẮC (${car.colorsSummary || 'Tiêu chuẩn'}):</span>
+                <span style="font-size:12px; font-weight:700; color:var(--text-muted);">MÀU SẮC (<span id="detail-active-color-name">${escapeHtml(car.colors?.[0]?.name || car.colorsSummary || 'Tiêu chuẩn')}</span>):</span>
                 ${colorsHTML}
               </div>
             </div>
 
             <div class="detail-cta-stack">
               <button class="btn-detail-cta dark-cta" style="background:#0F172A; color:#38BDF8; border:1px solid #0284C7;" onclick="window.openVrArShowroom('${car.id}')">
-                🌐 Showroom 360° / Trải nghiệm VR
+                🥽 Showroom 360° / Trải nghiệm VR
+              </button>
+              <button class="btn-detail-cta outline-cta" style="border-color:#0284C7; color:#0284C7; font-weight:700; background:#F0F9FF;" onclick="window.openArLive('${car.id}')">
+                📷 Mở Camera AR Trực tiếp (3D)
               </button>
               <button class="btn-detail-cta outline-cta" style="border-color:#2563EB; color:#2563EB; font-weight:700;" onclick="window.openArAtHome('${car.id}')">
-                📦 Xem AR xe tại nhà của bạn (AI)
+                📦 Đặt xe AR vào sân nhà bạn (AI)
               </button>
               <button class="btn-detail-cta primary-cta" id="btn-detail-cta-testdrive">
-                Đăng ký lái thử
+                🚗 Đăng ký lái thử
               </button>
               <button class="btn-detail-cta outline-cta" id="btn-detail-calc">
                 📊 Dự toán trả góp
@@ -2300,27 +2428,36 @@ const AppState = {
             </div>
           </div>
 
+          ${car.description ? `
+          <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-xl); padding:28px 32px; margin-top:28px;">
+            <h3 style="font-size:19px; font-weight:800; color:var(--text-dark); margin-bottom:10px;">Giới thiệu tổng quan — ${escapeHtml(car.name)}</h3>
+            <p style="font-size:14.5px; color:var(--text-secondary); line-height:1.75; margin:0;">${escapeHtml(car.description)}</p>
+          </div>
+          ` : ''}
+
+          ${trimsHTML}
+
           <!-- Engineering & Technology Highlights Showcase -->
           <div class="detail-tech-showcase-grid">
             <div class="detail-tech-card">
-              <img src="assets/detail-cockpit.jpg" alt="Khoang lái thông minh Sigma Intelligent Cockpit" class="detail-tech-card-img">
+              <img src="${catImgs.dashboard?.[0] || 'assets/detail-cockpit.jpg'}" alt="Khoang lái thông minh" class="detail-tech-card-img">
               <div class="detail-tech-card-body">
-                <h5>Khoang lái Sigma Intelligent Cockpit</h5>
-                <p>Màn hình cong Panoramic siêu nét, trợ lý giọng nói AI tiếng Việt và HUD kính lái thế hệ mới.</p>
+                <h5>Khoang lái & Màn hình Trung tâm</h5>
+                <p>${car.comfortFeatures?.[0] ? escapeHtml(car.comfortFeatures.slice(0, 2).join('. ')) : 'Màn hình cảm ứng trung tâm độ phân giải cao, giao diện trực quan và hệ thống âm thanh vòm.'}</p>
               </div>
             </div>
             <div class="detail-tech-card">
-              <img src="assets/detail-battery.jpg" alt="Công nghệ Cell-to-Chassis & Pin thể rắn" class="detail-tech-card-img">
+              <img src="${catImgs.engine?.[0] || 'assets/detail-battery.jpg'}" alt="Khung gầm & Hệ truyền động" class="detail-tech-card-img">
               <div class="detail-tech-card-body">
-                <h5>Khung gầm Cell-to-Chassis & Quản nhiệt</h5>
-                <p>Khung nhôm nguyên khối gia cường cụm pin khí động học, tản nhiệt chất lỏng 2 chiều chuẩn an toàn 5 sao.</p>
+                <h5>Khung gầm & Hệ truyền động</h5>
+                <p>${escapeHtml(car.powertrain || car.engine || 'Kết cấu khung gầm chịu lực cao, tối ưu hóa khí động học và độ ổn định thân xe.')}</p>
               </div>
             </div>
             <div class="detail-tech-card">
-              <img src="assets/detail-adas.jpg" alt="Hệ thống lái bán tự động ADAS Cấp 2+" class="detail-tech-card-img">
+              <img src="${catImgs.exterior?.[1] || 'assets/detail-adas.jpg'}" alt="Công nghệ An toàn & Hỗ trợ lái" class="detail-tech-card-img">
               <div class="detail-tech-card-body">
-                <h5>Hệ thống trợ lái bán tự động ADAS Cấp 2+</h5>
-                <p>12 cảm biến siêu âm, radar sóng milimet và camera 8MP hỗ trợ đỗ xe tự động và giữ làn chủ động.</p>
+                <h5>An toàn chủ động & Hỗ trợ lái ADAS</h5>
+                <p>${car.safetyFeatures?.[0] ? escapeHtml(car.safetyFeatures.slice(0, 2).join('. ')) : 'Tích hợp hệ thống cảm biến, camera 360 độ và hỗ trợ giữ làn chủ động an toàn.'}</p>
               </div>
             </div>
           </div>
@@ -2333,54 +2470,99 @@ const AppState = {
               <tbody>
                 <tr>
                   <td style="width:30%; font-weight:700; color:var(--text-muted);">Mã sản phẩm & Thương hiệu</td>
-                  <td><strong>${car.productCode || car.id.toUpperCase()}</strong> • <strong>${car.brand || 'SIGMACAR'}</strong> - ${car.name} (${car.subtitle || ''})</td>
+                  <td><strong>${escapeHtml(car.productCode || car.id.toUpperCase())}</strong> • <strong>${escapeHtml(car.brand || 'SIGMACAR')}</strong> - ${escapeHtml(car.name)} (${escapeHtml(car.version || car.subtitle || '')})</td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Phân loại & Năm sản xuất</td>
-                  <td><strong>${car.subCategory || car.category}</strong> • Năm SX: <strong>${car.year || 2024}</strong> ${car.badge ? `• <span style="color:var(--accent-cyan); font-weight:700;">${car.badge}</span>` : ''}</td>
+                  <td><strong>${escapeHtml(car.subCategory || car.category)}</strong> • Năm SX: <strong>${car.year || 2024}</strong> ${car.badge ? `• <span style="color:var(--accent-cyan); font-weight:700;">${escapeHtml(car.badge)}</span>` : ''}</td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Màu sắc & Tồn kho</td>
-                  <td>Màu sắc: <strong>${car.colorsSummary || (car.colors ? car.colors.map(c => c.name).join(', ') : 'Tiêu chuẩn')}</strong> • Số lượng kho: <strong>${car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : 5)} xe</strong></td>
-                </tr>
-                <tr>
-                  <td style="font-weight:700; color:var(--text-muted);">Thông số kỹ thuật tổng quan</td>
-                  <td>${car.excelSpecs || car.powertrain || car.power || 'Động cơ hiệu năng cao thế hệ mới'}</td>
+                  <td>Màu sắc: <strong>${escapeHtml(car.colorsSummary || (car.colors ? car.colors.map(c => c.name).join(', ') : 'Tiêu chuẩn'))}</strong> • Số lượng kho: <strong>${car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : 5)} xe</strong></td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Động cơ & Hệ truyền động</td>
-                  <td>${car.powertrain || car.power || 'Động cơ hiệu năng cao thế hệ mới'}</td>
+                  <td>${escapeHtml(car.engine || car.powertrain || car.power || 'Động cơ hiệu năng cao thế hệ mới')}</td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Hộp số & Hệ dẫn động</td>
-                  <td>${car.transmission || 'Tự động'} • ${car.drive || 'Cầu trước FWD / 2 cầu AWD'}</td>
+                  <td>${escapeHtml(car.transmission || 'Tự động')} • ${escapeHtml(car.drive || 'Cầu trước FWD / 2 cầu AWD')}</td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Công suất & Mô-men xoắn</td>
-                  <td>${car.hp ? `${car.hp} HP (${car.power || ''})` : ''} ${car.torque ? `• Mô-men xoắn: ${car.torque}` : ''}</td>
+                  <td><strong>${car.hp ? `${car.hp} HP` : ''}</strong> ${car.power ? `(${escapeHtml(car.power)})` : ''} ${car.torque ? `• Mô-men xoắn: <strong>${escapeHtml(car.torque)}</strong>` : ''}</td>
                 </tr>
                 ${isElectric ? `
                 <tr>
-                  <td style="font-weight:700; color:var(--text-muted);">Dung lượng Pin & Sạc nhanh</td>
-                  <td>Dung lượng: <strong>${car.battery || 'Đang cập nhật'}</strong> • Sạc nhanh (DC): ${car.fastCharge || '25-30 phút (10-70%)'}</td>
+                  <td style="font-weight:700; color:var(--text-muted);">Thông số Pin & Sạc nhanh</td>
+                  <td>
+                    Dung lượng/Loại pin: <strong>${escapeHtml(car.battery || 'Đang cập nhật')}</strong>
+                    ${car.evSpecs?.architecture ? ` • Kiến trúc điện: <strong>${escapeHtml(car.evSpecs.architecture)}</strong>` : ''}
+                    • Sạc nhanh (DC): <strong>${escapeHtml(car.fastCharge || '25-30 phút (10-80%)')}</strong>
+                    ${car.evSpecs?.v2x ? `<br><span style="color:#0284C7; font-weight:600;">⚡ Cấp điện hai chiều (V2L/V2H/V2V): ${escapeHtml(car.evSpecs.v2x)}</span>` : ''}
+                  </td>
+                </tr>
+                ` : `
+                <tr>
+                  <td style="font-weight:700; color:var(--text-muted);">Mức tiêu thụ nhiên liệu</td>
+                  <td>${escapeHtml(car.fuelConsumption?.combined || car.fuelConsumption?.city || 'Tiết kiệm nhiên liệu tối ưu')}</td>
+                </tr>
+                `}
+                <tr>
+                  <td style="font-weight:700; color:var(--text-muted);">Kích thước (D x R x C) & Khoảng sáng gầm</td>
+                  <td>
+                    <strong>${escapeHtml(car.dimensions || '4.800 x 1.880 x 1.650 mm')}</strong>
+                    ${car.wheelbase ? ` • Chiều dài cơ sở: <strong>${escapeHtml(car.wheelbase)}</strong>` : ''}
+                    ${car.groundClearance ? ` • Khoảng sáng gầm: <strong>${escapeHtml(car.groundClearance)}</strong>` : ''}
+                  </td>
+                </tr>
+                ${(car.dimensionsDetail && (car.dimensionsDetail.curbWeight || car.dimensionsDetail.payloadCapacity || car.dimensionsDetail.towingCapacity || car.dimensionsDetail.cargoVolume)) ? `
+                <tr>
+                  <td style="font-weight:700; color:var(--text-muted);">Trọng lượng, Tải trọng & Sức kéo</td>
+                  <td>
+                    ${car.dimensionsDetail.curbWeight ? `Trọng lượng không tải: <strong>${escapeHtml(car.dimensionsDetail.curbWeight)}</strong> • ` : ''}
+                    ${car.dimensionsDetail.payloadCapacity ? `Tải trọng: <strong>${escapeHtml(car.dimensionsDetail.payloadCapacity)}</strong> • ` : ''}
+                    ${car.dimensionsDetail.towingCapacity ? `Sức kéo (Towing): <strong>${escapeHtml(car.dimensionsDetail.towingCapacity)}</strong> • ` : ''}
+                    ${car.dimensionsDetail.cargoVolume ? `Dung tích khoang chứa: <strong>${escapeHtml(car.dimensionsDetail.cargoVolume)}</strong>` : ''}
+                  </td>
                 </tr>
                 ` : ''}
                 <tr>
-                  <td style="font-weight:700; color:var(--text-muted);">Kích thước (D x R x C)</td>
-                  <td>${car.dimensions || '4.800 x 1.880 x 1.650 mm'} ${car.wheelbase ? `(Chiều dài cơ sở: ${car.wheelbase})` : ''} ${car.groundClearance ? `• Gầm: ${car.groundClearance}` : ''}</td>
-                </tr>
-                <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Số chỗ ngồi</td>
-                  <td>${car.seats || 5} Chỗ ngồi cao cấp</td>
+                  <td>${car.seats || 5} Chỗ ngồi</td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Chính sách bảo hành</td>
-                  <td>${car.warranty || 'Bảo hành chính hãng 5 năm hoặc 150.000 km'}</td>
+                  <td>${escapeHtml(car.warranty || 'Bảo hành chính hãng 5 năm hoặc 150.000 km')}</td>
                 </tr>
               </tbody>
             </table>
 
-            <!-- Features Highlights -->
+            <!-- Safety & Comfort Features Grid -->
+            ${(Array.isArray(car.safetyFeatures) && car.safetyFeatures.length > 0) || (Array.isArray(car.comfortFeatures) && car.comfortFeatures.length > 0) ? `
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px; margin-top:28px;">
+              <div style="background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:22px;">
+                <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin-bottom:14px;">🛡️ Trang bị An toàn & Khung gầm</h4>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  ${(car.safetyFeatures || []).map(f => `
+                    <div style="display:flex; align-items:flex-start; gap:8px; font-size:13.5px; color:var(--text-dark);">
+                      <span style="color:#0284C7; font-weight:800;">✓</span> <span>${escapeHtml(f)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+              <div style="background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:22px;">
+                <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin-bottom:14px;">✨ Tiện nghi & Công nghệ nổi bật</h4>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  ${(car.comfortFeatures || []).map(f => `
+                    <div style="display:flex; align-items:flex-start; gap:8px; font-size:13.5px; color:var(--text-dark);">
+                      <span style="color:var(--accent-emerald); font-weight:800;">✓</span> <span>${escapeHtml(f)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+            ` : `
             <div style="margin-top:28px; background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:24px;">
               <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin-bottom:16px;">✨ Trang bị & Tiện nghi công nghệ nổi bật</h4>
               <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px;">
@@ -2392,18 +2574,19 @@ const AppState = {
                   "Cảnh báo điểm mù và giữ làn tự động"
                 ]).map(f => `
                   <div style="display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text-dark);">
-                    <span style="color:var(--accent-emerald); font-weight:800;">✓</span> ${f}
+                    <span style="color:var(--accent-emerald); font-weight:800;">✓</span> ${escapeHtml(f)}
                   </div>
                 `).join('')}
               </div>
             </div>
+            `}
 
             <!-- Recommended Accessories Section (from about car/Data-xe.xlsx) -->
             <div style="margin-top:36px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
                 <div>
                   <h3 style="font-size:20px; font-weight:800; color:var(--text-dark);">Phụ kiện & Đồ chơi chính hãng khuyên dùng</h3>
-                  <p style="font-size:13.5px; color:var(--text-muted);">Nâng tầm tiện nghi và bảo vệ tối đa cho chiếc ${car.name}</p>
+                  <p style="font-size:13.5px; color:var(--text-muted);">Nâng tầm tiện nghi và bảo vệ tối đa cho chiếc ${escapeHtml(car.name)}</p>
                 </div>
                 <button class="btn-card-outline" style="font-size:13px; padding:6px 14px;" onclick="window.location.hash='accessories'">Xem tất cả phụ kiện ›</button>
               </div>
@@ -2411,13 +2594,13 @@ const AppState = {
                 ${(SIGMA_DATA.accessories || []).slice(0, 4).map(acc => `
                   <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:16px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:var(--shadow-sm);">
                     <div>
-                      <img src="${acc.image}" alt="${acc.name}" style="width:100%; height:130px; object-fit:cover; border-radius:var(--radius-sm); margin-bottom:12px;">
-                      <span style="font-size:11px; font-weight:700; color:var(--primary); text-transform:uppercase;">${acc.brand}</span>
-                      <h5 style="font-size:14px; font-weight:700; margin:4px 0 6px; color:var(--text-dark);">${acc.name}</h5>
+                      <img src="${acc.image}" alt="${escapeHtml(acc.name)}" style="width:100%; height:130px; object-fit:cover; border-radius:var(--radius-sm); margin-bottom:12px;">
+                      <span style="font-size:11px; font-weight:700; color:var(--primary); text-transform:uppercase;">${escapeHtml(acc.brand)}</span>
+                      <h5 style="font-size:14px; font-weight:700; margin:4px 0 6px; color:var(--text-dark);">${escapeHtml(acc.name)}</h5>
                       <div style="font-size:15px; font-weight:800; color:var(--primary); margin-bottom:6px;">${acc.priceFormatted}</div>
-                      <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">${acc.specs}</p>
+                      <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">${escapeHtml(acc.specs)}</p>
                     </div>
-                    <button class="btn-primary" style="margin-top:12px; padding:8px 12px; font-size:12px; width:100%; justify-content:center;" onclick="showToast('Đã thêm ${acc.name} vào đơn đặt hàng phụ kiện!', '🛒')">
+                    <button class="btn-primary" style="margin-top:12px; padding:8px 12px; font-size:12px; width:100%; justify-content:center;" onclick="showToast('Đã thêm ${escapeHtml(acc.name)} vào đơn đặt hàng phụ kiện!', '🛒')">
                       + Đặt mua kèm xe
                     </button>
                   </div>
@@ -2429,32 +2612,140 @@ const AppState = {
           <!-- SECTION 4: VERIFIED REVIEWS & USER COMMUNITY Q&A -->
           <div id="detail-reviews-community-mount" style="margin-top:36px;">
             <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-xl); padding:32px; text-align:center; color:var(--text-muted);">
-              ⏳ Đang tải dữ liệu đánh giá xác thực và thảo luận cộng đồng cho ${car.name}...
+              ⏳ Đang tải dữ liệu đánh giá xác thực và thảo luận cộng đồng cho ${escapeHtml(car.name)}...
             </div>
           </div>
         </div>
       </section>
+
+      <!-- High-Resolution Image Zoom Lightbox Modal -->
+      <div id="detail-img-lightbox-modal" class="modal-overlay" style="display:none; background:rgba(9,13,22,0.92); z-index:99999;">
+        <div style="position:relative; width:92vw; max-width:1280px; height:86vh; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+          <div style="width:100%; display:flex; justify-content:space-between; align-items:center; padding:10px 16px; color:#FFFFFF;">
+            <div>
+              <strong id="lightbox-caption-title" style="font-size:16px;">${escapeHtml(car.name)}</strong>
+              <span id="lightbox-caption-sub" style="font-size:13px; color:#94A3B8; margin-left:10px;">Độ phân giải gốc HD</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" id="btn-lightbox-zoom-toggle" class="btn-secondary" style="padding:6px 14px; font-size:12.5px; background:#1E293B; color:#38BDF8; border-color:#0284C7;">🔍 Thu phóng 2x</button>
+              <button type="button" id="btn-lightbox-close" class="btn-secondary" style="padding:6px 14px; font-size:12.5px; background:#EF4444; color:#FFFFFF; border:none;">✕ Đóng</button>
+            </div>
+          </div>
+          <div id="lightbox-img-viewport" style="flex:1; width:100%; display:flex; align-items:center; justify-content:center; overflow:auto; position:relative;">
+            <button type="button" id="btn-lightbox-prev" style="position:absolute; left:16px; z-index:10; width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,0.25); background:rgba(15,23,42,0.8); color:#FFFFFF; font-size:20px; cursor:pointer;">‹</button>
+            <img id="lightbox-main-img" src="${car.image}" alt="${escapeHtml(car.name)}" style="max-width:92%; max-height:76vh; object-fit:contain; transition:transform 0.25s ease; cursor:zoom-in;">
+            <button type="button" id="btn-lightbox-next" style="position:absolute; right:16px; z-index:10; width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,0.25); background:rgba(15,23,42,0.8); color:#FFFFFF; font-size:20px; cursor:pointer;">›</button>
+          </div>
+        </div>
+      </div>
     `;
 
     // Interactive Gallery Switcher
-    document.querySelectorAll('.gallery-thumb-item').forEach(thumb => {
+    let currentLightboxIdx = 0;
+    let isZoomed2x = false;
+    const detailImgEl = document.getElementById('detail-car-img');
+    const lightboxModal = document.getElementById('detail-img-lightbox-modal');
+    const lightboxImg = document.getElementById('lightbox-main-img');
+    const lightboxSub = document.getElementById('lightbox-caption-sub');
+
+    document.querySelectorAll('.gallery-thumb-item').forEach((thumb, idx) => {
       thumb.addEventListener('click', (e) => {
         document.querySelectorAll('.gallery-thumb-item').forEach(t => t.classList.remove('active'));
         e.currentTarget.classList.add('active');
         const src = e.currentTarget.getAttribute('data-src');
-        const detailImg = document.getElementById('detail-car-img');
-        if (detailImg && src) detailImg.src = src;
+        currentLightboxIdx = idx;
+        if (detailImgEl && src) detailImgEl.src = src;
       });
     });
 
-    // Interactive Color Switcher
+    // Gallery Category Filter Pills
+    document.querySelectorAll('.detail-gal-cat-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.detail-gal-cat-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const cat = btn.getAttribute('data-gal-cat');
+        let firstVisible = null;
+        document.querySelectorAll('.gallery-thumb-item').forEach(thumb => {
+          const tCat = thumb.getAttribute('data-cat');
+          const show = (cat === 'all' || tCat === cat);
+          thumb.style.display = show ? '' : 'none';
+          if (show && !firstVisible) firstVisible = thumb;
+        });
+        if (firstVisible) firstVisible.click();
+      });
+    });
+
+    // High-Res Image Lightbox Zoom Handlers
+    const openLightboxAt = (idx) => {
+      if (!lightboxModal || !lightboxImg) return;
+      currentLightboxIdx = (idx + categorizedGalleryItems.length) % categorizedGalleryItems.length;
+      const item = categorizedGalleryItems[currentLightboxIdx];
+      lightboxImg.src = item.src;
+      isZoomed2x = false;
+      lightboxImg.style.transform = 'scale(1)';
+      if (lightboxSub) lightboxSub.textContent = `${item.label} (${currentLightboxIdx + 1}/${categorizedGalleryItems.length})`;
+      lightboxModal.style.display = 'flex';
+    };
+
+    detailImgEl?.addEventListener('click', () => openLightboxAt(currentLightboxIdx));
+    document.getElementById('btn-detail-zoom-img')?.addEventListener('click', () => openLightboxAt(currentLightboxIdx));
+    document.getElementById('btn-lightbox-close')?.addEventListener('click', () => {
+      if (lightboxModal) lightboxModal.style.display = 'none';
+    });
+    document.getElementById('btn-lightbox-prev')?.addEventListener('click', () => openLightboxAt(currentLightboxIdx - 1));
+    document.getElementById('btn-lightbox-next')?.addEventListener('click', () => openLightboxAt(currentLightboxIdx + 1));
+    const toggleZoom = () => {
+      if (!lightboxImg) return;
+      isZoomed2x = !isZoomed2x;
+      lightboxImg.style.transform = isZoomed2x ? 'scale(1.85)' : 'scale(1)';
+      lightboxImg.style.cursor = isZoomed2x ? 'zoom-out' : 'zoom-in';
+      const zoomBtn = document.getElementById('btn-lightbox-zoom-toggle');
+      if (zoomBtn) zoomBtn.textContent = isZoomed2x ? '🔍 Thu nhỏ 1x' : '🔍 Thu phóng 2x';
+    };
+    lightboxImg?.addEventListener('click', toggleZoom);
+    document.getElementById('btn-lightbox-zoom-toggle')?.addEventListener('click', toggleZoom);
+
+    // Inline 3D Interactive Stage Toggle
+    const openInline3DStage = () => {
+      const imgWrap = document.getElementById('detail-image-stage-wrap');
+      const stage3D = document.getElementById('detail-inline-3d-stage');
+      const canvasBox = document.getElementById('detail-inline-3d-canvas');
+      if (!stage3D || !canvasBox) return;
+      if (imgWrap) imgWrap.style.display = 'none';
+      stage3D.style.display = 'block';
+      if (!window._activeDetail3DViewer && window.Car3DViewer && window.Car3DViewer.isSupported()) {
+        window._activeDetail3DViewer = window.Car3DViewer.init(canvasBox, {
+          modelUrl: model3dPath,
+          initialColor: car.colors?.[0]?.hex || '#C0C5CE',
+          initialAngle: 35,
+          hotspots: car.model3d?.hotspots || []
+        });
+      }
+    };
+    const closeInline3DStage = () => {
+      const imgWrap = document.getElementById('detail-image-stage-wrap');
+      const stage3D = document.getElementById('detail-inline-3d-stage');
+      if (stage3D) stage3D.style.display = 'none';
+      if (imgWrap) imgWrap.style.display = 'block';
+    };
+    document.getElementById('btn-detail-toggle-3d')?.addEventListener('click', openInline3DStage);
+    document.getElementById('btn-detail-stage-3d')?.addEventListener('click', openInline3DStage);
+    document.getElementById('btn-detail-close-3d')?.addEventListener('click', closeInline3DStage);
+
+    // Interactive Color Switcher (updates both photo & inline 3D PBR paint)
     document.querySelectorAll('.color-swatch-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         document.querySelectorAll('.color-swatch-btn').forEach(b => b.classList.remove('active'));
         e.currentTarget.classList.add('active');
         const imgPath = e.currentTarget.getAttribute('data-img');
-        const detailImg = document.getElementById('detail-car-img');
-        if (detailImg && imgPath) detailImg.src = imgPath;
+        const hexColor = e.currentTarget.getAttribute('data-hex');
+        const colorName = e.currentTarget.getAttribute('data-name');
+        const nameLabel = document.getElementById('detail-active-color-name');
+        if (nameLabel && colorName) nameLabel.textContent = colorName;
+        if (detailImgEl && imgPath) detailImgEl.src = imgPath;
+        if (window._activeDetail3DViewer && hexColor) {
+          window._activeDetail3DViewer.setBodyColor(hexColor);
+        }
       });
     });
 
@@ -3344,14 +3635,18 @@ const AppState = {
                 AppState.certifiedList.find(c => c.id === AppState.currentDetailCar) ||
                 AppState.vehiclesList[0];
 
-    const isElectric = !!(car.battery || (car.range && car.range > 0));
+    const isElectric = !!(car.battery || (car.range && car.range > 0) || getVehicleFuel(car) === 'ev');
+    const modelUrl = (car.model3d && car.model3d.glbPath)
+      ? car.model3d.glbPath
+      : (car.id === 'tesla-cybertruck' ? 'assets/models/tesla_cybertruck.glb' : 'assets/models/sigma-car-3d.glb');
+
     const wheelsList = SIGMA_DATA.wheels || [
       { id: 'wheel-21-sport', name: '21" Sport Wheels', label: '21" Sport', price: 0, tag: 'Tiêu chuẩn', desc: 'Mâm đúc hợp kim đa chấu thể thao khí động học' },
       { id: 'wheel-20-aero', name: '20" Aero Wheels', label: '20" Aero', price: 25000000, tag: 'Tiết kiệm pin', desc: 'Tối ưu hóa tầm vận hành +25km' },
       { id: 'wheel-22-forged', name: '22" Forged Performance', label: '22" Forged', price: 65000000, tag: 'Hiệu năng cao', desc: 'Hợp kim nhôm rèn siêu nhẹ siêu cứng' }
     ];
 
-    const hotspotsList = [
+    const defaultHotspotsList = [
       {
         id: 'hotspot-led',
         name: 'Đèn pha Matrix LED Thông Minh',
@@ -3361,26 +3656,29 @@ const AppState = {
       },
       {
         id: 'hotspot-interior',
-        name: 'Khoang lái Số & Da Nappa',
+        name: 'Khoang lái Số & Nội thất Cao Cấp',
         category: 'Nội thất & Tiện nghi',
         pos: [0.15, 0.82, 0.55],
-        desc: 'Ghế bọc da Nappa thủ công tích hợp sưởi, thông gió đa tầng và 8 chế độ massage thư giãn.'
+        desc: 'Màn hình trung tâm độ phân giải cao, ghế ngồi công thái học tích hợp sưởi và thông gió đa tầng.'
       },
       {
         id: 'hotspot-wheels',
-        name: 'Mâm Thể Thao & Phanh Brembo',
+        name: 'Mâm Hợp Kim & Hệ Thống Treo Thích Ứng',
         category: 'Khung gầm & Vận hành',
         pos: [1.32, 0.35, 0.96],
-        desc: 'Cùm phanh gốm Brembo 6 piston hiệu năng cao kết hợp đĩa phanh thông gió an toàn tối đa.'
+        desc: 'Hệ thống phanh hiệu năng cao kết hợp treo khí nén điện tử tự động điều chỉnh khoảng sáng gầm.'
       },
       {
         id: 'hotspot-battery',
-        name: 'Cụm Pin Thông Minh & Cổng Sạc Siêu Nhanh',
-        category: 'Hệ truyền động Điện',
+        name: 'Hệ Truyền Động & Khung Gầm Chịu Lực',
+        category: 'Hệ truyền động',
         pos: [-1.45, 0.62, 0.86],
-        desc: 'Pin LFP 82 kWh thế hệ mới, hỗ trợ sạc siêu nhanh DC 250 kW: từ 10% lên 80% chỉ trong 18 phút.'
+        desc: car.powertrain || car.battery || 'Cấu trúc khung gầm chịu lực cao, tối ưu trọng tâm và an toàn va chạm 5 sao.'
       }
     ];
+    const hotspotsList = (car.model3d && Array.isArray(car.model3d.hotspots) && car.model3d.hotspots.length > 0)
+      ? car.model3d.hotspots
+      : defaultHotspotsList;
 
     const carColors = (car.colors && car.colors.length > 0) ? car.colors : [
       { name: 'Xanh Cyan Ánh Kim', hex: '#0284C7', img: car.image },
@@ -3398,8 +3696,11 @@ const AppState = {
     let audioCtx = null;
     let motorOscillator = null;
 
-    // Explore other cars
-    const otherCars = AppState.vehiclesList.filter(v => v.id !== car.id).slice(0, 4);
+    // Explore other cars (prioritize Tesla Cybertruck if not currently viewing it)
+    const otherCars = AppState.vehiclesList
+      .filter(v => v.id !== car.id)
+      .sort((a, b) => (a.id === 'tesla-cybertruck' ? -1 : b.id === 'tesla-cybertruck' ? 1 : 0))
+      .slice(0, 4);
 
     viewsContainer.innerHTML = `
       <section class="section" style="padding-top:24px; padding-bottom:60px;">
@@ -3411,7 +3712,10 @@ const AppState = {
               <a href="javascript:void(0)" onclick="window.location.hash='new-cars'">Showroom</a> / 
               <span style="color:var(--text-dark); font-weight:700;">Showroom 360° VR & AR — ${escapeHtml(car.name)}</span>
             </div>
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <select id="vr-car-selector" class="filter-select" style="height:36px; font-size:12.5px; font-weight:700; min-width:220px; padding:0 12px;">
+                ${AppState.vehiclesList.map(v => `<option value="${v.id}" ${v.id === car.id ? 'selected' : ''}>🚗 ${escapeHtml(v.name)} (${v.priceShort || v.priceFormatted})</option>`).join('')}
+              </select>
               <button class="btn-card-outline" onclick="window.openArLive('${car.id}')" style="padding:7px 14px; font-size:12.5px; border-color:#2563EB; color:#2563EB; font-weight:700;">
                 📷 Chế độ AR Trực tiếp
               </button>
@@ -3428,8 +3732,8 @@ const AppState = {
               <div class="vr-stage-header">
                 <div class="vr-mode-pills">
                   <button class="vr-mode-btn active" id="btn-mode-360">360° 3D</button>
-                  <button class="vr-mode-btn" id="btn-mode-vr">🥽 VR</button>
-                  <button class="vr-mode-btn" id="btn-mode-ar">📦 AR</button>
+                  <button class="vr-mode-btn" id="btn-mode-vr">🥽 Không gian VR</button>
+                  <button class="vr-mode-btn" id="btn-mode-ar">📦 AR Camera</button>
                 </div>
                 <div class="vr-util-buttons">
                   <button class="vr-util-btn" id="btn-vr-sound" title="Bật/Tắt âm thanh mô phỏng">${isMuted ? '🔇' : '🔊'}</button>
@@ -3443,17 +3747,26 @@ const AppState = {
                 <!-- Three.js Real 3D Canvas Box -->
                 <div id="vr-3d-canvas-container" class="vr-car-canvas-box"></div>
 
+                <!-- VR Walkthrough HUD Banner (Shown in VR Mode) -->
+                <div id="vr-walkthrough-hud" style="display:none; position:absolute; top:14px; left:50%; transform:translateX(-50%); background:rgba(9,13,22,0.88); border:1px solid rgba(56,189,248,0.45); color:#F8FAFC; padding:8px 16px; border-radius:999px; font-size:12px; z-index:20; align-items:center; gap:14px; backdrop-filter:blur(8px); white-space:nowrap; box-shadow:0 10px 25px rgba(0,0,0,0.4);">
+                  <span>🥽 <strong>CHẾ ĐỘ KHÔNG GIAN ẢO VR:</strong></span>
+                  <span>⌨️ Di chuyển: <strong>W / A / S / D</strong> hoặc <strong>Phím mũi tên</strong></span>
+                  <span>⬆️⬇️ Độ cao: <strong>Q / E</strong></span>
+                  <span>🖱️ Xoay & Zoom: <strong>Chuột</strong></span>
+                  <button type="button" id="btn-vr-hud-webxr" style="background:#0284C7; color:#FFFFFF; border:none; border-radius:999px; padding:4px 10px; font-size:11px; font-weight:700; cursor:pointer;">Kết nối Kính VR</button>
+                </div>
+
                 <!-- Sleek Model Loading Overlay -->
                 <div id="vr-loading-overlay" class="vr-loading-overlay">
                   <div class="vr-loading-spinner"></div>
-                  <div style="font-size:15px; font-weight:800; color:#FFFFFF; margin-bottom:4px; letter-spacing:0.5px;">KHỞI TẠO KHÔNG GIAN 3D REALTIME</div>
-                  <div style="font-size:12.5px; color:#94A3B8;" id="vr-loading-progress-text">Đang tải mô hình PBR & phản chiếu studio 4K...</div>
+                  <div style="font-size:15px; font-weight:800; color:#FFFFFF; margin-bottom:4px; letter-spacing:0.5px;">KHỞI TẠO KHÔNG GIAN 3D REALTIME — ${escapeHtml(car.name.toUpperCase())}</div>
+                  <div style="font-size:12.5px; color:#94A3B8;" id="vr-loading-progress-text">Đang tải mô hình 3D (${escapeHtml(modelUrl.split('/').pop())}) & phản chiếu studio 4K...</div>
                 </div>
 
                 <!-- Spatial Audio & 3D Indicator Badge -->
-                <div style="position:absolute; bottom:14px; left:16px; font-size:11px; color:rgba(255,255,255,0.55); pointer-events:none; z-index:15; display:flex; align-items:center; gap:8px;">
+                <div style="position:absolute; bottom:14px; left:16px; font-size:11px; color:rgba(255,255,255,0.65); pointer-events:none; z-index:15; display:flex; align-items:center; gap:8px;">
                   <span style="display:inline-block; width:7px; height:7px; background:#10B981; border-radius:50%; box-shadow:0 0 8px #10B981;"></span>
-                  <span>REAL 3D PBR ENGINE • THREE.JS WEBGL</span>
+                  <span>REAL 3D PBR ENGINE • ${escapeHtml(modelUrl.split('/').pop().toUpperCase())} • WASD WALKTHROUGH</span>
                 </div>
               </div>
 
@@ -3467,10 +3780,10 @@ const AppState = {
 
                 <div class="vr-cta-bar">
                   <button class="btn-primary" id="btn-vr-enter-mode" style="padding:10px 20px; font-size:13px; background:linear-gradient(135deg, #1E40AF, #2563EB);">
-                    🥽 Vào chế độ VR (Kính VR)
+                    🥽 Bước vào Showroom VR 3D
                   </button>
                   <button class="btn-secondary" id="btn-vr-at-home" style="padding:10px 20px; font-size:13px; background:rgba(255,255,255,0.95); color:#0F172A;">
-                    📦 Xem AR tại nhà bạn
+                    📦 Xem AR trực tiếp
                   </button>
                 </div>
               </div>
@@ -3479,9 +3792,9 @@ const AppState = {
             <!-- Configurator Panel 32% Right -->
             <div class="vr-config-panel">
               <div>
-                <div style="display:flex; gap:6px; margin-bottom:8px;">
-                  <span class="badge-role" style="background:#EFF6FF; color:#2563EB; font-size:11px; font-weight:800;">${isElectric ? 'XE THUẦN ĐIỆN' : 'XE CHÍNH HÃNG'}</span>
-                  <span class="badge-role" style="background:#ECFDF5; color:#059669; font-size:11px; font-weight:800;">MỚI 2026</span>
+                <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+                  <span class="badge-role" style="background:#EFF6FF; color:#2563EB; font-size:11px; font-weight:800;">${escapeHtml(car.brand || 'SIGMACAR')} • ${isElectric ? 'THUẦN ĐIỆN' : 'CHÍNH HÃNG'}</span>
+                  <span class="badge-role" style="background:#ECFDF5; color:#059669; font-size:11px; font-weight:800;">NĂM ${car.year || 2024}</span>
                 </div>
                 <h2 style="font-size:24px; font-weight:800; color:var(--text-dark); margin:0 0 4px;">${escapeHtml(car.name)}</h2>
                 <div style="font-size:20px; font-weight:800; color:var(--primary); margin-bottom:14px;">
@@ -3492,7 +3805,7 @@ const AppState = {
               <!-- Color Picker -->
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:8px;">
-                  <span style="font-weight:700; color:var(--text-dark);">CHỌN MÀU SƠN PBR:</span>
+                  <span style="font-weight:700; color:var(--text-dark);">CHỌN MÀU SƠN / WRAP PBR:</span>
                   <span style="color:var(--primary); font-weight:600;" id="vr-selected-color-name">${escapeHtml(carColors[0]?.name || 'Tiêu chuẩn')}</span>
                 </div>
                 <div class="vr-color-picker-group">
@@ -3523,25 +3836,28 @@ const AppState = {
               <!-- Quick Specs 3 Columns -->
               <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; padding:12px; background:#F8FAFC; border-radius:12px; text-align:center;">
                 <div>
-                  <div style="font-size:10px; font-weight:700; color:var(--text-muted);">QUÃNG ĐƯỜNG</div>
-                  <strong style="font-size:14px; color:var(--primary);">${car.range || 620} km</strong>
+                  <div style="font-size:10px; font-weight:700; color:var(--text-muted);">${isElectric ? 'QUÃNG ĐƯỜNG' : 'HỘP SỐ'}</div>
+                  <strong style="font-size:14px; color:var(--primary);">${isElectric ? `${car.range || 547} km` : (car.transmission ? car.transmission.replace('Hộp số ', '') : 'Tự động')}</strong>
                 </div>
                 <div>
                   <div style="font-size:10px; font-weight:700; color:var(--text-muted);">TĂNG TỐC</div>
-                  <strong style="font-size:14px; color:var(--text-dark);">${car.acceleration || '3.2 s'}</strong>
+                  <strong style="font-size:14px; color:var(--text-dark);">${car.acceleration || '2.7 s'}</strong>
                 </div>
                 <div>
                   <div style="font-size:10px; font-weight:700; color:var(--text-muted);">CÔNG SUẤT</div>
-                  <strong style="font-size:14px; color:var(--text-dark);">${car.hp || 680} hp</strong>
+                  <strong style="font-size:14px; color:var(--text-dark);">${car.hp || 600} hp</strong>
                 </div>
               </div>
 
-              <!-- CTA Deposit & Guarantee -->
-              <div>
-                <button class="btn-primary" id="btn-vr-deposit-now" style="width:100%; justify-content:center; padding:14px; font-size:15px; font-weight:800; box-shadow:0 6px 20px rgba(37,99,235,0.35);">
-                  Đặt cọc ngay →
+              <!-- CTA Deposit & Detail -->
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <button class="btn-primary" id="btn-vr-deposit-now" style="width:100%; justify-content:center; padding:13px; font-size:14.5px; font-weight:800; box-shadow:0 6px 20px rgba(37,99,235,0.35);">
+                  Đặt cọc giữ xe ngay →
                 </button>
-                <div style="font-size:11.5px; color:#059669; text-align:center; font-weight:600; margin-top:8px;">
+                <button class="btn-card-outline" onclick="window.openCarDetail('${car.id}')" style="width:100%; justify-content:center; padding:10px; font-size:13px;">
+                  📄 Xem bảng thông số kỹ thuật chi tiết
+                </button>
+                <div style="font-size:11.5px; color:#059669; text-align:center; font-weight:600; margin-top:4px;">
                   🛡️ Hoàn cọc 100% nếu hủy trong 7 ngày theo chính sách
                 </div>
               </div>
@@ -3561,16 +3877,16 @@ const AppState = {
               <div class="vr-method-card">
                 <div style="font-size:32px;">🥽</div>
                 <div>
-                  <h4 style="font-size:17px; font-weight:800; color:var(--text-dark); margin-bottom:6px;">Kính VR (Apple Vision Pro, Meta Quest)</h4>
-                  <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">Đeo kính thực tế ảo và tận hưởng khoang lái tỉ lệ 1:1 sống động với độ phân giải 4K sắc nét.</p>
+                  <h4 style="font-size:17px; font-weight:800; color:var(--text-dark); margin-bottom:6px;">Không gian VR & Kính thực tế ảo</h4>
+                  <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">Đi bộ xung quanh chiếc ${escapeHtml(car.name)} bằng bàn phím (W/A/S/D) & chuột hoặc đeo kính WebXR (Meta Quest, Vision Pro).</p>
                 </div>
                 <div style="font-size:12px; color:var(--text-secondary); line-height:1.7;">
-                  • Bước 1: Đeo kính VR và truy cập link website.<br>
-                  • Bước 2: Cho phép cảm biến không gian 3D.<br>
-                  • Bước 3: Nhấn nút bên dưới để vào không gian.
+                  • Máy tính: Dùng phím W/A/S/D hoặc mũi tên để di chuyển quanh xe.<br>
+                  • Kính VR: Tự động nhận diện chuẩn WebXR Immersive VR.<br>
+                  • Quan sát chi tiết vật liệu thép/sơn PBR dưới ánh sáng Studio.
                 </div>
                 <button class="btn-dark" id="btn-method-vr-modal" style="width:100%; justify-content:center; padding:10px; font-size:13px; margin-top:auto;">
-                  Bắt đầu VR 🥽
+                  Bắt đầu Không gian VR 🥽
                 </button>
               </div>
 
@@ -3578,13 +3894,13 @@ const AppState = {
               <div class="vr-method-card">
                 <div style="font-size:32px;">📱</div>
                 <div>
-                  <h4 style="font-size:17px; font-weight:800; color:var(--text-dark); margin-bottom:6px;">AR Bằng Điện Thoại (Quét QR)</h4>
-                  <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">Đặt chiếc ${escapeHtml(car.name)} thực tế ngay trong phòng khách hoặc bãi đỗ xe của bạn.</p>
+                  <h4 style="font-size:17px; font-weight:800; color:var(--text-dark); margin-bottom:6px;">AR Thực Tế Tăng Cường (Camera Live)</h4>
+                  <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">Đặt mô hình 3D chiếc ${escapeHtml(car.name)} trực tiếp vào không gian thật qua camera điện thoại hoặc máy tính.</p>
                 </div>
                 <div class="vr-method-qr-box">
                   <div style="text-align:center;">
                     <div style="font-size:42px; line-height:1;">🏁</div>
-                    <div style="font-size:10px; font-weight:800; color:#2563EB; margin-top:4px;">QUÉT MÃ AR</div>
+                    <div style="font-size:10px; font-weight:800; color:#2563EB; margin-top:4px;">AR 3D CAMERA</div>
                   </div>
                 </div>
                 <button class="btn-primary" onclick="window.openArLive('${car.id}')" style="width:100%; justify-content:center; padding:10px; font-size:13px; margin-top:auto;">
@@ -3619,11 +3935,11 @@ const AppState = {
                 <h3 style="font-size:22px; font-weight:800; color:var(--text-dark); margin:4px 0;">Trải Nghiệm Các Dòng Xe Khác Trong Không Gian VR/AR</h3>
               </div>
               <button class="btn-card-outline" onclick="window.location.hash='new-cars'" style="padding:8px 16px; font-size:12.5px;">
-                Xem tất cả 32 mẫu xe →
+                Xem tất cả ${AppState.vehiclesList.length} mẫu xe →
               </button>
             </div>
 
-            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:18px;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:18px;">
               ${otherCars.map(oc => `
                 <div class="car-card" style="cursor:pointer;" onclick="window.openVrArShowroom('${oc.id}')">
                   <div style="position:relative; overflow:hidden; border-radius:12px 12px 0 0;">
@@ -3654,7 +3970,7 @@ const AppState = {
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:22px;">🥽</span>
-              <h3 style="font-size:18px; font-weight:800; color:#FFFFFF; margin:0;">Chế độ Kính VR 4K Không Gian</h3>
+              <h3 style="font-size:18px; font-weight:800; color:#FFFFFF; margin:0;">Chế độ Kính VR 4K Không Gian — ${escapeHtml(car.name)}</h3>
             </div>
             <button class="modal-close-btn" id="btn-close-vr-modal" style="color:#FFFFFF; position:static;">✕</button>
           </div>
@@ -3669,11 +3985,11 @@ const AppState = {
             </div>
           </div>
           <div style="font-size:12.5px; color:#94A3B8; line-height:1.6; margin-bottom:18px;">
-            Hệ thống đã hiệu chỉnh khoảng cách đồng tử (IPD: 64mm) và độ trễ chuyển động &lt;12ms. Bạn có thể sử dụng cần gạt điều khiển VR hoặc cử chỉ tay để tương tác trực tiếp với xe.
+            Hệ thống đã hiệu chỉnh khoảng cách đồng tử (IPD: 64mm) và hỗ trợ di chuyển tự do trong không gian 3D bằng bàn phím (<strong>W / A / S / D</strong>, <strong>Q / E</strong>) hoặc kính thực tế ảo WebXR.
           </div>
           <div style="display:flex; justify-content:flex-end; gap:10px;">
             <button class="btn-card-outline" id="btn-cancel-vr-modal" style="color:#FFFFFF; border-color:rgba(255,255,255,0.2);">Đóng</button>
-            <button class="btn-primary" onclick="showToast('Đang kết nối luồng WebXR Spatial Stream...', '🥽'); document.getElementById('modal-vr-stereo-view').style.display='none';">Bật Chế Độ Toàn Cảnh 3D</button>
+            <button class="btn-primary" id="btn-activate-vr-walkthrough">Bật Không Gian VR Toàn Cảnh 3D</button>
           </div>
         </div>
       </div>
@@ -3685,12 +4001,18 @@ const AppState = {
     const viewerContainer = document.getElementById('vr-3d-canvas-container');
     const loadingOverlay = document.getElementById('vr-loading-overlay');
     const progressText = document.getElementById('vr-loading-progress-text');
+    const vrHud = document.getElementById('vr-walkthrough-hud');
 
-    // Initialize Real 3D Automotive WebGL Viewer
+    // Vehicle selector in top bar
+    document.getElementById('vr-car-selector')?.addEventListener('change', (e) => {
+      window.openVrArShowroom(e.target.value);
+    });
+
+    // Initialize Real 3D Automotive WebGL Viewer with car-specific modelUrl
     let viewer = null;
     if (window.Car3DViewer && window.Car3DViewer.isSupported() && viewerContainer) {
       viewer = window.Car3DViewer.init(viewerContainer, {
-        modelUrl: 'assets/models/sigma-car-3d.glb',
+        modelUrl: modelUrl,
         initialColor: carColors[0]?.hex || '#0284C7',
         initialAngle: currentAngle,
         hotspots: hotspotsList,
@@ -3703,7 +4025,7 @@ const AppState = {
           showToast(`🔍 ${h.name}: ${h.desc}`, '💡');
         },
         onProgress: (percent) => {
-          if (progressText) progressText.textContent = `Đang nạp mô hình 3D... ${percent}%`;
+          if (progressText) progressText.textContent = `Đang nạp mô hình 3D (${car.name})... ${percent}%`;
         },
         onReady: () => {
           if (loadingOverlay) {
@@ -3764,17 +4086,41 @@ const AppState = {
       });
     });
 
+    const activateImmersiveVrStudio = async () => {
+      document.querySelectorAll('.vr-mode-pills .vr-mode-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-mode-vr')?.classList.add('active');
+      if (vrHud) vrHud.style.display = 'flex';
+      if (viewer) {
+        viewer.setVRStudioMode(true);
+      }
+      showToast('🥽 Đã vào Không gian VR 3D! Sử dụng phím W/A/S/D hoặc Chuột để di chuyển quanh xe.', '🥽');
+    };
+
     // Mode Selector
     document.getElementById('btn-mode-360')?.addEventListener('click', () => {
       document.querySelectorAll('.vr-mode-pills .vr-mode-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('btn-mode-360').classList.add('active');
-      if (viewer) viewer.resetView();
+      if (vrHud) vrHud.style.display = 'none';
+      if (viewer) {
+        viewer.setVRStudioMode(false);
+        viewer.resetView();
+      }
     });
-    document.getElementById('btn-mode-vr')?.addEventListener('click', () => {
-      document.getElementById('modal-vr-stereo-view').style.display = 'flex';
-    });
+    document.getElementById('btn-mode-vr')?.addEventListener('click', activateImmersiveVrStudio);
     document.getElementById('btn-mode-ar')?.addEventListener('click', () => {
       window.openArLive(car.id);
+    });
+    document.getElementById('btn-vr-hud-webxr')?.addEventListener('click', async () => {
+      if (viewer && typeof viewer.enterWebXR === 'function') {
+        const res = await viewer.enterWebXR();
+        if (res?.mode === 'studio-vr') {
+          document.getElementById('modal-vr-stereo-view').style.display = 'flex';
+        }
+      }
+    });
+    document.getElementById('btn-activate-vr-walkthrough')?.addEventListener('click', () => {
+      document.getElementById('modal-vr-stereo-view').style.display = 'none';
+      activateImmersiveVrStudio();
     });
 
     // Utility buttons (Sound, Share, Fullscreen)
@@ -3789,18 +4135,17 @@ const AppState = {
           if (!audioCtx) audioCtx = new AudioContextClass();
           if (audioCtx.state === 'suspended') audioCtx.resume();
 
-          // Create subtle luxury electric motor ambient hum
           motorOscillator = audioCtx.createOscillator();
           const gainNode = audioCtx.createGain();
           motorOscillator.type = 'sine';
-          motorOscillator.frequency.setValueAtTime(65, audioCtx.currentTime); // 65 Hz gentle EV hum
+          motorOscillator.frequency.setValueAtTime(65, audioCtx.currentTime);
           gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
 
           motorOscillator.connect(gainNode);
           gainNode.connect(audioCtx.destination);
           motorOscillator.start();
         } catch (e) {}
-        showToast('Đã kích hoạt âm thanh động cơ điện & quạt tản nhiệt ⚡', '🔊');
+        showToast('Đã kích hoạt âm thanh động cơ & không gian Showroom ⚡', '🔊');
       } else {
         if (motorOscillator) {
           try { motorOscillator.stop(); } catch (e) {}
@@ -3827,11 +4172,9 @@ const AppState = {
     });
 
     // CTAs
-    document.getElementById('btn-vr-enter-mode')?.addEventListener('click', () => {
-      document.getElementById('modal-vr-stereo-view').style.display = 'flex';
-    });
+    document.getElementById('btn-vr-enter-mode')?.addEventListener('click', activateImmersiveVrStudio);
     document.getElementById('btn-vr-at-home')?.addEventListener('click', () => {
-      window.openArAtHome(car.id);
+      window.openArLive(car.id);
     });
     document.getElementById('btn-method-vr-modal')?.addEventListener('click', () => {
       document.getElementById('modal-vr-stereo-view').style.display = 'flex';
@@ -3861,7 +4204,15 @@ const AppState = {
   // VIEW 5C: CHẾ ĐỘ AR TRỰC TIẾP (Chế độ AR (Trắng - Xanh).pdf)
   // =================================================================
   function renderArLiveModePage() {
+    if (window._activeAr3DViewer) {
+      try { window._activeAr3DViewer.dispose(); } catch (e) {}
+      window._activeAr3DViewer = null;
+    }
+
     const car = AppState.vehiclesList.find(c => c.id === AppState.currentDetailCar) || AppState.vehiclesList[0];
+    const modelUrl = (car.model3d && car.model3d.glbPath)
+      ? car.model3d.glbPath
+      : (car.id === 'tesla-cybertruck' ? 'assets/models/tesla_cybertruck.glb' : 'assets/models/sigma-car-3d.glb');
 
     const carColors = (car.colors && car.colors.length > 0) ? car.colors : [
       { name: 'Xanh Cyan Ánh Kim', hex: '#0284C7', img: car.image },
@@ -3872,7 +4223,7 @@ const AppState = {
     ];
 
     let currentScale = 100; // 50 - 150
-    let currentRotation = 30; // 0 - 360
+    let currentRotation = 35; // 0 - 360
     let hasRealShadow = true;
     let hasEnvLight = true;
     let showGrid = true;
@@ -3884,10 +4235,10 @@ const AppState = {
 
     // Photos taken
     let capturedList = [
+      car.image || 'assets/project3/ar-capture-1.jpg',
       'assets/project3/ar-capture-1.jpg',
       'assets/project3/ar-capture-2.jpg',
-      'assets/project3/ar-capture-3.jpg',
-      'assets/project3/ar-capture-4.jpg'
+      'assets/project3/ar-capture-3.jpg'
     ];
 
     viewsContainer.innerHTML = `
@@ -3898,15 +4249,16 @@ const AppState = {
             <div>
               <div style="font-size:13px; color:var(--text-muted); margin-bottom:4px;">
                 <a href="javascript:void(0)" onclick="window.location.hash='home'">Trang chủ</a> / 
-                <a href="javascript:void(0)" onclick="window.location.hash='vr-ar'">Xem AR</a> / 
-                <span style="color:var(--text-dark); font-weight:700;">Chế độ AR trực tiếp</span>
+                <a href="javascript:void(0)" onclick="window.location.hash='vr-ar'">Showroom 3D</a> / 
+                <span style="color:var(--text-dark); font-weight:700;">Trải nghiệm AR — ${escapeHtml(car.name)}</span>
               </div>
-              <h2 style="font-size:26px; font-weight:800; color:var(--text-dark); margin:0;">Chế độ AR trực tiếp</h2>
+              <h2 style="font-size:26px; font-weight:800; color:var(--text-dark); margin:0;">Chế độ Thực tế tăng cường (AR 3D) — ${escapeHtml(car.name)}</h2>
             </div>
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span class="badge-pill-live">LIVE</span>
-              <span class="badge-role" style="background:#ECFDF5; color:#059669; font-weight:700;">📷 Camera / Sân nhà đang hoạt động</span>
-              <button class="btn-card-outline" onclick="window.location.hash='vr-ar'" style="padding:6px 14px; font-size:12.5px;">✕ Thoát AR</button>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <span class="badge-pill-live">AR 3D LIVE</span>
+              <span class="badge-role" style="background:#ECFDF5; color:#059669; font-weight:700;">📷 Mô hình 3D (${escapeHtml(modelUrl.split('/').pop())}) trên không gian thực</span>
+              <button class="btn-card-outline" onclick="window.openVrArShowroom('${car.id}')" style="padding:6px 14px; font-size:12.5px;">🥽 Chuyển sang VR 360°</button>
+              <button class="btn-card-outline" onclick="window.openCarDetail('${car.id}')" style="padding:6px 14px; font-size:12.5px;">✕ Thoát AR</button>
             </div>
           </div>
 
@@ -3918,30 +4270,32 @@ const AppState = {
               
               <!-- Top Indicators -->
               <div style="display:flex; justify-content:space-between; align-items:center; z-index:10;">
-                <div style="display:flex; gap:8px;">
-                  <span class="badge-pill-live">LIVE</span>
-                  <span class="badge-pill-white">✓ Đã nhận diện mặt đất</span>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <span class="badge-pill-live">AR 3D</span>
+                  <span class="badge-pill-white" id="ar-camera-status-badge">✓ Đã nhận diện mặt phẳng • Kéo để xoay 360° hoặc di chuyển xe</span>
                 </div>
-                <button class="vr-util-btn" onclick="window.location.hash='vr-ar'" title="Thoát AR">✕</button>
+                <button class="vr-util-btn" onclick="window.openVrArShowroom('${car.id}')" title="Quay lại Showroom VR">✕</button>
               </div>
 
               <!-- Center Entity & Ground Grid Ring -->
               <div id="ar-ground-mesh" class="ar-ground-mesh" style="display:${showGrid ? 'block' : 'none'};"></div>
               
-              <div id="ar-live-vehicle" class="ar-vehicle-entity ${hasRealShadow ? 'has-shadow' : ''}" style="transform:translate(calc(-50% + ${posX}px), ${posY}px) scale(${currentScale/100}) rotate(${currentRotation}deg);">
-                <div class="ar-vehicle-tag" id="ar-vehicle-tag-label">
+              <div id="ar-live-vehicle" class="ar-vehicle-entity ${hasRealShadow ? 'has-shadow' : ''}" style="transform:translate(calc(-50% + ${posX}px), ${posY}px); width:100%; max-width:680px; height:390px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                <div class="ar-vehicle-tag" id="ar-vehicle-tag-label" style="z-index:15;">
                   ${escapeHtml(car.name)} • ${escapeHtml(carColors[0]?.name || '')} • Tỉ lệ: <span id="ar-tag-scale">${currentScale}%</span>
                 </div>
-                <img id="ar-vehicle-img" src="${car.image}" alt="${escapeHtml(car.name)}" style="max-height:340px; display:block; pointer-events:none; filter:${hasEnvLight ? 'contrast(1.05) brightness(1.02)' : 'none'};">
+                <!-- Real 3D Transparent WebGL Canvas for AR -->
+                <div id="ar-live-3d-canvas" style="width:100%; height:350px; position:relative; z-index:10;"></div>
+                <img id="ar-vehicle-img" src="${car.image}" alt="${escapeHtml(car.name)}" style="max-height:300px; display:none; pointer-events:none; filter:${hasEnvLight ? 'contrast(1.05) brightness(1.02)' : 'none'};">
               </div>
 
               <!-- Floating Bottom Dock -->
               <div class="ar-floating-dock">
-                <button class="ar-dock-btn" id="btn-ar-dock-camera" title="Bật Camera thực tế">📷</button>
-                <button class="ar-dock-btn" id="btn-ar-dock-reset" title="Đặt lại vị trí xe">↺</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-camera" title="Bật/Tắt Camera thiết bị thực tế">📷</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-reset" title="Đặt lại vị trí & góc xe">↺</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-minus" title="Thu nhỏ 10%">−</button>
-                <button class="ar-dock-btn primary-capture" id="btn-ar-dock-shutter" title="Chụp ảnh AR">📷</button>
-                <button class="ar-dock-btn" id="btn-ar-dock-grid" title="Bật/Tắt lưới mặt phẳng">⊞</button>
+                <button class="ar-dock-btn primary-capture" id="btn-ar-dock-shutter" title="Chụp ảnh AR">📸</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-grid" title="Bật/Tắt lưới định vị mặt phẳng">⊞</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-plus" title="Phóng to 10%">+</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-video" title="Quay video AR">📹</button>
               </div>
@@ -3949,11 +4303,11 @@ const AppState = {
 
             <!-- Control Sidebar Right (Bảng điều khiển) -->
             <div class="vr-config-panel" style="padding:22px;">
-              <h3 style="font-size:18px; font-weight:800; color:var(--text-dark); margin:0 0 16px;">Bảng điều khiển AR</h3>
+              <h3 style="font-size:18px; font-weight:800; color:var(--text-dark); margin:0 0 16px;">Bảng điều khiển AR 3D</h3>
 
               <!-- Vehicle Switcher -->
               <div>
-                <label class="filter-label">Chọn xe hiển thị</label>
+                <label class="filter-label">Chọn mẫu xe trải nghiệm AR</label>
                 <select id="ar-car-selector" class="filter-select">
                   ${AppState.vehiclesList.map(v => `<option value="${v.id}" ${v.id === car.id ? 'selected' : ''}>${escapeHtml(v.name)} (${v.priceShort || v.priceFormatted})</option>`).join('')}
                 </select>
@@ -3962,12 +4316,12 @@ const AppState = {
               <!-- Color Swatches -->
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
-                  <span style="font-weight:700;">MÀU XE:</span>
+                  <span style="font-weight:700;">MÀU SƠN / VẬT LIỆU 3D:</span>
                   <span id="ar-color-label" style="color:var(--primary); font-weight:600;">${escapeHtml(carColors[0]?.name || '')}</span>
                 </div>
                 <div class="vr-color-picker-group">
                   ${carColors.map((c, idx) => `
-                    <div class="vr-color-dot ${idx === 0 ? 'active' : ''}" data-idx="${idx}" data-name="${escapeHtml(c.name)}" style="background:${c.hex};" title="${escapeHtml(c.name)}"></div>
+                    <div class="vr-color-dot ${idx === 0 ? 'active' : ''}" data-idx="${idx}" data-hex="${c.hex}" data-name="${escapeHtml(c.name)}" style="background:${c.hex};" title="${escapeHtml(c.name)}"></div>
                   `).join('')}
                 </div>
               </div>
@@ -3975,7 +4329,7 @@ const AppState = {
               <!-- Scale Slider -->
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                  <span style="font-weight:700;">KÍCH THƯỚC XE:</span>
+                  <span style="font-weight:700;">PHÓNG TO / THU NHỎ (SCALE):</span>
                   <span id="ar-scale-val-label" style="font-weight:800; color:var(--primary);">${currentScale}%</span>
                 </div>
                 <input type="range" id="ar-scale-input" class="vr-rotation-slider" min="50" max="150" value="${currentScale}" style="width:100%;">
@@ -3989,7 +4343,7 @@ const AppState = {
               <!-- Rotation Slider -->
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                  <span style="font-weight:700;">XOAY XE:</span>
+                  <span style="font-weight:700;">XOAY GÓC XE 360°:</span>
                   <span id="ar-rot-val-label" style="font-weight:800; color:var(--primary);">${currentRotation}°</span>
                 </div>
                 <input type="range" id="ar-rot-input" class="vr-rotation-slider" min="0" max="360" value="${currentRotation}" style="width:100%;">
@@ -3998,33 +4352,38 @@ const AppState = {
               <!-- 2 Toggle Switches -->
               <div style="display:flex; flex-direction:column; gap:10px; padding:12px; background:#F8FAFC; border-radius:12px; border:1px solid #E2E8F0;">
                 <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dark);">
-                  <span>☁️ Bóng đổ thật</span>
+                  <span>☁️ Bóng đổ mặt đất (Contact Shadow)</span>
                   <input type="checkbox" id="ar-toggle-shadow" checked style="accent-color:#2563EB; width:16px; height:16px;">
                 </label>
                 <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dark);">
-                  <span>☀️ Ánh sáng môi trường</span>
+                  <span>☀️ Ánh sáng HDRI môi trường</span>
                   <input type="checkbox" id="ar-toggle-light" checked style="accent-color:#2563EB; width:16px; height:16px;">
                 </label>
               </div>
 
-              <!-- Big Shutter Button -->
-              <button class="btn-primary" id="btn-ar-sidebar-shutter" style="width:100%; justify-content:center; padding:12px; font-size:14px; font-weight:800;">
-                📷 Chụp ảnh AR ngay
-              </button>
+              <!-- Camera Toggle & Big Shutter Button -->
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <button class="btn-secondary" id="btn-ar-sidebar-camera" style="width:100%; justify-content:center; padding:11px; font-size:13.5px; font-weight:700; border-color:#0284C7; color:#0284C7; background:#F0F9FF;">
+                  📱 Bật Camera Thiết Bị (AR Thực Tế)
+                </button>
+                <button class="btn-primary" id="btn-ar-sidebar-shutter" style="width:100%; justify-content:center; padding:12px; font-size:14px; font-weight:800;">
+                  📸 Chụp ảnh AR ngay
+                </button>
+              </div>
 
               <!-- QR Card -->
               <div style="display:flex; align-items:center; gap:12px; padding:10px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px;">
                 <span style="font-size:24px;">🏁</span>
                 <div style="font-size:11.5px; color:#1E40AF;">
-                  <strong>Quét QR mở trên điện thoại</strong><br>
-                  Trải nghiệm định vị mặt phẳng ARKit / ARCore.
+                  <strong>Ưu tiên trải nghiệm Điện thoại</strong><br>
+                  Hỗ trợ cảm ứng đa điểm xoay 360°, phóng to/thu nhỏ và mở Camera sau trực tiếp.
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Bottom Row: Captured Gallery 60% - Gestures 40% -->
-          <div style="display:grid; grid-template-columns:1fr 420px; gap:24px; margin-top:24px;">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:24px; margin-top:24px;">
             <!-- Captured Gallery -->
             <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:20px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -4040,22 +4399,22 @@ const AppState = {
 
             <!-- Gesture Instruction Cards (3 Thẻ) -->
             <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:20px; display:flex; flex-direction:column; justify-content:space-between;">
-              <h4 style="font-size:15px; font-weight:800; color:var(--text-dark); margin:0 0 10px;">Hướng dẫn cử chỉ thao tác AR</h4>
+              <h4 style="font-size:15px; font-weight:800; color:var(--text-dark); margin:0 0 10px;">Hướng dẫn cử chỉ thao tác AR 3D</h4>
               <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; font-size:12px; text-align:center;">
                 <div style="padding:10px 6px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
-                  <div style="font-size:20px; margin-bottom:4px;">🔍</div>
-                  <strong>Quét mặt phẳng</strong>
-                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Di chuyển máy chậm rãi</div>
+                  <div style="font-size:20px; margin-bottom:4px;">🔄</div>
+                  <strong>Xoay 360°</strong>
+                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Vuốt/kéo trên mô hình xe</div>
                 </div>
                 <div style="padding:10px 6px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
                   <div style="font-size:20px; margin-bottom:4px;">👆</div>
-                  <strong>Kéo di chuyển</strong>
-                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Chạm kéo xe vào vị trí</div>
+                  <strong>Di chuyển vị trí</strong>
+                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Giữ nhãn tên xe để kéo</div>
                 </div>
                 <div style="padding:10px 6px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
                   <div style="font-size:20px; margin-bottom:4px;">👌</div>
-                  <strong>Chụm thu phóng</strong>
-                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Thay đổi tỉ lệ thực tế</div>
+                  <strong>Thu phóng tỉ lệ</strong>
+                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Chụm 2 ngón hoặc thanh trượt</div>
                 </div>
               </div>
             </div>
@@ -4066,6 +4425,8 @@ const AppState = {
 
     // Elements
     const vehicleNode = document.getElementById('ar-live-vehicle');
+    const arCanvasBox = document.getElementById('ar-live-3d-canvas');
+    const vehicleImg = document.getElementById('ar-vehicle-img');
     const scaleInput = document.getElementById('ar-scale-input');
     const scaleLabel = document.getElementById('ar-scale-val-label');
     const tagScale = document.getElementById('ar-tag-scale');
@@ -4073,15 +4434,46 @@ const AppState = {
     const rotLabel = document.getElementById('ar-rot-val-label');
     const toggleShadow = document.getElementById('ar-toggle-shadow');
     const toggleLight = document.getElementById('ar-toggle-light');
-    const vehicleImg = document.getElementById('ar-vehicle-img');
     const groundMesh = document.getElementById('ar-ground-mesh');
     const carSelector = document.getElementById('ar-car-selector');
+    const tagLabel = document.getElementById('ar-vehicle-tag-label');
+
+    // Initialize Transparent 3D AR Viewer
+    let arViewer = null;
+    if (window.Car3DViewer && window.Car3DViewer.isSupported() && arCanvasBox) {
+      arViewer = window.Car3DViewer.init(arCanvasBox, {
+        modelUrl: modelUrl,
+        transparent: true,
+        initialColor: carColors[0]?.hex || '#C0C5CE',
+        initialAngle: currentRotation,
+        hotspots: [],
+        onRotate: (deg) => {
+          currentRotation = deg;
+          if (rotInput) rotInput.value = deg;
+          if (rotLabel) rotLabel.textContent = `${deg}°`;
+        },
+        onError: () => {
+          if (arCanvasBox) arCanvasBox.style.display = 'none';
+          if (vehicleImg) vehicleImg.style.display = 'block';
+        }
+      });
+      window._activeAr3DViewer = arViewer;
+    } else {
+      if (arCanvasBox) arCanvasBox.style.display = 'none';
+      if (vehicleImg) vehicleImg.style.display = 'block';
+    }
 
     function updateVehicleTransform() {
-      vehicleNode.style.transform = `translate(calc(-50% + ${posX}px), ${posY}px) scale(${currentScale / 100}) rotate(${currentRotation}deg)`;
-      scaleLabel.textContent = `${currentScale}%`;
-      tagScale.textContent = `${currentScale}%`;
-      rotLabel.textContent = `${currentRotation}°`;
+      if (arViewer) {
+        vehicleNode.style.transform = `translate(calc(-50% + ${posX}px), ${posY}px)`;
+        arViewer.setScale(currentScale / 100);
+        arViewer.setRotationAngle(currentRotation);
+      } else {
+        vehicleNode.style.transform = `translate(calc(-50% + ${posX}px), ${posY}px) scale(${currentScale / 100}) rotate(${currentRotation}deg)`;
+      }
+      if (scaleLabel) scaleLabel.textContent = `${currentScale}%`;
+      if (tagScale) tagScale.textContent = `${currentScale}%`;
+      if (rotLabel) rotLabel.textContent = `${currentRotation}°`;
     }
 
     scaleInput?.addEventListener('input', (e) => {
@@ -4097,11 +4489,13 @@ const AppState = {
     toggleShadow?.addEventListener('change', (e) => {
       hasRealShadow = e.target.checked;
       vehicleNode.classList.toggle('has-shadow', hasRealShadow);
+      if (arViewer) arViewer.setShadowVisible(hasRealShadow);
     });
 
     toggleLight?.addEventListener('change', (e) => {
       hasEnvLight = e.target.checked;
-      vehicleImg.style.filter = hasEnvLight ? 'contrast(1.05) brightness(1.02)' : 'none';
+      if (vehicleImg) vehicleImg.style.filter = hasEnvLight ? 'contrast(1.05) brightness(1.02)' : 'none';
+      if (arViewer) arViewer.setEnvExposure(hasEnvLight ? 1.25 : 0.7);
     });
 
     carSelector?.addEventListener('change', (e) => {
@@ -4114,14 +4508,21 @@ const AppState = {
         document.querySelectorAll('.vr-color-dot').forEach(d => d.classList.remove('active'));
         dot.classList.add('active');
         const cName = dot.getAttribute('data-name');
+        const cHex = dot.getAttribute('data-hex');
         document.getElementById('ar-color-label').textContent = cName;
-        document.getElementById('ar-vehicle-tag-label').innerHTML = `${escapeHtml(car.name)} • ${escapeHtml(cName)} • Tỉ lệ: <span id="ar-tag-scale">${currentScale}%</span>`;
+        if (tagLabel) {
+          tagLabel.innerHTML = `${escapeHtml(car.name)} • ${escapeHtml(cName)} • Tỉ lệ: <span id="ar-tag-scale">${currentScale}%</span>`;
+        }
+        if (arViewer && cHex) {
+          arViewer.setBodyColor(cHex);
+        }
         showToast(`Đã đổi màu xe AR: ${cName}`, '🎨');
       });
     });
 
-    // Drag vehicle
-    vehicleNode?.addEventListener('mousedown', (e) => {
+    // Drag vehicle position via the tag label (so 3D canvas handles 360 orbit rotation)
+    const dragHandle = tagLabel || vehicleNode;
+    dragHandle?.addEventListener('mousedown', (e) => {
       isDragging = true;
       dragStartX = e.clientX - posX;
       dragStartY = e.clientY - posY;
@@ -4136,8 +4537,7 @@ const AppState = {
       isDragging = false;
     });
 
-    // Touch drag
-    vehicleNode?.addEventListener('touchstart', (e) => {
+    dragHandle?.addEventListener('touchstart', (e) => {
       if (e.touches.length === 1) {
         isDragging = true;
         dragStartX = e.touches[0].clientX - posX;
@@ -4168,12 +4568,13 @@ const AppState = {
     document.getElementById('btn-ar-dock-reset')?.addEventListener('click', () => {
       posX = 0;
       posY = 0;
-      currentRotation = 30;
+      currentRotation = 35;
       currentScale = 100;
       scaleInput.value = 100;
-      rotInput.value = 30;
+      rotInput.value = 35;
+      if (arViewer) arViewer.resetView();
       updateVehicleTransform();
-      showToast('Đã đặt lại vị trí và góc nhìn xe!', '↺');
+      showToast('Đã đặt lại vị trí và góc nhìn xe 3D!', '↺');
     });
     document.getElementById('btn-ar-dock-grid')?.addEventListener('click', () => {
       showGrid = !showGrid;
@@ -4186,28 +4587,40 @@ const AppState = {
 
     // Real Camera Stream handler
     let mediaStream = null;
-    document.getElementById('btn-ar-dock-camera')?.addEventListener('click', async () => {
+    const toggleCameraStream = async () => {
       const videoEl = document.getElementById('ar-live-camera-video');
+      const statusBadge = document.getElementById('ar-camera-status-badge');
+      const sidebarCamBtn = document.getElementById('btn-ar-sidebar-camera');
       if (mediaStream) {
         mediaStream.getTracks().forEach(t => t.stop());
         mediaStream = null;
-        videoEl.style.display = 'none';
+        if (videoEl) videoEl.style.display = 'none';
+        if (statusBadge) statusBadge.textContent = '✓ Đã nhận diện mặt phẳng • Kéo để xoay 360° hoặc di chuyển xe';
+        if (sidebarCamBtn) sidebarCamBtn.textContent = '📱 Bật Camera Thiết Bị (AR Thực Tế)';
         showToast('Đã dừng Camera và chuyển sang nền sân nhà AR', '📷');
       } else {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           try {
-            mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            videoEl.srcObject = mediaStream;
-            videoEl.style.display = 'block';
-            showToast('✓ Camera thiết bị đã kết nối thành công!', '📷');
+            mediaStream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+            });
+            if (videoEl) {
+              videoEl.srcObject = mediaStream;
+              videoEl.style.display = 'block';
+            }
+            if (statusBadge) statusBadge.textContent = '🟢 CAMERA AR TRỰC TIẾP ĐANG HOẠT ĐỘNG • Xoay & Phóng to mô hình 3D';
+            if (sidebarCamBtn) sidebarCamBtn.textContent = '⏹️ Tắt Camera Thiết Bị';
+            showToast('✓ Đã bật Camera AR thực tế! Đặt mô hình 3D vào không gian của bạn.', '📷');
           } catch (err) {
-            showToast('Không thể mở Camera thực tế (Đang dùng nền sân nhà AR chuẩn)', 'ℹ️');
+            showToast('Thiết bị không có Camera hoặc từ chối quyền (Đang sử dụng nền mô phỏng AR chuẩn)', 'ℹ️');
           }
         } else {
-          showToast('Trình duyệt không hỗ trợ WebRTC Camera trực tiếp', 'ℹ️');
+          showToast('Trình duyệt không hỗ trợ WebRTC Camera trực tiếp (Đang dùng nền sân nhà AR)', 'ℹ️');
         }
       }
-    });
+    };
+    document.getElementById('btn-ar-dock-camera')?.addEventListener('click', toggleCameraStream);
+    document.getElementById('btn-ar-sidebar-camera')?.addEventListener('click', toggleCameraStream);
 
     // Shutter capture handler
     function doCapture() {
@@ -4227,7 +4640,7 @@ const AppState = {
         setTimeout(() => flash.remove(), 400);
       }, 50);
 
-      const newPhoto = 'assets/project3/ar-capture-1.jpg';
+      const newPhoto = car.image || 'assets/project3/ar-capture-1.jpg';
       capturedList.unshift(newPhoto);
       document.getElementById('ar-captured-count').textContent = capturedList.length;
       const gallery = document.getElementById('ar-captured-gallery-strip');
@@ -8770,6 +9183,7 @@ const AppState = {
     const fuelSpecLabel = isEv ? '⚡ Quãng đường' : '⚙️ Hộp số';
     const fuelSpecVal = isEv ? `${car.range || 450} km` : (car.transmission ? car.transmission.replace('Hộp số ', '') : 'Tự động');
     const stockCount = car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : 5);
+    const hasCustom3D = !!(car.model3d && car.model3d.glbPath);
 
     return `
       <div class="car-card">
@@ -8794,10 +9208,18 @@ const AppState = {
             <div class="spec-item"><span class="spec-label">💺 Số chỗ</span><span class="spec-val">${car.seats || 5} Chỗ</span></div>
           </div>
 
-          <button class="btn-primary" style="width:100%; justify-content:center; margin-bottom:10px;" onclick="window.openCarDetail('${car.id}')">
+          <button class="btn-primary" style="width:100%; justify-content:center; margin-bottom:8px;" onclick="window.openCarDetail('${car.id}')">
             Khám phá chi tiết (${car.priceFormatted})
           </button>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+            <button class="btn-card-outline" style="background:#0F172A; color:#38BDF8; border-color:#0284C7; font-size:12px; font-weight:700;" onclick="window.openVrArShowroom('${car.id}')" title="Bước vào không gian trưng bày xe ảo 3D">
+              🥽 VR 360°${hasCustom3D ? ' ★' : ''}
+            </button>
+            <button class="btn-card-outline" style="background:#F0F9FF; color:#0284C7; border-color:#7DD3FC; font-size:12px; font-weight:700;" onclick="window.openArLive('${car.id}')" title="Xem mô hình xe trong không gian thực qua Camera AR">
+              📦 Trải nghiệm AR
+            </button>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
             <button class="btn-card-outline" onclick="window.addCarToCompare('${car.id}')">⚖️ So sánh</button>
             <button class="btn-card-outline" onclick="window.bookCarTestDrive('${car.id}')">🚗 Lái thử</button>
           </div>
@@ -8836,6 +9258,7 @@ const AppState = {
     const fuelSpecLabel = isEv ? 'Quãng đường' : 'Hộp số';
     const fuelSpecVal = isEv ? `${car.range || 450} km` : (car.transmission ? car.transmission.replace('Hộp số ', '') : 'Tự động');
     const stockCount = car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : 5);
+    const hasCustom3D = !!(car.model3d && car.model3d.glbPath);
 
     return `
       <div class="car-card">
@@ -8860,6 +9283,14 @@ const AppState = {
             <div class="spec-item"><span class="spec-label">Ghế</span><span class="spec-val">${car.seats || 5} Ghế</span></div>
           </div>
 
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+            <button class="btn-card-outline" style="background:#0F172A; color:#38BDF8; border-color:#0284C7; font-size:12px; font-weight:700;" onclick="window.openVrArShowroom('${car.id}')" title="Bước vào không gian trưng bày xe ảo 3D">
+              🥽 VR 360°${hasCustom3D ? ' ★' : ''}
+            </button>
+            <button class="btn-card-outline" style="background:#F0F9FF; color:#0284C7; border-color:#7DD3FC; font-size:12px; font-weight:700;" onclick="window.openArLive('${car.id}')" title="Xem mô hình xe trong không gian thực qua Camera AR">
+              📦 AR Live
+            </button>
+          </div>
           <div class="car-card-actions" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
             <button class="btn-card-outline" onclick="window.openCarDetail('${car.id}')">Chi tiết</button>
             <button class="btn-card-outline" onclick="window.addCarToCompare('${car.id}')">So sánh</button>

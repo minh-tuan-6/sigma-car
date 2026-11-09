@@ -200,6 +200,9 @@
         modelUrl: 'assets/models/sigma-car-3d.glb',
         initialColor: '#0284C7',
         initialAngle: 137,
+        transparent: false,
+        enableKeyboard: true,
+        vrMode: false,
         hotspots: [],
         onRotate: null,
         onHotspotClick: null,
@@ -215,6 +218,10 @@
       this.controls = null;
       this.pmremGenerator = null;
       this.carGroup = null;
+      this.shadowMesh = null;
+      this.floorMesh = null;
+      this.ringMesh = null;
+      this.vrStudioGroup = null;
       this.bodyMaterials = [];
       this.rimMaterials = [];
       this.hotspots = [];
@@ -223,6 +230,8 @@
       this.isDisposed = false;
       this.isDragging = false;
       this.currentAngle = this.options.initialAngle || 137;
+      this.baseScale = 1;
+      this.keysPressed = {};
 
       this.init();
     }
@@ -239,25 +248,37 @@
 
       // 1. Scene
       this.scene = new THREE.Scene();
-      this.scene.background = new THREE.Color(0x0B1120);
-      this.scene.fog = new THREE.FogExp2(0x0B1120, 0.035);
+      if (this.options.transparent) {
+        this.scene.background = null;
+        this.scene.fog = null;
+      } else {
+        this.scene.background = new THREE.Color(0x0B1120);
+        this.scene.fog = new THREE.FogExp2(0x0B1120, 0.035);
+      }
 
-      // 2. Camera: 40deg FOV gives realistic automotive telephoto proportions (no fisheye distortion)
+      // 2. Camera: 38deg FOV gives realistic automotive telephoto proportions
       this.camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
       this.camera.position.set(4.8, 1.8, 4.2);
 
-      // 3. Renderer with Premium PBR Settings
+      // 3. Renderer with Premium PBR & WebXR Settings
       this.renderer = new THREE.WebGLRenderer({
         antialias: true,
-        alpha: false,
+        alpha: !!this.options.transparent,
+        preserveDrawingBuffer: true,
         powerPreference: 'high-performance'
       });
+      if (this.options.transparent) {
+        this.renderer.setClearColor(0x000000, 0);
+      }
       this.renderer.setSize(width, height);
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure = 1.05;
+      this.renderer.toneMappingExposure = 1.08;
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      if (this.renderer.xr) {
+        this.renderer.xr.enabled = true;
+      }
 
       // Append canvas
       this.container.innerHTML = '';
@@ -311,16 +332,72 @@
       // 8. Build Hotspots DOM Layer
       this.setupHotspots();
 
-      // 9. Resize Listener
+      // 9. Keyboard Navigation for VR & 3D Studio Walkthrough
+      if (this.options.enableKeyboard !== false) {
+        this.setupKeyboardNavigation();
+      }
+
+      // 10. Resize Listener
       this.onWindowResize = this.handleResize.bind(this);
       window.addEventListener('resize', this.onWindowResize);
 
-      // 10. Start Animation Loop
+      // 11. Start Animation Loop
       this.animate = this.animate.bind(this);
       this.animate();
 
-      // Apply initial angle
+      // Apply initial angle & optional VR Studio mode
       this.setRotationAngle(this.currentAngle);
+      if (this.options.vrMode) {
+        this.setVRStudioMode(true);
+      }
+    }
+
+    setupKeyboardNavigation() {
+      this.onKeyDown = (e) => {
+        if (this.isDisposed) return;
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+        const k = e.key.toLowerCase();
+        if (['w', 'a', 's', 'd', 'q', 'e', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) {
+          this.keysPressed[k] = true;
+        }
+      };
+      this.onKeyUp = (e) => {
+        const k = e.key.toLowerCase();
+        delete this.keysPressed[k];
+      };
+      window.addEventListener('keydown', this.onKeyDown);
+      window.addEventListener('keyup', this.onKeyUp);
+    }
+
+    updateKeyboardControls() {
+      if (!this.controls || !this.camera || !this.keysPressed) return;
+      const keys = Object.keys(this.keysPressed);
+      if (keys.length === 0) return;
+
+      const rotStep = 2.0;
+      if (this.keysPressed['a'] || this.keysPressed['arrowleft'] || this.keysPressed['q']) {
+        this.setRotationAngle(this.currentAngle - rotStep);
+      }
+      if (this.keysPressed['d'] || this.keysPressed['arrowright'] || this.keysPressed['e']) {
+        this.setRotationAngle(this.currentAngle + rotStep);
+      }
+      if (this.keysPressed['w'] || this.keysPressed['arrowup']) {
+        const dir = this.controls.target.clone().sub(this.camera.position).normalize();
+        const dist = this.camera.position.distanceTo(this.controls.target);
+        if (dist > (this.controls.minDistance || 2.5) + 0.15) {
+          this.camera.position.addScaledVector(dir, 0.08);
+          this.controls.update();
+        }
+      }
+      if (this.keysPressed['s'] || this.keysPressed['arrowdown']) {
+        const dir = this.controls.target.clone().sub(this.camera.position).normalize();
+        const dist = this.camera.position.distanceTo(this.controls.target);
+        if (dist < (this.controls.maxDistance || 10) - 0.15) {
+          this.camera.position.addScaledVector(dir, -0.08);
+          this.controls.update();
+        }
+      }
     }
 
     setupLighting() {
@@ -372,23 +449,27 @@
         opacity: 0.88,
         depthWrite: false
       });
-      const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
-      shadowMesh.rotation.x = -Math.PI / 2;
-      shadowMesh.position.y = 0.003;
-      this.scene.add(shadowMesh);
+      this.shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+      this.shadowMesh.rotation.x = -Math.PI / 2;
+      this.shadowMesh.position.y = 0.003;
+      this.scene.add(this.shadowMesh);
+
+      if (this.options.transparent) {
+        return; // In AR transparent mode, only render the contact shadow underneath the 3D car
+      }
 
       // Subtle studio reflective circular floor with grid ring
-      const floorGeo = new THREE.CircleGeometry(10, 64);
+      const floorGeo = new THREE.CircleGeometry(12, 64);
       const floorMat = new THREE.MeshStandardMaterial({
         color: 0x0F172A,
         roughness: 0.55,
         metalness: 0.35
       });
-      const floorMesh = new THREE.Mesh(floorGeo, floorMat);
-      floorMesh.rotation.x = -Math.PI / 2;
-      floorMesh.position.y = 0;
-      floorMesh.receiveShadow = true;
-      this.scene.add(floorMesh);
+      this.floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      this.floorMesh.rotation.x = -Math.PI / 2;
+      this.floorMesh.position.y = 0;
+      this.floorMesh.receiveShadow = true;
+      this.scene.add(this.floorMesh);
 
       // Studio Accent Ring
       const ringGeo = new THREE.RingGeometry(4.2, 4.25, 64);
@@ -398,10 +479,36 @@
         opacity: 0.45,
         side: THREE.DoubleSide
       });
-      const ringMesh = new THREE.Mesh(ringGeo, ringMat);
-      ringMesh.rotation.x = -Math.PI / 2;
-      ringMesh.position.y = 0.002;
-      this.scene.add(ringMesh);
+      this.ringMesh = new THREE.Mesh(ringGeo, ringMat);
+      this.ringMesh.rotation.x = -Math.PI / 2;
+      this.ringMesh.position.y = 0.002;
+      this.scene.add(this.ringMesh);
+
+      // VR Architectural Studio Environment Group (Light Rings & Pillars for VR Showroom)
+      this.vrStudioGroup = new THREE.Group();
+      this.vrStudioGroup.visible = false;
+
+      const outerRingGeo = new THREE.RingGeometry(6.8, 6.86, 64);
+      const outerRingMat = new THREE.MeshBasicMaterial({
+        color: 0x38BDF8,
+        transparent: true,
+        opacity: 0.55,
+        side: THREE.DoubleSide
+      });
+      const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+      outerRing.rotation.x = -Math.PI / 2;
+      outerRing.position.y = 0.004;
+      this.vrStudioGroup.add(outerRing);
+
+      // Overhead Studio Light Halo
+      const haloGeo = new THREE.TorusGeometry(3.8, 0.04, 16, 64);
+      const haloMat = new THREE.MeshBasicMaterial({ color: 0xE0F2FE });
+      const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+      haloMesh.rotation.x = Math.PI / 2;
+      haloMesh.position.y = 3.6;
+      this.vrStudioGroup.add(haloMesh);
+
+      this.scene.add(this.vrStudioGroup);
     }
 
     loadModel() {
@@ -517,35 +624,37 @@
           child.receiveShadow = true;
 
           const name = (child.name || '').toLowerCase();
-          if (name.includes('body')) {
+          const matName = (child.material && child.material.name ? child.material.name : '').toLowerCase();
+
+          if (name.includes('body') || name.includes('object_4') || name.includes('main') || matName === 'material' || matName.includes('paint') || matName.includes('body')) {
             child.material = bodyMat;
-          } else if (name.includes('rim_')) {
+          } else if (name.includes('rim_') || name === 'object_11' || name === 'object_14' || name === 'object_17' || name === 'object_20' || matName === 'material.006') {
             child.material = rimMat;
           } else if (name.includes('brake')) {
             child.material = brakeMat;
-          } else if (name.includes('glass')) {
+          } else if (name.includes('glass') || name === 'object_5' || matName === 'material.001') {
             child.material = glassMat;
-          } else if (name.includes('tire')) {
+          } else if (name.includes('tire') || name === 'object_12' || name === 'object_15' || name === 'object_18' || name === 'object_21' || matName === 'material.007') {
             child.material = tireMat;
-          } else if (name.includes('lights_red') || name.includes('taillight')) {
+          } else if (name.includes('lights_red') || name.includes('taillight') || name === 'object_9' || matName === 'material.005') {
             child.material = new THREE.MeshStandardMaterial({
               color: 0xFF0022,
-              emissive: 0xCC0011,
-              emissiveIntensity: 1.2,
+              emissive: 0xEE0011,
+              emissiveIntensity: 1.4,
               roughness: 0.2
             });
-          } else if (name.includes('lights') || name.includes('led')) {
+          } else if (name.includes('lights') || name.includes('led') || name === 'object_8' || matName === 'material.004') {
             child.material = new THREE.MeshStandardMaterial({
-              color: 0xE0F2FE,
+              color: 0xF0F9FF,
               emissive: 0x38BDF8,
-              emissiveIntensity: 1.0,
+              emissiveIntensity: 1.3,
               roughness: 0.15
             });
-          } else if (name.includes('chrome') || name.includes('metal')) {
+          } else if (name.includes('chrome') || name.includes('metal') || name === 'object_6' || matName === 'material.002') {
             child.material = new THREE.MeshStandardMaterial({
-              color: 0xCBD5E1,
-              metalness: 0.95,
-              roughness: 0.18
+              color: 0x64748B,
+              metalness: 0.88,
+              roughness: 0.25
             });
           }
         }
@@ -775,6 +884,55 @@
       }
     }
 
+    setScale(scaleRatio) {
+      if (!this.carGroup) return;
+      const s = Math.max(0.4, Math.min(2.0, scaleRatio || 1.0));
+      this.carGroup.scale.set(s, s, s);
+      if (this.shadowMesh) {
+        this.shadowMesh.scale.set(s, s, 1);
+      }
+    }
+
+    setShadowVisible(visible) {
+      if (this.shadowMesh) {
+        this.shadowMesh.visible = !!visible;
+      }
+    }
+
+    setEnvExposure(enabled) {
+      if (this.renderer) {
+        this.renderer.toneMappingExposure = enabled ? 1.15 : 0.78;
+      }
+    }
+
+    setVRStudioMode(active) {
+      if (this.vrStudioGroup) {
+        this.vrStudioGroup.visible = !!active;
+      }
+      if (!this.options.transparent && this.scene) {
+        this.scene.background = new THREE.Color(active ? 0x050914 : 0x0B1120);
+      }
+    }
+
+    async enterWebXR() {
+      this.setVRStudioMode(true);
+      if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
+        try {
+          const supported = await navigator.xr.isSessionSupported('immersive-vr');
+          if (supported && this.renderer && this.renderer.xr) {
+            const session = await navigator.xr.requestSession('immersive-vr', {
+              optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+            });
+            await this.renderer.xr.setSession(session);
+            return { mode: 'webxr-headset', active: true };
+          }
+        } catch (err) {
+          console.warn('[Car3DViewer] WebXR session fallback to desktop VR studio:', err.message);
+        }
+      }
+      return { mode: 'virtual-studio', active: true };
+    }
+
     handleResize() {
       if (this.isDisposed || !this.container || !this.renderer || !this.camera) return;
 
@@ -793,6 +951,8 @@
     animate() {
       if (this.isDisposed) return;
       this.animId = requestAnimationFrame(this.animate);
+
+      this.updateKeyboardControls();
 
       if (this.controls) {
         this.controls.update();
@@ -813,6 +973,8 @@
       }
 
       window.removeEventListener('resize', this.onWindowResize);
+      if (this.onKeyDown) window.removeEventListener('keydown', this.onKeyDown);
+      if (this.onKeyUp) window.removeEventListener('keyup', this.onKeyUp);
 
       if (this.controls) {
         this.controls.dispose();

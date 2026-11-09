@@ -1,0 +1,188 @@
+{
+  "$schema": "./vehicle-schema-v1.json",
+  "schemaVersion": "1.0.0",
+  "id": "template-sample-ev",
+  "productCode": "TPL-EV-001",
+  "brand": "SIGMACAR",
+  "name": "SIGMA Concept GT",
+  "version": "Flagship AWD Performance",
+  "year": 2026,
+  "price": 2450000000,
+  "priceFormatted": "2.450.000.000 VNĐ",
+  "priceShort": "2.450 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết đã bao gồm VAT, chưa bao gồm phí lăn bánh",
+  "category": "Sedan",
+  "subCategory": "Sedan Thuần Điện Hạng Sang",
+  "type": "new",
+  "fuel": "ev",
+  "engine": "Dual-Motor Permanent Magnet Synchronous (PMSM)",
+  "powertrain": "Động cơ Điện kép AWD, Kiến trúc 800V Silicon Carbide",
+  "power": "680 HP (500 kW), Động cơ Điện kép AWD",
+  "hp": 680,
+  "torque": "850 Nm",
+  "acceleration": "3.2s",
+  "topSpeed": "250 km/h",
+  "transmission": "Hộp số điện tử 2 cấp hiệu năng cao",
+  "drive": "AWD / Dẫn động 4 bánh toàn thời gian biến thiên thông minh",
+  "dimensions": {
+    "overall": "4.960 x 1.960 x 1.395 mm",
+    "lengthMm": 4960,
+    "widthMm": 1960,
+    "widthUnfoldedMm": 2140,
+    "heightMm": 1395,
+    "wheelbase": "2.900 mm",
+    "groundClearance": "145 mm (Treo khí nén nâng hạ chủ động)",
+    "curbWeight": "2.250 kg",
+    "payloadCapacity": "520 kg",
+    "towingCapacity": null,
+    "cargoVolume": "480 lít (Cốp sau) + 85 lít (Frunk trước)"
+  },
+  "seats": 5,
+  "colors": [
+    {
+      "name": "Bạc Titan Ánh Kim",
+      "hex": "#94A3B8",
+      "img": null
+    },
+    {
+      "name": "Xanh Cyan Điện Tử",
+      "hex": "#0284C7",
+      "img": null
+    },
+    {
+      "name": "Đen Obsidian",
+      "hex": "#0F172A",
+      "img": null
+    },
+    {
+      "name": "Trắng Ngọc Trai",
+      "hex": "#F8FAFC",
+      "img": null
+    }
+  ],
+  "colorsSummary": "Bạc Titan, Xanh Cyan, Đen Obsidian, Trắng Ngọc Trai",
+  "trims": [
+    {
+      "name": "Standard Range RWD",
+      "drive": "RWD / Cầu sau",
+      "hp": 420,
+      "torque": "520 Nm",
+      "acceleration": "4.8s",
+      "topSpeed": "220 km/h",
+      "rangeKm": 520,
+      "price": 1950000000,
+      "priceFormatted": "1.950.000.000 VNĐ",
+      "note": "Phiên bản tiêu chuẩn 1 động cơ cầu sau"
+    },
+    {
+      "name": "Flagship AWD Performance",
+      "drive": "AWD / 2 động cơ",
+      "hp": 680,
+      "torque": "850 Nm",
+      "acceleration": "3.2s",
+      "topSpeed": "250 km/h",
+      "rangeKm": 620,
+      "price": 2450000000,
+      "priceFormatted": "2.450.000.000 VNĐ",
+      "note": "Phiên bản hiệu năng cao 2 động cơ"
+    }
+  ],
+  "evSpecs": {
+    "batteryCapacity": "105 kWh (Pin thể rắn bán phần LFP/NMC)",
+    "rangeKm": 620,
+    "rangeExtendedKm": null,
+    "fastCharge": "DC 350 kW (10% - 80% trong 16 phút)",
+    "architecture": "800V Ultra-Fast Charging",
+    "v2x": "Hỗ trợ V2L (3.6 kW) và V2H (11 kW)"
+  },
+  "fuelConsumption": {
+    "combined": "16.8 kWh / 100 km",
+    "urban": "15.2 kWh / 100 km",
+    "highway": "18.1 kWh / 100 km",
+    "unit": "kWh/100km"
+  },
+  "safetyFeatures": [
+    "Khung gầm hợp kim nhôm - thép siêu cường độ cứng xoắn 45.000 Nm/deg",
+    "Hệ thống phanh gốm Carbon Brembo 6 piston chống bó cứng ABS/EBD/BA",
+    "Gói an toàn chủ động ADAS cấp độ 2.5 với 12 cảm biến siêu âm và 5 radar",
+    "Hệ thống 10 túi khí an toàn toàn diện quanh khoang hành khách",
+    "Camera 360 độ siêu nét hỗ trợ nhìn xuyên gầm và đỗ xe tự động"
+  ],
+  "comfortFeatures": [
+    "Màn hình cảm ứng trung tâm OLED 17.3 inch độ phân giải 3K",
+    "Hệ thống âm thanh vòm 18 loa Dolby Atmos công suất 1.400W",
+    "Ghế da Nappa nguyên tấm chỉnh điện 18 hướng, sưởi, làm mát và massage",
+    "Hệ thống lọc không khí chuẩn HEPA 99.97% bụi mịn PM2.5",
+    "Kính trần toàn cảnh Panorama đổi màu điện tử chống tia UV 99.9%"
+  ],
+  "warranty": {
+    "policy": "5 năm hoặc 150.000 km (Pin bảo hành 8 năm hoặc 200.000 km)",
+    "vehicleYears": 5,
+    "vehicleKm": 150000,
+    "batteryYears": 8,
+    "batteryKm": 200000,
+    "documentUrl": "documents/warranty.pdf"
+  },
+  "subtitle": "Sedan Thuần Điện Hiệu Năng Cao Thế Hệ Mới",
+  "description": "Mẫu xe minh họa chuẩn cấu trúc dữ liệu Vehicle Import Template cho hệ thống thương mại điện tử ô tô SIGMACAR. Hỗ trợ đầy đủ xe điện, xe xăng/dầu, phân loại ảnh đa góc độ và tích hợp mô hình 3D AR/VR.",
+  "images": {
+    "thumbnail": "images/exterior/hero-front-34.svg",
+    "exterior": [
+      "images/exterior/hero-front-34.svg",
+      "images/exterior/side-profile.svg"
+    ],
+    "interior": [
+      "images/interior/cabin-overview.svg"
+    ],
+    "dashboard": [
+      "images/dashboard/digital-cockpit.svg"
+    ],
+    "engine": [
+      "images/engine/powertrain-architecture.svg"
+    ],
+    "specifications": [
+      "images/specifications/dimensions-blueprint.svg"
+    ],
+    "gallery": [
+      "images/gallery/lifestyle-shot.svg"
+    ]
+  },
+  "model3d": {
+    "enabled": true,
+    "glbPath": "3d/model.glb",
+    "texturesDir": "3d/textures",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1.0,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-led",
+        "name": "Đèn pha Matrix LED",
+        "category": "Ngoại thất & Chiếu sáng",
+        "pos": [1.85, 0.45, 0.65],
+        "desc": "Hệ thống đèn pha ma trận thích ứng thông minh chống chói tự động."
+      },
+      {
+        "id": "hotspot-interior",
+        "name": "Khoang lái Số Thông Minh",
+        "category": "Nội thất & Tiện nghi",
+        "pos": [0.15, 0.82, 0.55],
+        "desc": "Màn hình trung tâm độ phân giải cao tích hợp điều khiển toàn bộ xe."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "documents/specifications.pdf",
+    "warrantyPdf": "documents/warranty.pdf"
+  },
+  "businessStatus": {
+    "isAvailable": true,
+    "statusText": "Đang kinh doanh",
+    "stock": 6,
+    "badge": "Template Mẫu",
+    "officialUrl": null
+  }
+}
