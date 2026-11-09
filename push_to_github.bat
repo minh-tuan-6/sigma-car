@@ -7,7 +7,7 @@ echo ====================================================================
 echo.
 
 if exist "%LOCALAPPDATA%\Programs\Git\cmd" (
-    set "PATH=%LOCALAPPDATA%\Programs\Git\cmd;%PATH%"
+    set "PATH=%LOCALAPPDATA%\Programs\Git\cmd;%LOCALAPPDATA%\Programs\Git\mingw64\bin;%PATH%"
 )
 
 where git >nul 2>nul
