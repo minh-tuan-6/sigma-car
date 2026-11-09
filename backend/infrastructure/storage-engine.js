@@ -2156,8 +2156,9 @@ function seedInitialData() {
             "batteryKm": 240000,
             "documentUrl": null
         },
-        "image": "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg",
+        "image": "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg",
         "galleryImages": [
+            "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg",
             "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg",
             "assets/vehicles/tesla-cybertruck/images/exterior/rear-vault-34.svg",
             "assets/vehicles/tesla-cybertruck/images/exterior/side-profile.svg",
@@ -2169,6 +2170,7 @@ function seedInitialData() {
         ],
         "categorizedImages": {
             "exterior": [
+                "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg",
                 "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg",
                 "assets/vehicles/tesla-cybertruck/images/exterior/rear-vault-34.svg",
                 "assets/vehicles/tesla-cybertruck/images/exterior/side-profile.svg"
@@ -2193,22 +2195,22 @@ function seedInitialData() {
             {
                 "name": "Thép Không Gỉ 30X Nguyên Bản (Stainless Steel)",
                 "hex": "#94A3B8",
-                "img": "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg"
+                "img": "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg"
             },
             {
                 "name": "Đen Satin Chiến Thuật (Satin Stealth Black)",
                 "hex": "#1E293B",
-                "img": "assets/vehicles/tesla-cybertruck/images/exterior/rear-vault-34.svg"
+                "img": "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg"
             },
             {
                 "name": "Trắng Satin Bắc Cực (Satin Ceramic White)",
                 "hex": "#F1F5F9",
-                "img": "assets/vehicles/tesla-cybertruck/images/exterior/side-profile.svg"
+                "img": "assets/vehicles/tesla-cybertruck/images/exterior/rear-vault-34.svg"
             },
             {
                 "name": "Xanh Rêu Quân Đội (Tactical Green Wrap)",
                 "hex": "#3F6212",
-                "img": "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg"
+                "img": "assets/vehicles/tesla-cybertruck/images/exterior/side-profile.svg"
             }
         ],
         "colorsSummary": "Thép Không Gỉ 30X, Đen Satin, Trắng Satin, Xanh Chiến Thuật",
@@ -2350,7 +2352,9 @@ function seedInitialData() {
         },
         "isAvailable": true,
         "statusText": "Nhận đặt hàng nhập khẩu",
-        "officialUrl": "https://www.tesla.com/cybertruck"
+        "officialUrl": "https://www.tesla.com/cybertruck",
+        "thumbnail": "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg",
+        "cover": "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg"
     }
 ];
 

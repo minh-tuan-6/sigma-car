@@ -2333,7 +2333,7 @@ const AppState = {
             <div class="visualizer-main-stage" style="position:relative;">
               <!-- Image Stage with Zoom Button -->
               <div id="detail-image-stage-wrap" style="position:relative; width:100%;">
-                <img id="detail-car-img" src="${car.image}" alt="${escapeHtml(car.name)}" style="cursor:zoom-in;" title="Nhấn để phóng to ảnh độ phân giải gốc">
+                <img id="detail-car-img" src="${car.image}" alt="${escapeHtml(car.name)}" onerror="this.onerror=null; this.src='assets/catalog/car-camry.jpg';" style="cursor:zoom-in;" title="Nhấn để phóng to ảnh độ phân giải gốc">
                 <div style="position:absolute; top:14px; right:14px; display:flex; gap:8px; z-index:5;">
                   <button type="button" id="btn-detail-zoom-img" class="btn-secondary" style="padding:6px 12px; font-size:12px; font-weight:700; background:rgba(15,23,42,0.82); color:#FFFFFF; border:1px solid rgba(255,255,255,0.2); backdrop-filter:blur(6px);">
                     🔍 Phóng to ảnh HD
@@ -9191,7 +9191,7 @@ const AppState = {
           <span class="card-badge" style="${!isEv ? 'background:#F97316; color:#FFFFFF;' : ''}">${codeBadge}${car.badge || fuelBadge}</span>
           <div class="card-price-tag"><span>GIÁ</span> ${car.priceShort || car.priceFormatted}</div>
           <button class="btn-interest ${isSaved ? 'active' : ''}" data-id="${car.id}" title="Yêu thích">${isSaved ? '❤️' : '🤍'}</button>
-          <img src="${car.image}" alt="${car.name}">
+          <img src="${car.image}" alt="${car.name}" onerror="this.onerror=null; this.src='assets/catalog/car-camry.jpg';">
         </div>
         <div class="car-card-body">
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">
@@ -9266,7 +9266,7 @@ const AppState = {
           <span class="card-badge" style="${!isEv ? 'background:#F97316; color:#FFFFFF;' : ''}">${codeBadge}${car.badge || fuelBadge}</span>
           <div class="card-price-tag"><span>GIÁ</span> ${car.priceShort || car.priceFormatted}</div>
           <button class="btn-interest ${isSaved ? 'active' : ''}" data-id="${car.id}" title="Yêu thích">${isSaved ? '❤️' : '🤍'}</button>
-          <img src="${car.image}" alt="${car.name}">
+          <img src="${car.image}" alt="${car.name}" onerror="this.onerror=null; this.src='assets/catalog/car-camry.jpg';">
         </div>
         <div class="car-card-body">
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">

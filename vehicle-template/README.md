@@ -31,7 +31,11 @@ vehicle-template/
     └── warranty.pdf              # Chính sách bảo hành & hướng dẫn bảo dưỡng
 ```
 
-> **Lưu ý quan trọng:**
+> **Lưu ý quan trọng & Quy tắc ảnh bìa (Cover Image):**
+> * **Tự động nhận diện ảnh bìa:** Hệ thống tự động ưu tiên nhận diện file ảnh bìa đại diện cho xe từ thư mục folder theo thứ tự:
+>   1. Đường dẫn khai báo trong `images.thumbnail` hoặc `images.cover` trong `vehicle.json`.
+>   2. File có tên chứa từ khóa `cover`, `bia`, `thumbnail`, `hero`, `main`, `front` với định dạng ảnh thật (`.jpg`, `.jpeg`, `.png`, `.webp`) trong `images/exterior/` hoặc `images/`.
+>   3. Ảnh định dạng raster (`.jpg`, `.png`, `.webp`) đầu tiên tìm thấy trong thư mục ngoại thất `exterior/`.
 > * **Không bắt buộc tất cả các file hoặc thư mục con phải tồn tại.** Công cụ nhập xe (`scripts/import_vehicle.js`) được thiết kế chịu lỗi (fault-tolerant) và hỗ trợ đầy đủ các folder thiếu dữ liệu.
 > * Nếu thiếu `vehicle.json`, hệ thống sẽ tự động quét và trích xuất thông số từ các file văn bản có sẵn trong folder (như `data/data.txt`, `*.txt`, `*.md`) mà **không tự bịa đặt** giá bán hay thông số không có nguồn.
 > * Nếu file 3D được nén trong `.zip` (ví dụ `3Dmodel/*.zip` hoặc `3d/*.zip`), công cụ sẽ tự động giải nén và lấy file `.glb` cùng `textures/`.

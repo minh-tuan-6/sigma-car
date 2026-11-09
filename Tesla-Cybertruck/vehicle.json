@@ -43,7 +43,7 @@
     {
       "name": "Thép Không Gỉ 30X Nguyên Bản (Stainless Steel)",
       "hex": "#94A3B8",
-      "img": null
+      "img": "images/exterior/cover.jpg"
     },
     {
       "name": "Đen Satin Chiến Thuật (Satin Stealth Black)",
@@ -137,8 +137,10 @@
   "subtitle": "Siêu Bán Tải Điện Khung Vỏ Thép Không Gỉ 30X & Steer-by-Wire",
   "description": "Siêu bán tải thuần điện mang thiết kế vị lai đột phá với khung vỏ Exoskeleton bằng thép không gỉ siêu cứng cán nguội 30X, kính Armor Glass, hệ thống lái điện tử Steer-by-Wire, đánh lái 4 bánh, kiến trúc 800V và trạm phát điện di động PowerShare 11.5 kW.",
   "images": {
-    "thumbnail": "images/exterior/hero-front-34.svg",
+    "thumbnail": "images/exterior/cover.jpg",
+    "cover": "images/exterior/cover.jpg",
     "exterior": [
+      "images/exterior/cover.jpg",
       "images/exterior/hero-front-34.svg",
       "images/exterior/rear-vault-34.svg",
       "images/exterior/side-profile.svg"

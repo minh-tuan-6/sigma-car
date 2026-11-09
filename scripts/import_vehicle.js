@@ -934,7 +934,86 @@ function processVehicleFolder(sourceFolderPath, options = {}) {
     ...categorizedWebImages.specifications,
     ...categorizedWebImages.gallery
   ];
-  const primaryImage = allWebImages[0] || rawVehicle.image || 'assets/model-e.jpg';
+
+  // Intelligently select and prioritize Cover / Thumbnail Image:
+  // 1. Explicitly named thumbnail/cover in rawVehicle.images or rawVehicle.image
+  // 2. Any image matching /(cover|bia|thumbnail|hero|main|avatar|front|profile)/i
+  //    (Prioritizing real raster photos .jpg/.png/.webp over vector/SVG)
+  // 3. First raster image in exterior
+  // 4. First raster image in any category
+  // 5. First image in exterior
+  // 6. First image in allWebImages
+  const isRaster = (p) => /\.(jpe?g|png|webp|avif)$/i.test(p);
+  const isCoverNamed = (p) => /(cover|bia|thumbnail|hero|main|avatar|front|profile)/i.test(path.basename(p));
+
+  let primaryImage = null;
+
+  // 1. Check explicit rawVehicle cover/thumbnail reference
+  const explicitCandidates = [
+    rawVehicle.images?.thumbnail,
+    rawVehicle.images?.cover,
+    rawVehicle.thumbnail,
+    rawVehicle.cover,
+    rawVehicle.image
+  ].filter(Boolean);
+
+  for (const exp of explicitCandidates) {
+    const expBase = path.basename(exp).toLowerCase();
+    const match = allWebImages.find(p => path.basename(p).toLowerCase() === expBase);
+    if (match) {
+      primaryImage = match;
+      break;
+    }
+  }
+
+  // 2. Cover name with raster format in exterior
+  if (!primaryImage) {
+    primaryImage = categorizedWebImages.exterior.find(p => isCoverNamed(p) && isRaster(p));
+  }
+
+  // 3. Cover name with raster format anywhere
+  if (!primaryImage) {
+    primaryImage = allWebImages.find(p => isCoverNamed(p) && isRaster(p));
+  }
+
+  // 4. Any raster image in exterior
+  if (!primaryImage) {
+    primaryImage = categorizedWebImages.exterior.find(p => isRaster(p));
+  }
+
+  // 5. Any raster image in all images
+  if (!primaryImage) {
+    primaryImage = allWebImages.find(p => isRaster(p));
+  }
+
+  // 6. Cover name in exterior (even if svg)
+  if (!primaryImage) {
+    primaryImage = categorizedWebImages.exterior.find(p => isCoverNamed(p));
+  }
+
+  // 7. Fallback to exterior[0] or allWebImages[0]
+  if (!primaryImage) {
+    primaryImage = categorizedWebImages.exterior[0] || allWebImages[0] || 'assets/model-e.jpg';
+  }
+
+  // Re-order so primaryImage is always index 0 in exterior & allWebImages
+  if (primaryImage) {
+    const exIdx = categorizedWebImages.exterior.indexOf(primaryImage);
+    if (exIdx > 0) {
+      categorizedWebImages.exterior.splice(exIdx, 1);
+      categorizedWebImages.exterior.unshift(primaryImage);
+    } else if (exIdx === -1 && allWebImages.includes(primaryImage)) {
+      categorizedWebImages.exterior.unshift(primaryImage);
+    }
+
+    const allIdx = allWebImages.indexOf(primaryImage);
+    if (allIdx > 0) {
+      allWebImages.splice(allIdx, 1);
+      allWebImages.unshift(primaryImage);
+    }
+  }
+
+  console.log(`   ✓ Đã chọn ảnh bìa: ${primaryImage}`);
   console.log(`   ✓ Đã xử lý ${allWebImages.length} hình ảnh (Ngoại thất: ${categorizedWebImages.exterior.length}, Nội thất: ${categorizedWebImages.interior.length}, Khoang lái: ${categorizedWebImages.dashboard.length}, Động cơ: ${categorizedWebImages.engine.length}, Thông số: ${categorizedWebImages.specifications.length}, Gallery: ${categorizedWebImages.gallery.length})`);
 
   // Step 4: Copy Documents (.pdf)
@@ -1044,6 +1123,8 @@ function processVehicleFolder(sourceFolderPath, options = {}) {
     warranty: warrantyPolicy,
     warrantyDetail: typeof rawVehicle.warranty === 'object' ? rawVehicle.warranty : { policy: warrantyPolicy },
     image: primaryImage,
+    thumbnail: primaryImage,
+    cover: primaryImage,
     galleryImages: allWebImages,
     categorizedImages: categorizedWebImages,
     colors: colorsArray,
