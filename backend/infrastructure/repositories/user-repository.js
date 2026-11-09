@@ -100,6 +100,17 @@ const UserRepository = {
       const { passwordHash, ...safe } = state.users[idx];
       return safe;
     });
+  },
+
+  async delete(id) {
+    return runInTransaction(async (state) => {
+      const idx = state.users.findIndex(u => u.id === id);
+      if (idx === -1) throw new Error('Không tìm thấy người dùng.');
+      if (state.users[idx].role === 'admin') throw new Error('Không thể xóa tài khoản Quản trị viên tối cao.');
+      const deleted = state.users.splice(idx, 1)[0];
+      const { passwordHash, ...safe } = deleted;
+      return safe;
+    });
   }
 };
 

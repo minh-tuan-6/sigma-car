@@ -1,0 +1,19 @@
+# Cloudflare Pages deployment ignore
+node_modules
+.git
+Fix website
+Dự án thương mại điện tử
+Dự án thương mại điện tử 2
+Dự án thương mại điện tử 3
+about car
+tests
+scripts
+backend
+cloudflared.exe
+*.MOV
+*.mov
+*.mp4
+*.exe
+*.bat
+.env
+.env.*

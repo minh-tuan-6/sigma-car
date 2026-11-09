@@ -6072,83 +6072,102 @@ const AppState = {
     }
 
     if (tab === 'dash-crm') {
+      const realStaff = usersList.filter(u => ['admin', 'seller', 'support_staff', 'service_staff'].includes(u.role));
+      const realBuyers = usersList.filter(u => u.role === 'buyer');
+
       return `
         <div class="dashboard-banner-header" style="background-image: linear-gradient(90deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 100%), url('assets/banner-seller-crm.jpg');">
-          <h3>Tư vấn Khách hàng (AI CRM) & Quản trị Phân quyền (RBAC)</h3>
-          <p>Quản lý danh sách khách hàng tiềm năng từ Sigma AI và phân quyền tài khoản hệ thống theo vai trò nghiệp vụ.</p>
+          <h3>Tư vấn Khách hàng (AI CRM) & Quản trị Nhân sự (RBAC)</h3>
+          <p>Quản lý đội ngũ nhân viên kinh doanh, phân quyền hệ thống và theo dõi danh sách khách hàng đăng ký tài khoản thực tế.</p>
         </div>
 
-        ${usersList.length > 0 ? `
-          <div class="dash-table-card" style="margin-bottom:24px;">
-            <h4 style="font-size:16px; font-weight:800; margin-bottom:14px;">🔐 Quản lý Tài khoản & Phân quyền Vai trò (RBAC — Chỉ Admin)</h4>
+        <div class="dash-table-card" style="margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+            <div>
+              <h4 style="font-size:16px; font-weight:800; margin:0 0 4px 0;">🔐 Quản lý Đội ngũ Nhân sự & Phân quyền Vai trò (${realStaff.length})</h4>
+              <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Chỉ tài khoản Quản trị viên tối cao (Admin) mới có quyền tạo thêm nhân viên kinh doanh, đổi vai trò và xóa tài khoản.</p>
+            </div>
+            ${curUser.role === 'admin' ? `
+              <button class="btn-primary" id="btn-open-add-staff" style="padding:9px 18px; font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <span>➕</span> Thêm Nhân viên Kinh doanh Mới
+              </button>
+            ` : ''}
+          </div>
+
+          <table class="dash-data-table">
+            <thead>
+              <tr>
+                <th>Họ và tên</th>
+                <th>Email / Điện thoại</th>
+                <th>Showroom / Chi nhánh</th>
+                <th>Vai trò hệ thống</th>
+                <th style="text-align:right;">Thao tác quản trị</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${realStaff.map(u => `
+                <tr>
+                  <td><strong>${escapeHtml(u.fullName || 'Nhân viên')}</strong></td>
+                  <td>${escapeHtml(u.email)}<br><span style="font-size:11px; color:var(--text-muted);">${escapeHtml(u.phone || 'Chưa cập nhật')}</span></td>
+                  <td><span style="font-size:12px; color:#475569;">${escapeHtml(u.branchName || 'Showroom Toàn quốc')}</span></td>
+                  <td><span class="status-badge confirmed" style="text-transform:uppercase; font-size:11px;">${escapeHtml((u.role || 'SELLER').toUpperCase())}</span></td>
+                  <td style="text-align:right;">
+                    ${u.role === 'admin' ? `
+                      <span style="font-size:11px; color:#059669; font-weight:700; background:#D1FAE5; padding:4px 10px; border-radius:4px;">👑 Quản trị tối cao</span>
+                    ` : `
+                      <select class="filter-select sel-user-role" data-id="${u.id}" style="width:140px; padding:4px 6px; font-size:11.5px; display:inline-block; vertical-align:middle;">
+                        ${['seller', 'support_staff', 'service_staff', 'admin', 'buyer'].map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r.toUpperCase()}</option>`).join('')}
+                      </select>
+                      <button class="btn-primary btn-update-user-role" data-id="${u.id}" style="padding:5px 10px; font-size:11.5px; vertical-align:middle;">Lưu</button>
+                      <button class="btn-secondary btn-delete-user" data-id="${u.id}" data-name="${escapeHtml(u.fullName || u.email)}" style="padding:5px 10px; font-size:11.5px; color:#DC2626; border-color:#FCA5A5; margin-left:4px; vertical-align:middle; cursor:pointer;">🗑️ Xóa</button>
+                    `}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="dash-table-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <div>
+              <h4 style="font-size:16px; font-weight:800; margin:0 0 4px 0;">👥 Danh sách Khách hàng Đăng ký Tài khoản Thực tế (${realBuyers.length})</h4>
+              <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Toàn bộ dữ liệu ảo đã được xóa sạch. Chỉ khi khách hàng thật đăng ký tài khoản mới trên website thì thông tin mới xuất hiện tại đây.</p>
+            </div>
+          </div>
+          
+          ${realBuyers.length === 0 ? `
+            <div style="text-align:center; padding:42px 20px; background:#F8FAFC; border-radius:12px; border:2px dashed #CBD5E1;">
+              <div style="font-size:40px; margin-bottom:10px;">👥</div>
+              <div style="font-weight:800; font-size:15px; color:#1E293B; margin-bottom:6px;">Chưa có tài khoản khách hàng nào</div>
+              <p style="font-size:13px; color:#64748B; margin:0 auto; max-width:480px; line-height:1.5;">Hệ thống đang hoạt động với dữ liệu thật 100%. Khi khách hàng truy cập website và tạo tài khoản (qua nút Đăng ký), thông tin tài khoản thật sẽ tự động cập nhật ngay tại đây.</p>
+            </div>
+          ` : `
             <table class="dash-data-table">
               <thead>
                 <tr>
-                  <th>Họ và tên</th>
-                  <th>Email / Điện thoại</th>
+                  <th>Khách hàng</th>
+                  <th>Email / Số điện thoại</th>
                   <th>Hạng thành viên</th>
-                  <th>Nhận Email KM</th>
-                  <th>Vai trò hiện tại</th>
-                  <th style="text-align:right;">Cập nhật Quyền</th>
+                  <th>Ngày tạo tài khoản</th>
+                  <th style="text-align:right;">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                ${usersList.map(u => `
+                ${realBuyers.map(b => `
                   <tr>
-                    <td><strong>${escapeHtml(u.fullName)}</strong></td>
-                    <td>${escapeHtml(u.email)}<br><span style="font-size:11px; color:var(--text-muted);">${escapeHtml(u.phone || '')}</span></td>
-                    <td><span class="dropdown-gold-badge">${escapeHtml(u.tier || 'MEMBER')}</span></td>
-                    <td>${u.preferences?.marketingEmails ? '<span style="color:#059669; font-weight:700;">✓ Đồng ý (Opt-in)</span>' : '<span style="color:#94A3B8;">Đã hủy (Opt-out)</span>'}</td>
-                    <td><span class="status-badge confirmed">${escapeHtml((u.role || 'buyer').toUpperCase())}</span></td>
+                    <td><strong>${escapeHtml(b.fullName || 'Khách hàng mới')}</strong></td>
+                    <td>${escapeHtml(b.email)}<br><span style="font-size:11px; color:var(--text-muted);">${escapeHtml(b.phone || 'Chưa có SĐT')}</span></td>
+                    <td><span class="dropdown-gold-badge">${escapeHtml(b.tier || 'Thành viên mới')}</span></td>
+                    <td><span style="font-size:12px; color:#64748B;">${b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : 'Vừa tạo'}</span></td>
                     <td style="text-align:right;">
-                      <select class="filter-select sel-user-role" data-id="${u.id}" style="width:155px; padding:4px 8px; font-size:12px; display:inline-block;">
-                        ${['buyer', 'seller', 'support_staff', 'service_staff', 'admin'].map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${r.toUpperCase()}</option>`).join('')}
-                      </select>
-                      <button class="btn-primary btn-update-user-role" data-id="${u.id}" style="padding:4px 10px; font-size:11.5px;">Lưu</button>
+                      <button class="btn-secondary btn-delete-user" data-id="${b.id}" data-name="${escapeHtml(b.fullName || b.email)}" style="padding:5px 10px; font-size:11.5px; color:#DC2626; border-color:#FCA5A5; cursor:pointer;">🗑️ Xóa</button>
                     </td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
-          </div>
-        ` : ''}
-
-        <div class="dash-table-card">
-          <h4 style="font-size:16px; font-weight:800; margin-bottom:14px;">✨ Khách hàng Tiềm năng Thu thập Tự động từ Sigma AI</h4>
-          <table class="dash-data-table">
-            <thead>
-              <tr>
-                <th>Khách hàng</th>
-                <th>Dòng xe quan tâm</th>
-                <th>Ngân sách dự kiến</th>
-                <th>Nguồn thu thập</th>
-                <th>Đánh giá tiềm năng</th>
-                <th style="text-align:right;">Hành động</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><strong>Nguyễn Văn Hùng</strong><br><span style="font-size:11px; color:var(--text-muted);">0987 111 456</span></td>
-                <td><strong>SIGMA Model E</strong></td>
-                <td>1.2 - 1.4 tỷ VNĐ</td>
-                <td><span style="color:var(--primary); font-weight:600;">✨ Sigma AI Advisor</span></td>
-                <td><span class="kpi-tag tag-success">🔥 Rất tiềm năng</span></td>
-                <td style="text-align:right;">
-                  <button class="btn-card-primary" style="padding:4px 8px; font-size:11.5px;" onclick="showToast('Đang gọi cho khách hàng Nguyễn Văn Hùng...', '📞')">📞 Gọi tư vấn</button>
-                </td>
-              </tr>
-              <tr>
-                <td><strong>Đặng Quốc Huy</strong><br><span style="font-size:11px; color:var(--text-muted);">0902 334 556</span></td>
-                <td><strong>SIGMA Grand 7 (7 Chỗ)</strong></td>
-                <td>1.8 tỷ VNĐ</td>
-                <td><span style="color:var(--primary); font-weight:600;">✨ Sigma AI (Tìm xe gia đình)</span></td>
-                <td><span class="kpi-tag tag-success">🔥 Nhu cầu gấp</span></td>
-                <td style="text-align:right;">
-                  <button class="btn-card-primary" style="padding:4px 8px; font-size:11.5px;" onclick="showToast('Đang gọi cho khách hàng Đặng Quốc Huy...', '📞')">📞 Gọi tư vấn</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          `}
         </div>
       `;
     }
@@ -6646,6 +6665,121 @@ const AppState = {
           showToast(err.message, '⚠️');
         }
       });
+    });
+
+    // Open Add Sales Staff Modal
+    document.getElementById('btn-open-add-staff')?.addEventListener('click', () => {
+      openAddStaffModal();
+    });
+
+    // Delete User / Staff
+    document.querySelectorAll('.btn-delete-user').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const name = btn.getAttribute('data-name');
+        if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${name}" khỏi hệ thống?`)) {
+          try {
+            await ApiClient.admin.deleteUser(id);
+            showToast(`🗑️ Đã xóa tài khoản "${name}" thành công!`, '✓');
+            renderSellerDashboard('dash-crm');
+          } catch (err) {
+            showToast(err.message, '⚠️');
+          }
+        }
+      });
+    });
+  }
+
+  function openAddStaffModal() {
+    const existing = document.getElementById('add-staff-modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'add-staff-modal-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.65); backdrop-filter:blur(6px); z-index:9999; display:flex; align-items:center; justify-content:center; padding:16px;';
+
+    overlay.innerHTML = `
+      <div style="background:#FFFFFF; border-radius:18px; width:100%; max-width:520px; max-height:92vh; overflow-y:auto; box-shadow:0 25px 50px -12px rgba(0,0,0,0.3); padding:28px; position:relative; font-family:var(--font-sans);">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; border-bottom:1px solid #E2E8F0; padding-bottom:14px;">
+          <div>
+            <div style="display:inline-flex; align-items:center; gap:6px; background:#EFF6FF; color:#2563EB; font-size:11px; font-weight:700; padding:4px 10px; border-radius:100px; margin-bottom:6px;">
+              <span>💼 QUẢN TRỊ NHÂN VIÊN KINH DOANH</span>
+            </div>
+            <h3 style="font-size:20px; font-weight:800; color:#0F172A; margin:0;">Thêm Nhân Viên Kinh Doanh Mới</h3>
+            <p style="font-size:12.5px; color:#64748B; margin:4px 0 0;">Cấp tài khoản kinh doanh (Seller) để nhân viên trực tiếp quản lý đơn cọc, lái thử và CSKH.</p>
+          </div>
+          <button id="btn-close-staff-modal" style="background:#F1F5F9; border:none; width:34px; height:34px; border-radius:50%; font-size:18px; cursor:pointer; color:#64748B; display:flex; align-items:center; justify-content:center;">&times;</button>
+        </div>
+
+        <form id="form-add-staff" style="display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#334155; margin-bottom:5px;">Họ và tên nhân viên *</label>
+            <input type="text" id="staff-name" required placeholder="Ví dụ: Nguyễn Văn Nam" style="width:100%; padding:10px 14px; border:1px solid #CBD5E1; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#334155; margin-bottom:5px;">Email tài khoản đăng nhập *</label>
+            <input type="email" id="staff-email" required placeholder="Ví dụ: nam.sales@sigmacar.vn" style="width:100%; padding:10px 14px; border:1px solid #CBD5E1; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#334155; margin-bottom:5px;">Số điện thoại liên hệ *</label>
+            <input type="tel" id="staff-phone" required placeholder="Ví dụ: 0912 345 678" style="width:100%; padding:10px 14px; border:1px solid #CBD5E1; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#334155; margin-bottom:5px;">Mật khẩu khởi tạo *</label>
+            <input type="password" id="staff-password" required placeholder="Nhập mật khẩu cho nhân viên (tối thiểu 6 ký tự)" style="width:100%; padding:10px 14px; border:1px solid #CBD5E1; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box;">
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#334155; margin-bottom:5px;">Showroom / Chi nhánh phụ trách</label>
+            <select id="staff-branch" style="width:100%; padding:10px 14px; border:1px solid #CBD5E1; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box; background:#FFFFFF;">
+              <option value="Showroom SIGMACAR Cầu Giấy (Hà Nội)">Showroom SIGMACAR Cầu Giấy (Hà Nội)</option>
+              <option value="Showroom SIGMACAR Quận 7 (TP.HCM)">Showroom SIGMACAR Quận 7 (TP.HCM)</option>
+              <option value="Showroom SIGMACAR Hải Châu (Đà Nẵng)">Showroom SIGMACAR Hải Châu (Đà Nẵng)</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12.5px; font-weight:700; color:#334155; margin-bottom:5px;">Vai trò hệ thống</label>
+            <select id="staff-role" style="width:100%; padding:10px 14px; border:1px solid #CBD5E1; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box; background:#FFFFFF;">
+              <option value="seller" selected>💼 Nhân viên Kinh doanh (SELLER)</option>
+              <option value="support_staff">🎧 Nhân viên CSKH & Khiếu nại (SUPPORT)</option>
+              <option value="service_staff">🔧 Kỹ thuật viên Dịch vụ & Gara (SERVICE)</option>
+            </select>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px; border-top:1px solid #E2E8F0; padding-top:16px;">
+            <button type="button" id="btn-cancel-staff" style="background:#F1F5F9; border:none; padding:10px 20px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; color:#475569;">Hủy bỏ</button>
+            <button type="submit" class="btn-primary" style="padding:10px 24px; font-size:14px; font-weight:700; cursor:pointer;">Tạo Tài Khoản Nhân Viên</button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('btn-close-staff-modal')?.addEventListener('click', () => overlay.remove());
+    document.getElementById('btn-cancel-staff')?.addEventListener('click', () => overlay.remove());
+
+    document.getElementById('form-add-staff')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fullName = document.getElementById('staff-name').value.trim();
+      const email = document.getElementById('staff-email').value.trim().toLowerCase();
+      const phone = document.getElementById('staff-phone').value.trim();
+      const password = document.getElementById('staff-password').value;
+      const branchName = document.getElementById('staff-branch').value;
+      const role = document.getElementById('staff-role').value;
+
+      try {
+        await ApiClient.admin.createStaff({ fullName, email, phone, password, branchName, role });
+        showToast(`🎉 Đã thêm thành công nhân viên ${fullName} (${role.toUpperCase()})!`, '✓');
+        overlay.remove();
+        renderSellerDashboard('dash-crm');
+      } catch (err) {
+        showToast(err.message, '⚠️');
+      }
     });
   }
 

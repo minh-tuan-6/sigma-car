@@ -26,3 +26,5 @@ Thumbs.db
 .idea/
 *.log
 npm-debug.log*
+
+dist/

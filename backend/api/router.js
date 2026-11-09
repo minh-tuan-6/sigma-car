@@ -330,6 +330,36 @@ async function handleApiRequest(req, res) {
       return sendJSON(res, 200, { success: true, count: users.length, data: users });
     }
 
+    if (pathname === '/api/v1/admin/users' && method === 'POST') {
+      const user = authorize(req, res, [ROLES.ADMIN]);
+      if (!user) return;
+      const body = await parseBody(req);
+      if (!body.email || !body.fullName) {
+        return sendError(res, 400, 'Họ tên và email là bắt buộc.', 'VALIDATION_ERROR');
+      }
+      const Security = require('../infrastructure/security');
+      const salt = Security.generateSalt();
+      const passwordHash = Security.hashPassword(body.password || 'Seller@123456', salt);
+      const newStaff = await UserRepository.create({
+        fullName: body.fullName,
+        email: body.email,
+        phone: body.phone || '',
+        role: body.role || ROLES.SELLER,
+        branchId: body.branchId || 'hn-caugiay',
+        branchName: body.branchName || 'Showroom SIGMACAR Cầu Giấy (Hà Nội)',
+        passwordHash
+      });
+      return sendJSON(res, 201, { success: true, message: 'Đã tạo tài khoản nhân viên thành công!', data: newStaff });
+    }
+
+    if (pathname.startsWith('/api/v1/admin/users/') && !pathname.endsWith('/role') && method === 'DELETE') {
+      const user = authorize(req, res, [ROLES.ADMIN]);
+      if (!user) return;
+      const targetId = pathname.replace('/api/v1/admin/users/', '');
+      const deleted = await UserRepository.delete(targetId);
+      return sendJSON(res, 200, { success: true, message: 'Đã xóa tài khoản thành công!', data: deleted });
+    }
+
     if (pathname.startsWith('/api/v1/admin/users/') && pathname.endsWith('/role') && method === 'PATCH') {
       const user = authorize(req, res, [ROLES.ADMIN]);
       if (!user) return;

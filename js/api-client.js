@@ -100,31 +100,10 @@ const ApiClient = {
         fullName: 'Hệ Thống Quản Trị SIGMACAR',
         role: 'admin',
         phone: '+84 1900 8888',
-        savedCars: []
-      },
-      {
-        id: 'usr_seller_01',
-        email: 'minhphan.seller@sigmacar.vn',
-        fullName: 'Minh Phan',
-        role: 'seller',
-        phone: '+84 909 111 222',
-        savedCars: []
-      },
-      {
-        id: 'usr_cskh_01',
-        email: 'cskh.lan@sigmacar.vn',
-        fullName: 'Nguyễn Ngọc Lan',
-        role: 'support_staff',
-        phone: '+84 909 333 444',
-        savedCars: []
-      },
-      {
-        id: 'usr_buyer_01',
-        email: 'minhhoang.sigma@example.com',
-        fullName: 'Minh Hoàng',
-        role: 'buyer',
-        phone: '+84 912 345 678',
-        savedCars: []
+        branchName: 'Tổng Công Ty SIGMACAR',
+        tier: 'Quản trị viên',
+        savedCars: [],
+        createdAt: new Date().toISOString()
       }
     ];
 
@@ -137,20 +116,10 @@ const ApiClient = {
       let user = allUsers.find(u => u.email.toLowerCase() === email);
 
       if (!user) {
-        // Create user dynamically for demo testing
-        user = {
-          id: 'usr_' + Date.now(),
-          email: body.email,
-          fullName: body.email.split('@')[0],
-          role: email.includes('admin') ? 'admin' : (email.includes('seller') ? 'seller' : 'buyer'),
-          phone: '+84 900 000 000',
-          savedCars: []
-        };
-        localUsers.push(user);
-        try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
+        throw new Error('Tài khoản hoặc mật khẩu không chính xác. Nếu là khách hàng mới, vui lòng bấm sang tab Đăng ký mới.');
       }
 
-      const token = 'sigmacar_jwt_demo_' + Date.now();
+      const token = 'sigmacar_jwt_' + Date.now();
       this.setToken(token);
       this.setCurrentUser(user);
       return { success: true, data: { token, user } };
@@ -160,17 +129,25 @@ const ApiClient = {
     if (endpoint === '/auth/register' && method === 'POST') {
       let localUsers = [];
       try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
+      const email = (body.email || '').trim().toLowerCase();
+      if (email === 'admin@sigmacar.vn' || localUsers.some(u => u.email.toLowerCase() === email)) {
+        throw new Error('Email này đã được sử dụng. Vui lòng chọn email khác.');
+      }
+
       const newUser = {
         id: 'usr_' + Date.now(),
-        email: body.email,
-        fullName: body.fullName || body.email.split('@')[0],
+        email: email,
+        fullName: body.fullName || email.split('@')[0],
         role: body.role || 'buyer',
         phone: body.phone || '',
-        savedCars: []
+        branchName: 'Khách hàng toàn quốc',
+        tier: 'Thành viên mới',
+        savedCars: [],
+        createdAt: new Date().toISOString()
       };
       localUsers.push(newUser);
       try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
-      const token = 'sigmacar_jwt_demo_' + Date.now();
+      const token = 'sigmacar_jwt_' + Date.now();
       this.setToken(token);
       this.setCurrentUser(newUser);
       return { success: true, data: { token, user: newUser } };
@@ -263,6 +240,61 @@ const ApiClient = {
           totalInterest: (monthlyPayment * months) - loanAmount
         }
       };
+    }
+
+    // 10. Admin Users (RBAC & Staff Management)
+    if (endpoint === '/admin/users' && method === 'GET') {
+      let localUsers = [];
+      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
+      return { success: true, count: 1 + localUsers.length, data: [DEMO_USERS[0], ...localUsers] };
+    }
+
+    if (endpoint === '/admin/users' && method === 'POST') {
+      let localUsers = [];
+      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
+      const email = (body.email || '').trim().toLowerCase();
+      if (email === 'admin@sigmacar.vn' || localUsers.some(u => u.email.toLowerCase() === email)) {
+        throw new Error('Email nhân viên này đã tồn tại trong hệ thống.');
+      }
+      const newStaff = {
+        id: 'usr_staff_' + Date.now(),
+        email: email,
+        fullName: body.fullName || 'Nhân viên kinh doanh',
+        role: body.role || 'seller',
+        phone: body.phone || '',
+        branchName: body.branchName || 'Showroom SIGMACAR Cầu Giấy (Hà Nội)',
+        tier: 'Staff',
+        savedCars: [],
+        createdAt: new Date().toISOString()
+      };
+      localUsers.push(newStaff);
+      try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
+      return { success: true, message: 'Đã tạo tài khoản nhân viên thành công!', data: newStaff };
+    }
+
+    if (endpoint.startsWith('/admin/users/') && method === 'DELETE') {
+      const targetId = endpoint.replace('/admin/users/', '');
+      if (targetId === 'usr_admin_01') {
+        throw new Error('Không thể xóa tài khoản Quản trị viên tối cao.');
+      }
+      let localUsers = [];
+      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
+      localUsers = localUsers.filter(u => u.id !== targetId);
+      try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
+      return { success: true, message: 'Đã xóa tài khoản thành công!' };
+    }
+
+    if (endpoint.startsWith('/admin/users/') && endpoint.endsWith('/role') && method === 'PATCH') {
+      const targetId = endpoint.replace('/admin/users/', '').replace('/role', '');
+      let localUsers = [];
+      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
+      const target = localUsers.find(u => u.id === targetId);
+      if (target) {
+        target.role = body.role;
+        if (body.branchName) target.branchName = body.branchName;
+        try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
+      }
+      return { success: true, message: 'Đã cập nhật vai trò tài khoản thành công!' };
     }
 
     // Generic fallback for any other endpoint
@@ -508,6 +540,21 @@ const ApiClient = {
     async getUsers() {
       const res = await ApiClient.request('/admin/users');
       return res.data || [];
+    },
+
+    async createStaff(staffData) {
+      const res = await ApiClient.request('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(staffData)
+      });
+      return res.data;
+    },
+
+    async deleteUser(userId) {
+      const res = await ApiClient.request(`/admin/users/${encodeURIComponent(userId)}`, {
+        method: 'DELETE'
+      });
+      return res.data;
     },
 
     async updateUserRole(userId, role, branchId, branchName) {
