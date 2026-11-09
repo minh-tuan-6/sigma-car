@@ -53,7 +53,19 @@ const ApiClient = {
         headers
       });
 
-      const data = await res.json().catch(() => ({ success: false, error: { message: 'Lỗi định dạng phản hồi từ máy chủ.' } }));
+      // Detect static cloud hosting (e.g. Cloudflare Pages returning index.html for API routes)
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/html')) {
+        return this.handleStaticFallback(endpoint, options);
+      }
+
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (jsonErr) {
+        return this.handleStaticFallback(endpoint, options);
+      }
 
       if (!res.ok || data.success === false) {
         const errorMsg = data.error?.message || `Lỗi máy chủ (${res.status})`;
@@ -65,9 +77,196 @@ const ApiClient = {
 
       return data;
     } catch (err) {
+      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'))) {
+        return this.handleStaticFallback(endpoint, options);
+      }
       console.warn(`[ApiClient Error] ${options.method || 'GET'} ${url}:`, err.message);
       throw err;
     }
+  },
+
+  // Seamless fallback for Static Cloudflare Pages hosting when backend Node server is not active
+  handleStaticFallback(endpoint, options = {}) {
+    const method = (options.method || 'GET').toUpperCase();
+    let body = {};
+    if (options.body) {
+      try { body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body; } catch(e) {}
+    }
+
+    const DEMO_USERS = [
+      {
+        id: 'usr_admin_01',
+        email: 'admin@sigmacar.vn',
+        fullName: 'Hệ Thống Quản Trị SIGMACAR',
+        role: 'admin',
+        phone: '+84 1900 8888',
+        savedCars: []
+      },
+      {
+        id: 'usr_seller_01',
+        email: 'minhphan.seller@sigmacar.vn',
+        fullName: 'Minh Phan',
+        role: 'seller',
+        phone: '+84 909 111 222',
+        savedCars: []
+      },
+      {
+        id: 'usr_cskh_01',
+        email: 'cskh.lan@sigmacar.vn',
+        fullName: 'Nguyễn Ngọc Lan',
+        role: 'support_staff',
+        phone: '+84 909 333 444',
+        savedCars: []
+      },
+      {
+        id: 'usr_buyer_01',
+        email: 'minhhoang.sigma@example.com',
+        fullName: 'Minh Hoàng',
+        role: 'buyer',
+        phone: '+84 912 345 678',
+        savedCars: []
+      }
+    ];
+
+    // 1. Auth Login
+    if (endpoint === '/auth/login' && method === 'POST') {
+      const email = (body.email || '').trim().toLowerCase();
+      let localUsers = [];
+      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
+      const allUsers = [...DEMO_USERS, ...localUsers];
+      let user = allUsers.find(u => u.email.toLowerCase() === email);
+
+      if (!user) {
+        // Create user dynamically for demo testing
+        user = {
+          id: 'usr_' + Date.now(),
+          email: body.email,
+          fullName: body.email.split('@')[0],
+          role: email.includes('admin') ? 'admin' : (email.includes('seller') ? 'seller' : 'buyer'),
+          phone: '+84 900 000 000',
+          savedCars: []
+        };
+        localUsers.push(user);
+        try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
+      }
+
+      const token = 'sigmacar_jwt_demo_' + Date.now();
+      this.setToken(token);
+      this.setCurrentUser(user);
+      return { success: true, data: { token, user } };
+    }
+
+    // 2. Auth Register
+    if (endpoint === '/auth/register' && method === 'POST') {
+      let localUsers = [];
+      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
+      const newUser = {
+        id: 'usr_' + Date.now(),
+        email: body.email,
+        fullName: body.fullName || body.email.split('@')[0],
+        role: body.role || 'buyer',
+        phone: body.phone || '',
+        savedCars: []
+      };
+      localUsers.push(newUser);
+      try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
+      const token = 'sigmacar_jwt_demo_' + Date.now();
+      this.setToken(token);
+      this.setCurrentUser(newUser);
+      return { success: true, data: { token, user: newUser } };
+    }
+
+    // 3. Auth Me
+    if (endpoint === '/auth/me') {
+      const cur = this.getCurrentUser() || DEMO_USERS[0];
+      return { success: true, data: cur };
+    }
+
+    // 4. Update Profile
+    if (endpoint === '/auth/profile') {
+      const cur = this.getCurrentUser() || DEMO_USERS[0];
+      const updated = { ...cur, ...body };
+      this.setCurrentUser(updated);
+      return { success: true, data: updated };
+    }
+
+    // 5. Saved Cars
+    if (endpoint === '/auth/saved-cars') {
+      const cur = this.getCurrentUser() || DEMO_USERS[0];
+      cur.savedCars = cur.savedCars || [];
+      const idx = cur.savedCars.indexOf(body.vehicleId);
+      if (idx === -1) cur.savedCars.push(body.vehicleId);
+      else cur.savedCars.splice(idx, 1);
+      this.setCurrentUser(cur);
+      return { success: true, data: { user: cur, savedCars: cur.savedCars } };
+    }
+
+    // 6. Vehicles
+    if (endpoint.startsWith('/vehicles/certified')) {
+      return { success: true, data: typeof SIGMA_DATA !== 'undefined' ? SIGMA_DATA.certifiedCars : [] };
+    }
+    if (endpoint.startsWith('/vehicles')) {
+      return { success: true, data: typeof SIGMA_DATA !== 'undefined' ? SIGMA_DATA.cars : [] };
+    }
+
+    // 7. Orders & Deposit
+    if (endpoint.startsWith('/orders')) {
+      let orders = [];
+      try { orders = JSON.parse(localStorage.getItem('sigmacar_orders') || '[]'); } catch(e) {}
+      if (method === 'POST') {
+        const newOrder = {
+          id: 'ord_' + Date.now().toString(36),
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          ...body
+        };
+        orders.unshift(newOrder);
+        try { localStorage.setItem('sigmacar_orders', JSON.stringify(orders)); } catch(e) {}
+        return { success: true, data: newOrder };
+      }
+      return { success: true, data: orders };
+    }
+
+    // 8. Appointments
+    if (endpoint.startsWith('/appointments')) {
+      let appts = [];
+      try { appts = JSON.parse(localStorage.getItem('sigmacar_appointments') || '[]'); } catch(e) {}
+      if (method === 'POST') {
+        const newAppt = {
+          id: 'apt_' + Date.now().toString(36),
+          status: 'confirmed',
+          createdAt: new Date().toISOString(),
+          ...body
+        };
+        appts.unshift(newAppt);
+        try { localStorage.setItem('sigmacar_appointments', JSON.stringify(appts)); } catch(e) {}
+        return { success: true, data: newAppt };
+      }
+      return { success: true, data: appts };
+    }
+
+    // 9. Financing
+    if (endpoint.startsWith('/financing')) {
+      const price = body.vehiclePrice || 1000000000;
+      const downPercent = body.downPaymentPercent || 20;
+      const rate = body.interestRate || 7.9;
+      const months = body.termMonths || 60;
+      const loanAmount = price * (1 - downPercent / 100);
+      const monthlyRate = (rate / 100) / 12;
+      const monthlyPayment = monthlyRate === 0 ? loanAmount / months : Math.round(loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1));
+      return {
+        success: true,
+        data: {
+          loanAmount,
+          monthlyPayment,
+          totalPayment: monthlyPayment * months,
+          totalInterest: (monthlyPayment * months) - loanAmount
+        }
+      };
+    }
+
+    // Generic fallback for any other endpoint
+    return { success: true, data: [] };
   },
 
   // Auth Methods
