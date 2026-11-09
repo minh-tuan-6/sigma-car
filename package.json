@@ -4,6 +4,7 @@
   "description": "Production-ready full-stack electric vehicle commerce platform for SIGMACAR",
   "main": "server.js",
   "scripts": {
+    "build": "node scripts/build_dist.js",
     "start": "node server.js",
     "test": "node --test tests/**/*.test.js",
     "test:unit": "node --test tests/unit/*.test.js",
