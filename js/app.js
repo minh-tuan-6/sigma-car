@@ -434,14 +434,45 @@ const AppState = {
   // =================================================================
   // ROUTER
   // =================================================================
-  function navigateTo(route, params = {}) {
-    if (params.carId) AppState.currentDetailCar = params.carId;
-    if (params.compareCars) AppState.compareCars = params.compareCars;
-    if (params.profileTab) AppState.activeProfileTab = params.profileTab;
-    if (params.sellerTab) AppState.activeSellerTab = params.sellerTab;
+  function parseHashRoute(rawHash) {
+    const clean = (rawHash || '').replace(/^#\/?/, '') || 'home';
+    const [route, queryStr] = clean.split('?');
+    const params = {};
+    if (queryStr) {
+      const q = new URLSearchParams(queryStr);
+      if (q.has('tab')) {
+        if (route === 'seller-dashboard') params.sellerTab = q.get('tab');
+        if (route === 'profile') params.profileTab = q.get('tab');
+      }
+      if (q.has('carId')) params.carId = q.get('carId');
+    }
+    return { route: route || 'home', params };
+  }
+
+  function navigateTo(routeInput, params = {}) {
+    const parsed = parseHashRoute(routeInput);
+    const route = parsed.route;
+    const mergedParams = { ...parsed.params, ...params };
+
+    if (mergedParams.carId) AppState.currentDetailCar = mergedParams.carId;
+    if (mergedParams.compareCars) AppState.compareCars = mergedParams.compareCars;
+    if (mergedParams.profileTab) AppState.activeProfileTab = mergedParams.profileTab;
+    if (mergedParams.sellerTab) AppState.activeSellerTab = mergedParams.sellerTab;
 
     AppState.currentRoute = route;
-    window.location.hash = route;
+
+    let targetHash = route;
+    if (route === 'seller-dashboard' && AppState.activeSellerTab) {
+      targetHash += `?tab=${AppState.activeSellerTab}`;
+    } else if (route === 'profile' && AppState.activeProfileTab) {
+      targetHash += `?tab=${AppState.activeProfileTab}`;
+    } else if (route === 'vehicle-detail' && AppState.currentDetailCar) {
+      targetHash += `?carId=${AppState.currentDetailCar}`;
+    }
+
+    if (window.location.hash.replace(/^#\/?/, '') !== targetHash) {
+      window.location.hash = targetHash;
+    }
 
     accountDropdown?.classList.remove('active');
     hamburgerDrawer?.classList.remove('active');
@@ -461,8 +492,9 @@ const AppState = {
   }
 
   window.addEventListener('hashchange', () => {
-    const hash = window.location.hash.replace('#', '') || 'home';
-    if (hash !== AppState.currentRoute) {
+    const hash = window.location.hash || 'home';
+    const parsed = parseHashRoute(hash);
+    if (parsed.route !== AppState.currentRoute || (parsed.params.sellerTab && parsed.params.sellerTab !== AppState.activeSellerTab) || (parsed.params.profileTab && parsed.params.profileTab !== AppState.activeProfileTab)) {
       navigateTo(hash);
     }
   });
@@ -5170,15 +5202,15 @@ const AppState = {
             <li class="dash-nav-item ${activeTab === 'dash-campaigns' ? 'active' : ''}" data-dashtab="dash-campaigns">
               ✉️ Chiến dịch Email (${(campaignsRes.campaigns || []).length})
             </li>
-            <li class="dash-nav-item ${activeTab === 'dash-crm' ? 'active' : ''}" data-dashtab="dash-crm">
+            <li class="dash-nav-item ${activeTab === 'dash-crm' ? 'active' : ''}" data-dashtab="dash-crm" style="cursor:pointer; position:relative; z-index:10;">
               👥 CRM & Phân quyền RBAC
             </li>
           </ul>
 
-          <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:16px; margin-top:auto; display:flex; align-items:center; gap:12px;">
-            <img src="assets/avatar-sales.jpg" style="width:38px; height:38px; border-radius:50%; object-fit:cover;" alt="Sale">
+          <div style="border-top:1px solid rgba(255,255,255,0.1); padding-top:14px; margin-top:16px; margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-shrink:0;">
+            <img src="assets/avatar-sales.jpg" style="width:36px; height:36px; border-radius:50%; object-fit:cover;" alt="Sale">
             <div>
-              <div style="font-size:13.5px; font-weight:700; color:#FFFFFF;">${escapeHtml(curUser.fullName || 'Quản trị viên')}</div>
+              <div style="font-size:13px; font-weight:700; color:#FFFFFF;">${escapeHtml(curUser.fullName || 'Quản trị viên')}</div>
               <div style="font-size:11px; color:#94A3B8;">${escapeHtml((curUser.role || 'ADMIN').toUpperCase())}</div>
             </div>
           </div>
@@ -5192,7 +5224,13 @@ const AppState = {
 
     document.querySelectorAll('.dash-nav-item[data-dashtab]').forEach(item => {
       item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const tab = e.currentTarget.getAttribute('data-dashtab');
+        AppState.activeSellerTab = tab;
+        if (window.location.hash !== `#seller-dashboard?tab=${tab}`) {
+          window.location.hash = `#seller-dashboard?tab=${tab}`;
+        }
         renderSellerDashboard(tab);
       });
     });

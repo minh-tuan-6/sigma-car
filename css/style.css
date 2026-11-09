@@ -2199,36 +2199,58 @@ img {
   width: 260px;
   background: #0A1128;
   color: #FFFFFF;
-  padding: 24px 16px;
+  padding: 16px 12px 32px;
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 76px);
+  position: sticky;
+  top: 76px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  z-index: 100;
+}
+
+.dashboard-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.dashboard-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
 }
 
 .dashboard-brand {
-  padding: 0 12px 24px;
+  padding: 0 8px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 20px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
 }
 
 .dashboard-nav {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
 }
 
 .dash-nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 9px 12px;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #94A3B8;
   cursor: pointer;
   transition: all var(--transition-fast);
+  pointer-events: auto;
+  user-select: none;
+  flex-shrink: 0;
 }
 
 .dash-nav-item:hover, .dash-nav-item.active {
