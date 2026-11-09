@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIGMACAR: Electric & Certified | Nền Tảng Thương Mại Điện Tử Ô Tô Điện Thông Minh</title>
+  <meta name="description" content="SIGMACAR - Sàn thương mại điện tử phân phối xe thuần điện thế hệ mới và xe qua sử dụng chính hãng đạt chuẩn kiểm định 176 điểm cùng trợ lý AI tư vấn thông minh.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <link rel="stylesheet" href="css/style.css?v=3.0">
+</head>
+<body>
+
+  <!-- ===================================================================
+       STICKY HEADER & NAVIGATION (Matching Header.pdf)
+       =================================================================== -->
+  <header class="site-header" id="site-header">
+    <div class="container">
+      <div class="header-inner">
+        <!-- Brand Logo -->
+        <div class="brand-logo" onclick="window.location.hash='home'">
+          <div class="brand-emblem">Σ</div>
+          <div class="brand-text">
+            <span class="brand-title">SIGMACAR</span>
+            <span class="brand-subtitle">Electric & Certified</span>
+          </div>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav>
+          <ul class="nav-menu">
+            <li><a href="javascript:void(0)" class="nav-link active" data-route="home">Trang chủ</a></li>
+            <li><a href="javascript:void(0)" class="nav-link" data-route="new-cars">Dòng xe mới</a></li>
+            <li><a href="javascript:void(0)" class="nav-link" data-route="certified">Xe qua sử dụng</a></li>
+            <li><a href="javascript:void(0)" class="nav-link" data-route="accessories">Phụ kiện</a></li>
+            <li><a href="javascript:void(0)" class="nav-link" data-route="vr-ar">Showroom 360° / VR•AR</a></li>
+            <li><a href="javascript:void(0)" class="nav-link ai-pill" data-route="ai-advisor"><span class="ai-pulse-dot"></span> AI tư vấn</a></li>
+            <li><a href="javascript:void(0)" class="nav-link" data-route="test-drive">Lái thử</a></li>
+            <li><a href="javascript:void(0)" class="nav-link" data-route="support">Hỗ trợ & CSKH</a></li>
+          </ul>
+        </nav>
+
+        <!-- Header Actions matching Figma -->
+        <div class="header-actions">
+          <button class="btn-icon" id="btn-header-search" title="Tìm kiếm thông minh">
+            🔍
+          </button>
+          
+          <button class="btn-icon" id="btn-header-auth" title="Tài khoản cá nhân">
+            👤
+          </button>
+
+          <!-- Blue circular hamburger menu button matching Figma -->
+          <button class="btn-menu-circle" id="btn-hamburger" title="Menu mở rộng">
+            ☰
+          </button>
+
+          <!-- Floating Account Dropdown (Matching Account Dropdown - SIGMACAR.pdf) -->
+          <div class="account-dropdown-box" id="account-dropdown">
+            <div class="dropdown-user-header">
+              <img src="assets/avatar-user.jpg" class="dropdown-avatar" id="dropdown-user-avatar" alt="User Avatar">
+              <div>
+                <div style="font-weight:700; font-size:15px; color:var(--text-dark);" id="dropdown-user-name">Khách viếng thăm</div>
+                <span class="dropdown-gold-badge" id="dropdown-user-role" style="background:#E2E8F0; color:#475569;">CHƯA ĐĂNG NHẬP</span>
+              </div>
+            </div>
+
+            <ul class="dropdown-menu-list">
+              <li><button class="dropdown-item-btn" onclick="openProfileSubView('profile-personal')">👤 Hồ sơ cá nhân</button></li>
+              <li><button class="dropdown-item-btn" onclick="openProfileSubView('profile-garage')">⚡ Gara của tôi & Bảo hành số</button></li>
+              <li><button class="dropdown-item-btn" onclick="openProfileSubView('profile-orders')">📦 Đơn hàng của tôi</button></li>
+              <li><button class="dropdown-item-btn" onclick="openProfileSubView('profile-returns')">🔄 Trung tâm Đổi trả 7 ngày</button></li>
+              <li><button class="dropdown-item-btn" onclick="openProfileSubView('profile-appointments')">📅 Lịch hẹn Lái thử & Bảo dưỡng</button></li>
+              <li><button class="dropdown-item-btn" onclick="openProfileSubView('profile-saved')">❤️ Xe đã lưu</button></li>
+              <li><button class="dropdown-item-btn" onclick="window.location.hash='support'">🎧 Trung tâm Chăm sóc Khách hàng</button></li>
+              <li><button class="dropdown-item-btn" onclick="openProfileSubView('profile-security')">🛡️ Bảo mật & Cài đặt Thông báo</button></li>
+              <li id="dropdown-seller-nav"><button class="dropdown-item-btn" onclick="window.location.hash='seller-dashboard'">📊 Cổng Quản trị & Đại lý (Admin/Seller)</button></li>
+              <li><button class="dropdown-item-btn" id="btn-open-login-modal">🔑 Đổi tài khoản / Đăng nhập</button></li>
+            </ul>
+
+            <button class="btn-dropdown-logout" id="btn-dropdown-logout">
+              ← Đăng xuất
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================
+       HAMBURGER DRAWER MENU (Matching Hamburger Menu - SIGMACAR.pdf)
+       =================================================================== -->
+  <div class="drawer-overlay" id="hamburger-drawer">
+    <div class="drawer-panel">
+      <div>
+        <div class="drawer-header">
+          <div class="brand-logo" onclick="window.location.hash='home'">
+            <div class="brand-emblem">Σ</div>
+            <div class="brand-text">
+              <span class="brand-title">SIGMACAR</span>
+              <span class="brand-subtitle">Electric & Certified</span>
+            </div>
+          </div>
+          <button class="modal-close-btn" id="btn-drawer-close" style="position:static;">✕</button>
+        </div>
+
+        <ul class="drawer-nav-list">
+          <li class="drawer-nav-item" onclick="window.location.hash='home'">Trang chủ <span>›</span></li>
+          <li class="drawer-nav-item active" onclick="window.location.hash='new-cars'">| Dòng xe mới <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='certified'">Xe qua sử dụng chính hãng <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='accessories'">Phụ kiện & Đồ chơi ô tô <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='vr-ar'">🌐 Showroom 360° / VR•AR <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='ar-home'">📦 Xem AR tại nhà <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='ai-advisor'">• AI Tư vấn <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='compare'">• So sánh xe <span>›</span></li>
+          <li class="drawer-nav-item" onclick="openProfileSubView('profile-garage')">• Bảo hành & Bảo dưỡng số <span>›</span></li>
+          <li class="drawer-nav-item" onclick="openProfileSubView('profile-returns')">• Trung tâm Đổi trả 7 ngày <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='support'">• Trung tâm Hỗ trợ & FAQ <span>›</span></li>
+        </ul>
+
+        <button class="btn-drawer-testdrive" onclick="window.location.hash='test-drive'">
+          ĐĂNG KÝ LÁI THỬ 🚗
+        </button>
+      </div>
+
+      <ul class="drawer-footer-links">
+        <li><a href="javascript:void(0)" onclick="openProfileSubView('profile-garage')">Bảo hành & Xưởng dịch vụ</a></li>
+        <li><a href="javascript:void(0)" onclick="openProfileSubView('profile-returns')">Chính sách Đổi trả 7 ngày</a></li>
+        <li><a href="javascript:void(0)" onclick="window.location.hash='seller-dashboard'">Hệ thống đại lý</a></li>
+        <li><a href="javascript:void(0)" onclick="window.location.hash='support'">Liên hệ: 1800-SIGMA-CAR</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       FULLSCREEN SEARCH OVERLAY (Matching Search Overlay - SIGMACAR.pdf)
+       =================================================================== -->
+  <div class="search-fullscreen-overlay" id="search-overlay">
+    <div class="search-overlay-container">
+      <div class="search-overlay-top">
+        <div class="brand-logo" onclick="window.location.hash='home'">
+          <div class="brand-emblem">Σ</div>
+          <div class="brand-text">
+            <span class="brand-title">SIGMACAR</span>
+            <span class="brand-subtitle">Electric & Certified</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" id="btn-search-overlay-close" style="position:static;">✕</button>
+      </div>
+
+      <div class="search-input-wrapper">
+        <span class="search-input-icon">🔍</span>
+        <input type="text" class="search-main-input" id="search-fullscreen-input" placeholder="Tìm kiếm dòng xe, tin tức, đại lý..." autocomplete="off">
+      </div>
+
+      <div class="search-section-label">GỢI Ý TÌM KIẾM</div>
+      <div class="search-tags-row">
+        <span class="search-tag-chip" onclick="document.getElementById('search-fullscreen-input').value='SIGMA Model E'; document.getElementById('search-fullscreen-input').dispatchEvent(new Event('input'));">SIGMA Model E</span>
+        <span class="search-tag-chip" onclick="document.getElementById('search-fullscreen-input').value='Sạc nhanh'; document.getElementById('search-fullscreen-input').dispatchEvent(new Event('input'));">Sạc nhanh</span>
+        <span class="search-tag-chip" onclick="document.getElementById('search-fullscreen-input').value='Bảo hành'; document.getElementById('search-fullscreen-input').dispatchEvent(new Event('input'));">Bảo hành</span>
+        <span class="search-tag-chip" onclick="document.getElementById('search-fullscreen-input').value='Giá xe'; document.getElementById('search-fullscreen-input').dispatchEvent(new Event('input'));">Giá xe</span>
+        <span class="search-tag-chip" onclick="document.getElementById('search-fullscreen-input').value='Trạm sạc'; document.getElementById('search-fullscreen-input').dispatchEvent(new Event('input'));">Trạm sạc gần đây</span>
+      </div>
+
+      <div class="search-section-label">KẾT QUẢ PHỔ BIẾN</div>
+      <div class="search-popular-grid" id="search-popular-results">
+        <div class="search-result-card" onclick="window.location.hash='detail'; document.getElementById('search-overlay').classList.remove('active');">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <img src="assets/model-e.jpg" style="width:70px; height:45px; object-fit:contain;">
+            <div>
+              <div style="font-weight:700; color:var(--text-dark);">SIGMA Model E</div>
+              <div style="font-size:12px; color:var(--text-muted);">DÒNG XE SUV ĐIỆN</div>
+            </div>
+          </div>
+          <span style="color:var(--text-muted); font-size:18px;">›</span>
+        </div>
+
+        <div class="search-result-card" onclick="window.location.hash='detail'; document.getElementById('search-overlay').classList.remove('active');">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <img src="assets/vision-s.jpg" style="width:70px; height:45px; object-fit:contain;">
+            <div>
+              <div style="font-weight:700; color:var(--text-dark);">SIGMA Vision S</div>
+              <div style="font-size:12px; color:var(--text-muted);">DÒNG XE SEDAN ĐIỆN</div>
+            </div>
+          </div>
+          <span style="color:var(--text-muted); font-size:18px;">›</span>
+        </div>
+
+        <div class="search-result-card" onclick="showToast('Đang mở bài viết công nghệ ADAS...')">
+          <div style="display:flex; align-items:center; gap:16px;">
+            <div style="width:40px; height:40px; border-radius:50%; background:var(--primary-light); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:18px;">🛡️</div>
+            <div>
+              <div style="font-weight:700; color:var(--text-dark);">Hệ thống ADAS thông minh trên xe SIGMA</div>
+              <div style="font-size:12px; color:var(--text-muted);">TIN TỨC • 5 PHÚT ĐỌC</div>
+            </div>
+          </div>
+          <span style="color:var(--text-muted); font-size:18px;">→</span>
+        </div>
+      </div>
+
+      <div class="search-kbd-footer">
+        <div><kbd>ESC</kbd> ĐÓNG</div>
+        <div><kbd>ENTER</kbd> TÌM KIẾM</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       MAIN SPA DYNAMIC CONTAINER
+       =================================================================== -->
+  <main id="views-container">
+    <!-- Dynamic views rendered via js/app.js -->
+  </main>
+
+  <!-- ===================================================================
+       FLOATING AI ASSISTANT TRIGGER BUTTON
+       =================================================================== -->
+  <button class="floating-ai-trigger" id="floating-ai-btn" title="Hỏi trợ lý Sigma AI">
+    <span class="ai-pulse-dot" style="background:#FFFFFF;"></span>
+    <span>Hỏi Sigma AI</span>
+    <span style="font-size:16px;">✨</span>
+  </button>
+
+  <!-- ===================================================================
+       LLM MODEL CONFIGURATION MODAL
+       =================================================================== -->
+  <div class="modal-overlay" id="llm-settings-modal">
+    <div class="modal-box" style="max-width:580px;">
+      <button class="modal-close-btn">&times;</button>
+      <div style="padding:32px;">
+        <span class="section-tag">AI ARCHITECTURE & LIVE RAG MANAGEMENT</span>
+        <h3 style="font-size:22px; font-weight:800; color:var(--text-dark); margin-bottom:6px;">Cấu hình Mô hình Ngôn ngữ & Live RAG</h3>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:18px;">
+          Sigma AI tích hợp bộ não đa năng hỗ trợ Google Gemini (Khuyên dùng), Groq, OpenAI, Ollama hoặc Mô hình Nội bộ chuyên sâu, tiếp đất (grounded) trên cơ sở dữ liệu xe thật.
+        </p>
+
+        <form id="llm-config-form">
+          <div style="margin-bottom:14px;">
+            <label class="filter-label">Phương thức / Nhà cung cấp LLM</label>
+            <select class="filter-select" id="llm-provider-select">
+              <option value="local-automotive" selected>1. Sigma AI Engine Nội Bộ (Mặc định - Miễn phí, Siêu tốc, Không cần API Key)</option>
+              <option value="gemini">2. Google Gemini API (Chính thức - Tùy chọn)</option>
+              <option value="groq">3. Groq Cloud (Siêu tốc Llama-3.3-70B / Mixtral)</option>
+              <option value="openai">4. OpenAI (GPT-4o / GPT-4o-mini)</option>
+              <option value="ollama">5. Ollama Cục Bộ (Qwen 2.5 / Llama 3.2)</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:14px;">
+            <label class="filter-label">Tên Model LLM</label>
+            <input type="text" class="filter-input" id="llm-model-input" value="Sigma AI (Nội bộ)" placeholder="Sigma AI (Nội bộ)">
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;" id="llm-model-hint">Mô hình suy luận cục bộ: 100% bảo mật, tốc độ tức thì, không cần kết nối mạng hay API Key</div>
+          </div>
+
+          <div style="margin-bottom:14px; display:none;" id="llm-endpoint-group">
+            <label class="filter-label" id="llm-endpoint-label">Endpoint API / Ollama</label>
+            <input type="text" class="filter-input" id="llm-ollama-url" value="http://localhost:11434" placeholder="http://localhost:11434">
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <label class="filter-label" id="llm-api-key-label">API Key (Lưu an toàn phía Server, không lộ client)</label>
+            <input type="password" class="filter-input" id="llm-api-key" placeholder="Không cần API Key đối với Sigma AI (Chỉ nhập khi đổi sang Gemini/Groq/OpenAI)">
+            <div style="font-size:11px; color:#10B981; margin-top:4px; display:none;" id="llm-key-status-saved">✓ Đã lưu API Key an toàn trên máy chủ</div>
+          </div>
+
+          <!-- Live RAG Real-time Monitoring Card -->
+          <div style="background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:var(--radius-sm); padding:16px; margin-bottom:18px; font-size:12.5px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <strong style="color:var(--text-dark); display:flex; align-items:center; gap:6px;">
+                <span class="ai-pulse-dot" style="background:#10B981;"></span> Trạng thái Live RAG (Database Xe Thật):
+              </strong>
+              <span id="rag-status-badge" style="background:#ECFDF5; color:#059669; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;">Đã đồng bộ</span>
+            </div>
+            <div style="color:var(--text-secondary); line-height:1.6; margin-bottom:12px;">
+              • Dòng xe đã nạp vào AI: <strong id="rag-vehicle-count" style="color:var(--primary);">20 dòng xe</strong> (11 xe điện, 9 xe xăng)<br>
+              • Thời điểm cập nhật: <span id="rag-last-sync" style="color:var(--text-dark); font-weight:600;">Thời gian thực</span><br>
+              • Công cụ kiểm soát: Tra cứu xe thật, So sánh thông số, Thời tiết vệ tinh, Giờ chuẩn Việt Nam
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button type="button" class="btn-secondary" id="btn-sync-rag-now" style="flex:1; padding:7px 12px; font-size:12px; justify-content:center;">
+                🔄 Đồng bộ lại dữ liệu xe
+              </button>
+              <button type="button" class="btn-secondary" id="btn-test-ai-connection" style="flex:1; padding:7px 12px; font-size:12px; justify-content:center; background:#EFF6FF; border-color:#BFDBFE; color:#1D4ED8;">
+                ⚡ Kiểm tra kết nối AI
+              </button>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px;">
+            <button type="submit" class="btn-primary" style="flex:1; justify-content:center; padding:12px; font-weight:700;">
+              💾 Lưu cấu hình AI lên máy chủ
+            </button>
+            <button type="button" class="btn-secondary modal-close-btn-alt" style="padding:12px 18px;">
+              Đóng
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       MODAL: ĐẶT CỌC GIỮ XE (DEPOSIT RESERVATION)
+       =================================================================== -->
+  <div class="modal-overlay" id="deposit-modal">
+    <div class="modal-box">
+      <button class="modal-close-btn">&times;</button>
+      <div style="padding:32px;">
+        <span class="section-tag">Đặt xe trực tuyến</span>
+        <h3 style="font-size:24px; font-weight:800; margin-bottom:6px; color:var(--text-dark);" id="deposit-car-title">SIGMA Model E</h3>
+        <div style="font-size:14px; color:var(--text-muted); margin-bottom:20px;">
+          Giá niêm yết: <strong style="color:var(--primary);" id="deposit-car-price">1.290.000.000 VNĐ</strong>
+        </div>
+
+        <form id="form-deposit">
+          <div style="background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:16px; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:14px;">
+              <span>Số tiền đặt cọc giữ chỗ:</span>
+              <strong style="color:var(--primary); font-size:16px;">50.000.000 VNĐ</strong>
+            </div>
+            <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">
+              * Tiền cọc được hoàn lại 100% trong vòng 7 ngày nếu bạn thay đổi ý định trước khi ký hợp đồng chính thức.
+            </p>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label class="filter-label">Họ và tên người đứng tên xe</label>
+            <input type="text" class="filter-input" id="deposit-name" placeholder="Ví dụ: Nguyễn Văn A" value="" required>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label class="filter-label">Số điện thoại liên hệ</label>
+            <input type="tel" class="filter-input" id="deposit-phone" placeholder="Ví dụ: 0901 234 567" value="" required>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label class="filter-label">Số CCCD / Hộ chiếu</label>
+            <input type="text" class="filter-input" id="deposit-id-card" placeholder="Ví dụ: 001090012345" value="" required>
+          </div>
+
+          <div style="margin-bottom:24px;">
+            <label class="filter-label">Phương thức thanh toán cọc</label>
+            <select class="filter-select" id="deposit-payment-method" required>
+              <option>Chuyển khoản QR Napas 24/7 (Khuyên dùng)</option>
+              <option>Thẻ thanh toán Quốc tế Visa / Mastercard</option>
+              <option>Ví điện tử Momo / VNPay</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:15px;">
+            Thanh toán cọc 50.000.000 VNĐ
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       MODAL: THÊM XE VÀO ĐƠN HÀNG (LƯU ĐƠN CHỜ THANH TOÁN)
+       =================================================================== -->
+  <div class="modal-overlay" id="user-add-order-modal">
+    <div class="modal-box" style="max-width:620px;">
+      <button class="modal-close-btn" id="btn-close-add-order-modal">&times;</button>
+      <div style="padding:32px;">
+        <span class="section-tag">ĐƠN HÀNG CÁ NHÂN</span>
+        <h3 style="font-size:24px; font-weight:800; margin-bottom:6px; color:var(--text-dark);">Thêm xe mới vào đơn hàng</h3>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">
+          Chọn mẫu xe yêu thích để lưu vào danh sách đơn hàng. Xe sẽ ở trạng thái <strong>"Chờ thanh toán"</strong> và chỉ chính thức chuyển vào <strong>"Quản lý xe & Gara"</strong> khi bạn hoàn tất thanh toán.
+        </p>
+
+        <form id="form-user-add-order">
+          <div style="margin-bottom:16px;">
+            <label class="filter-label" for="add-order-vehicle-select">Chọn dòng xe muốn mua / đặt trước</label>
+            <select class="filter-select" id="add-order-vehicle-select" required style="font-weight:600;">
+              <!-- Options populated dynamically from vehicles list -->
+            </select>
+          </div>
+
+          <!-- Live Car Preview Card in Modal -->
+          <div id="add-order-car-preview" style="background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:16px; margin-bottom:18px; display:flex; align-items:center; gap:16px;">
+            <img id="add-order-preview-img" src="assets/model-e.jpg" alt="Preview" style="width:110px; height:70px; object-fit:contain; border-radius:6px; background:#FFFFFF; border:1px solid #E2E8F0;">
+            <div>
+              <div id="add-order-preview-brand" style="font-size:11px; font-weight:700; color:var(--primary); text-transform:uppercase;">SIGMACAR</div>
+              <h5 id="add-order-preview-name" style="font-size:16px; font-weight:800; color:var(--text-dark); margin:2px 0 4px;">SIGMA Model E</h5>
+              <div style="font-size:14.5px; font-weight:800; color:var(--primary);" id="add-order-preview-price">1.290.000.000 VNĐ</div>
+              <div style="font-size:11.5px; color:var(--text-muted);" id="add-order-preview-specs">Tầm vận hành: 600 km • Công suất: 450 HP</div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
+            <div>
+              <label class="filter-label">Họ tên người mua</label>
+              <input type="text" class="filter-input" id="add-order-buyer-name" required placeholder="Nguyễn Văn A">
+            </div>
+            <div>
+              <label class="filter-label">Số điện thoại liên hệ</label>
+              <input type="tel" class="filter-input" id="add-order-buyer-phone" required placeholder="0901 234 567">
+            </div>
+          </div>
+
+          <div style="margin-bottom:16px;">
+            <label class="filter-label">Showroom nhận xe & hỗ trợ kỹ thuật</label>
+            <select class="filter-select" id="add-order-branch-select">
+              <option value="hn-caugiay">Showroom SIGMACAR Cầu Giấy (Hà Nội)</option>
+              <option value="hn-mydinh">Showroom SIGMACAR Mỹ Đình (Hà Nội)</option>
+              <option value="hcm-q7">Showroom SIGMACAR Quận 7 (TP.HCM)</option>
+              <option value="hcm-thuduc">Showroom SIGMACAR Thủ Đức (TP.HCM)</option>
+              <option value="dn-haichau">Showroom SIGMACAR Đà Nẵng</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:24px;">
+            <label class="filter-label">Hình thức đặt xe ban đầu</label>
+            <select class="filter-select" id="add-order-intent-select">
+              <option value="pending_full">Lưu đơn chờ thanh toán đủ 100% (Thêm để đó)</option>
+              <option value="deposit_paid">Đặt cọc trước (50.000.000 đ) & Chờ thanh toán phần còn lại</option>
+            </select>
+          </div>
+
+          <div style="display:flex; gap:12px;">
+            <button type="submit" class="btn-primary" style="flex:1; justify-content:center; padding:12px; font-size:14.5px;">
+              ➕ Xác nhận thêm xe vào đơn hàng
+            </button>
+            <button type="button" class="btn-secondary" id="btn-cancel-add-order-modal" style="padding:12px 18px;">
+              Hủy
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       MODAL: THANH TOÁN HOÀN TẤT ĐƠN HÀNG (CHUYỂN VÀO GARA)
+       =================================================================== -->
+  <div class="modal-overlay" id="user-payment-modal">
+    <div class="modal-box" style="max-width:580px;">
+      <button class="modal-close-btn" id="btn-close-payment-modal">&times;</button>
+      <div style="padding:32px;">
+        <span class="section-tag" style="background:#ECFDF5; color:#059669; border-color:#A7F3D0;">XÁC NHẬN THANH TOÁN HOÀN TẤT</span>
+        <h3 style="font-size:24px; font-weight:800; margin-bottom:6px; color:var(--text-dark);">Hoàn tất thanh toán & Nhận xe vào Gara</h3>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">
+          Sau khi xác nhận thanh toán hoàn tất 100%, hệ thống sẽ kích hoạt bảo hành điện tử chính hãng và tự động chuyển xe vào mục <strong>"Quản lý xe & Gara"</strong> của bạn.
+        </p>
+
+        <form id="form-user-complete-payment">
+          <input type="hidden" id="pay-modal-order-id" value="">
+
+          <!-- Order Summary Card -->
+          <div style="background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:18px; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
+              <span style="font-size:12px; color:var(--text-muted);">Mã đơn hàng:</span>
+              <strong id="pay-modal-order-number" style="color:var(--text-dark); font-family:monospace; font-size:14px;">ORD-0000</strong>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:16px;">
+              <img id="pay-modal-car-img" src="assets/model-e.jpg" alt="Car" style="width:110px; height:70px; object-fit:contain; border-radius:6px; background:#FFFFFF; border:1px solid #E2E8F0;">
+              <div>
+                <h5 id="pay-modal-car-name" style="font-size:17px; font-weight:800; color:var(--text-dark); margin:0 0 4px;">SIGMA Model E</h5>
+                <div style="font-size:12px; color:var(--text-muted);">Tổng thanh toán hoàn tất 100%:</div>
+                <div id="pay-modal-car-price" style="font-size:18px; font-weight:800; color:var(--primary); margin-top:2px;">1.290.000.000 VNĐ</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:20px;">
+            <label class="filter-label">Chọn phương thức thanh toán hoàn tất</label>
+            <select class="filter-select" id="pay-modal-method-select" required>
+              <option value="Chuyển khoản QR Napas 24/7 (Đã thanh toán)">Chuyển khoản QR Napas 24/7 (Đã thanh toán)</option>
+              <option value="Thẻ tín dụng / Ghi nợ quốc tế Visa / Mastercard">Thẻ tín dụng / Ghi nợ quốc tế Visa / Mastercard</option>
+              <option value="Ví điện tử VNPay / Momo">Ví điện tử VNPay / Momo</option>
+              <option value="Thanh toán trực tiếp tại Showroom khi giao xe">Thanh toán trực tiếp tại Showroom khi giao xe</option>
+            </select>
+          </div>
+
+          <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:var(--radius-sm); padding:14px; margin-bottom:24px; font-size:12.5px; color:#166534; line-height:1.5;">
+            ⚡ <strong>Cam kết SIGMACAR:</strong> Xe sẽ được kích hoạt kết nối thông minh, theo dõi tình trạng Pin và bảo dưỡng trọn gói 8 năm ngay khi xe xuất hiện trong Gara của bạn.
+          </div>
+
+          <div style="display:flex; gap:12px;">
+            <button type="submit" class="btn-primary" style="flex:1; justify-content:center; padding:12px; font-size:14.5px; background:linear-gradient(135deg, #10B981, #059669); border:none; box-shadow:0 3px 12px rgba(16,185,129,0.35);">
+              ✓ Xác nhận đã thanh toán -> Chuyển vào Gara
+            </button>
+            <button type="button" class="btn-secondary" id="btn-cancel-payment-modal" style="padding:12px 18px;">
+              Hủy
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       GLOBAL FOOTER (Matching Footer.pdf)
+       =================================================================== -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="brand-logo" style="margin-bottom:16px;" onclick="window.location.hash='home'">
+            <div class="brand-emblem" style="background:#0066FF;">Σ</div>
+            <div class="brand-text">
+              <span class="brand-title" style="color:#FFFFFF;">SIGMACAR</span>
+              <span class="brand-subtitle" style="color:var(--accent-cyan);">Electric & Certified</span>
+            </div>
+          </div>
+          <p style="font-size:14px; color:#94A3B8; line-height:1.6; max-width:320px; margin-bottom:20px;">
+            Tiên phong trong giải pháp di chuyển điện hóa và cung cấp xe đã qua sử dụng đạt chuẩn quốc tế tại Việt Nam.
+          </p>
+          <div style="display:flex; gap:12px; font-size:18px;">
+            <a href="javascript:void(0)" style="color:#94A3B8;">🌐</a>
+            <a href="javascript:void(0)" style="color:#94A3B8;">📱</a>
+            <a href="javascript:void(0)" style="color:#94A3B8;">💬</a>
+            <a href="javascript:void(0)" style="color:#94A3B8;">✉️</a>
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h5>Dòng xe</h5>
+          <ul>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='detail'">SIGMA Model E</a></li>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='new-cars'">SIGMA Vision S</a></li>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='new-cars'">SIGMA City G</a></li>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='compare'">Dòng xe Concept</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Dịch vụ & Hậu mãi</h5>
+          <ul>
+            <li><a href="javascript:void(0)" onclick="openProfileSubView('profile-garage')">Bảo hành & Bảo dưỡng số</a></li>
+            <li><a href="javascript:void(0)" onclick="openProfileSubView('profile-returns')">Trung tâm Đổi trả 7 ngày</a></li>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='accessories'">Phụ tùng & Sạc chính hãng</a></li>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='support'">Trung tâm CSKH 24/7</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Công ty</h5>
+          <ul>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='home'">Về SIGMACAR</a></li>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='test-drive'">Đặt lịch Lái thử</a></li>
+            <li><a href="javascript:void(0)" onclick="window.location.hash='seller-dashboard'">Hệ thống đại lý & Quản trị</a></li>
+            <li><a href="javascript:void(0)" onclick="openProfileSubView('profile-security')">Bảo mật & Quyền riêng tư</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <div>
+          © 2026 SIGMACAR Việt Nam. Tất cả các quyền được bảo lưu.
+        </div>
+        <div style="display:flex; gap:20px;">
+          <a href="javascript:void(0)" onclick="openProfileSubView('profile-security')">Chính sách bảo mật</a>
+          <a href="javascript:void(0)" onclick="openProfileSubView('profile-returns')">Chính sách đổi trả 7 ngày</a>
+          <a href="javascript:void(0)" onclick="window.location.hash='support'">Trung tâm trợ giúp</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ===================================================================
+       MODAL: ĐĂNG NHẬP / TÀI KHOẢN (AUTH & RBAC SWITCHER)
+       =================================================================== -->
+  <!-- ===================================================================
+       MODAL: ĐĂNG NHẬP / ĐĂNG KÝ (AUTH & RBAC SWITCHER & REGISTRATION)
+       =================================================================== -->
+  <div class="modal-overlay" id="auth-modal">
+    <div class="modal-box auth-split-grid" style="max-width:880px; padding:0; overflow:hidden;">
+      <button class="modal-close-btn" id="btn-auth-modal-close">&times;</button>
+      
+      <!-- Left Hero Artwork Pane matching Figma Login & Register -->
+      <div class="auth-hero-pane" id="auth-modal-hero-pane" style="background:url('assets/login-side-art.jpg') center/cover no-repeat; min-height:460px; position:relative; padding:36px; display:flex; flex-direction:column; justify-content:space-between;">
+        <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(6,11,25,0.35) 0%, rgba(6,11,25,0.88) 100%); z-index:1;"></div>
+        <div style="position:relative; z-index:2;">
+          <div class="brand-logo" style="margin-bottom:20px;">
+            <div class="brand-emblem" style="background:rgba(255,255,255,0.15); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.2);">Σ</div>
+            <div class="brand-text">
+              <span class="brand-title" style="color:#FFFFFF;">SIGMACAR</span>
+              <span class="brand-subtitle" style="color:var(--accent-cyan);">Electric & Certified</span>
+            </div>
+          </div>
+        </div>
+        <div style="position:relative; z-index:2;">
+          <span style="font-size:11px; font-weight:800; letter-spacing:0.12em; color:var(--accent-cyan); text-transform:uppercase;">SIGMA ECOSYSTEM</span>
+          <h4 style="font-size:22px; font-weight:800; color:#FFFFFF; margin:6px 0 8px; line-height:1.25;">Kỷ nguyên xe điện thông minh</h4>
+          <p style="font-size:13px; color:#CBD5E1; line-height:1.5; margin:0;">Trải nghiệm trợ lý Sigma AI tư vấn xe cá nhân hóa, đặt cọc giữ chỗ trực tuyến và quản lý gara số toàn diện.</p>
+        </div>
+      </div>
+
+      <!-- Right Form Pane -->
+      <div class="auth-form-pane" style="padding:32px 36px;">
+        <span class="section-tag" id="auth-modal-tag">Xác thực hệ thống</span>
+        <h3 style="font-size:22px; font-weight:800; margin-bottom:6px; color:var(--text-dark);" id="auth-modal-title">Tài khoản SIGMACAR</h3>
+        <p style="font-size:13px; color:var(--text-muted); margin-bottom:18px;" id="auth-modal-desc">
+          Vui lòng đăng nhập hoặc đăng ký tài khoản để sử dụng đầy đủ các tính năng lái thử, tư vấn AI và quản lý xe.
+        </p>
+
+        <!-- Auth Tabs: Đăng nhập / Đăng ký -->
+        <div style="display:flex; background:#F1F5F9; border-radius:var(--radius-md); padding:4px; margin-bottom:20px;">
+          <button type="button" class="auth-tab-btn active" id="tab-auth-login" style="flex:1; padding:8px; border-radius:var(--radius-sm); font-weight:700; font-size:13px; transition:all 0.2s; background:#FFFFFF; color:var(--primary); box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+            🔑 Đăng nhập
+          </button>
+          <button type="button" class="auth-tab-btn" id="tab-auth-register" style="flex:1; padding:8px; border-radius:var(--radius-sm); font-weight:700; font-size:13px; transition:all 0.2s; background:transparent; color:var(--text-muted);">
+            ✨ Đăng ký mới
+          </button>
+        </div>
+
+        <!-- TAB 1: FORM LOGIN -->
+        <div id="auth-login-pane">
+          <form id="form-login-api">
+            <div style="margin-bottom:14px;">
+              <label class="filter-label">Email tài khoản</label>
+              <input type="email" class="filter-input" id="auth-email-input" placeholder="vidu@email.com" autocomplete="off" required>
+            </div>
+
+            <div style="margin-bottom:18px;">
+              <label class="filter-label">Mật khẩu</label>
+              <input type="password" class="filter-input" id="auth-password-input" placeholder="Nhập mật khẩu của bạn" autocomplete="off" required>
+            </div>
+
+            <button type="submit" class="btn-primary" id="btn-auth-submit" style="width:100%; justify-content:center; padding:12px; font-size:14px; margin-bottom:12px;">
+              Đăng nhập hệ thống
+            </button>
+          </form>
+        </div>
+
+        <!-- TAB 2: FORM REGISTER -->
+        <div id="auth-register-pane" style="display:none;">
+          <form id="form-register-api">
+            <div style="margin-bottom:12px;">
+              <label class="filter-label">Họ và tên của bạn</label>
+              <input type="text" class="filter-input" id="reg-name-input" placeholder="Ví dụ: Nguyễn Văn An" required>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+              <div>
+                <label class="filter-label">Số điện thoại</label>
+                <input type="tel" class="filter-input" id="reg-phone-input" placeholder="0901 234 567" required>
+              </div>
+              <div>
+                <label class="filter-label">Loại tài khoản</label>
+                <select class="filter-select" id="reg-role-select">
+                  <option value="buyer">Khách hàng (Buyer)</option>
+                  <option value="seller">Đại lý bán xe (Seller)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-bottom:12px;">
+              <label class="filter-label">Địa chỉ Email</label>
+              <input type="email" class="filter-input" id="reg-email-input" placeholder="email.cua.ban@domain.com" required>
+            </div>
+
+            <div style="margin-bottom:18px;">
+              <label class="filter-label">Mật khẩu (Tối thiểu 6 ký tự)</label>
+              <input type="password" class="filter-input" id="reg-password-input" placeholder="Nhập mật khẩu an toàn" minlength="6" required>
+            </div>
+
+            <button type="submit" class="btn-primary" id="btn-reg-submit" style="width:100%; justify-content:center; padding:12px; font-size:14px; margin-bottom:12px;">
+              Tạo tài khoản & Đăng nhập ngay 🚀
+            </button>
+          </form>
+        </div>
+
+        <div style="text-align:center; font-size:12px; color:var(--text-muted);">
+          Bảo mật mã hóa scrypt & JWT Token • Phân quyền RBAC nghiêm ngặt
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================
+       MODAL: DỰ TOÁN TRẢ GÓP THÔNG MINH (LOAN & FINANCING CALCULATOR)
+       =================================================================== -->
+  <div class="modal-overlay" id="loan-calculator-modal">
+    <div class="modal-box" style="max-width:620px;">
+      <button class="modal-close-btn" id="btn-loan-modal-close">&times;</button>
+      <div style="padding:32px;">
+        <span class="section-tag">CÔNG CỤ TÀI CHÍNH THÔNG MINH</span>
+        <h3 style="font-size:24px; font-weight:800; color:var(--text-dark); margin-bottom:6px;" id="calc-car-name">Dự toán trả góp xe</h3>
+        <div style="font-size:14px; color:var(--text-muted); margin-bottom:20px;">
+          Giá xe niêm yết: <strong style="color:var(--primary); font-size:16px;" id="calc-car-price">1.290.000.000 VNĐ</strong>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+          <div>
+            <label class="filter-label">Tỷ lệ trả trước (%)</label>
+            <select class="filter-select" id="calc-down-payment-pct">
+              <option value="15">15% - Nhận xe tối thiểu</option>
+              <option value="20">20%</option>
+              <option value="30" selected>30% (Khuyên dùng)</option>
+              <option value="40">40%</option>
+              <option value="50">50%</option>
+              <option value="70">70%</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="filter-label">Thời hạn vay</label>
+            <select class="filter-select" id="calc-term-months">
+              <option value="24">2 năm (24 tháng)</option>
+              <option value="36">3 năm (36 tháng)</option>
+              <option value="48">4 năm (48 tháng)</option>
+              <option value="60" selected>5 năm (60 tháng - Phổ biến)</option>
+              <option value="84">7 năm (84 tháng)</option>
+              <option value="96">8 năm (96 tháng)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <label class="filter-label">Ngân hàng đối tác liên kết ưu đãi</label>
+          <select class="filter-select" id="calc-bank-select">
+            <option value="7.5">Vietcombank - Lãi suất ưu đãi 7.5%/năm (Cố định 12 tháng)</option>
+            <option value="7.9" selected>Techcombank - Lãi suất ưu đãi 7.9%/năm (Giải ngân trong 4h)</option>
+            <option value="8.2">MB Bank - Lãi suất 8.2%/năm (Duyệt hồ sơ online qua App)</option>
+            <option value="8.5">VPBank - Lãi suất 8.5%/năm (Không chứng minh thu nhập)</option>
+          </select>
+        </div>
+
+        <!-- Result Breakdown Card -->
+        <div style="background:linear-gradient(135deg, #0A1128 0%, #002B66 100%); border-radius:var(--radius-lg); padding:20px 24px; color:#FFFFFF; margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; margin-bottom:12px;">
+            <span style="font-size:13.5px; color:#94A3B8;">Số tiền cần trả trước:</span>
+            <strong style="font-size:18px; color:var(--accent-cyan);" id="calc-out-down-amount">387.000.000 VNĐ</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; margin-bottom:12px;">
+            <span style="font-size:13.5px; color:#94A3B8;">Số tiền vay ngân hàng:</span>
+            <strong style="font-size:16px; color:#FFFFFF;" id="calc-out-loan-amount">903.000.000 VNĐ</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; margin-bottom:12px;">
+            <span style="font-size:13.5px; color:#94A3B8;">Tiền gốc trả hàng tháng:</span>
+            <strong style="font-size:15px; color:#E2E8F0;" id="calc-out-principal">15.050.000 VNĐ</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px;">
+            <div>
+              <div style="font-size:14px; font-weight:700; color:#FFFFFF;">ƯỚC TÍNH TRẢ THÁNG ĐẦU TIÊN:</div>
+              <div style="font-size:11px; color:#94A3B8;">(Đã bao gồm gốc + lãi suất ưu đãi)</div>
+            </div>
+            <strong style="font-size:24px; font-weight:800; color:#10B981;" id="calc-out-monthly-total">~20.986.000 VNĐ/tháng</strong>
+          </div>
+        </div>
+
+        <button type="button" class="btn-primary" id="btn-calc-request-advisor" style="width:100%; justify-content:center; padding:14px; font-size:15px;">
+          💬 Đăng ký nhận bảng dự toán chi tiết từ Chuyên viên
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- 3D Graphics & WebGL Engines (Three.js & PBR Configurator) -->
+  <script src="js/libs/three.min.js"></script>
+  <script src="js/libs/OrbitControls.js"></script>
+  <script src="js/libs/GLTFLoader.js"></script>
+  <script src="js/libs/RoomEnvironment.js"></script>
+  <script src="js/car-3d-viewer.js?v=3.0"></script>
+
+  <!-- Core Scripts with Cache Buster -->
+  <script src="js/data.js?v=3.0"></script>
+  <script src="js/api-client.js?v=3.0"></script>
+  <script src="js/automotive-llm.js?v=3.0"></script>
+  <script src="js/ai-engine.js?v=3.0"></script>
+  <script src="js/app.js?v=3.0"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+package-lock.json.bak
+
+# Local Environment & Secrets (NEVER push to GitHub)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Large Binaries & Temporary Executables
+cloudflared.exe
+*.exe
+
+# Heavy Videos & Testing Records (keep repo size fast & clean)
+*.MOV
+*.mov
+*.mp4
+Fix website/
+
+# System files & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+npm-debug.log*
