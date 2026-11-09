@@ -6,6 +6,10 @@ echo        TỰ ĐỘNG ĐẨY MÃ NGUỒN LÊN GITHUB: minh-tuan-6/sigma-car
 echo ====================================================================
 echo.
 
+if exist "%LOCALAPPDATA%\Programs\Git\cmd" (
+    set "PATH=%LOCALAPPDATA%\Programs\Git\cmd;%PATH%"
+)
+
 where git >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
     echo [!] CHƯA TÌM THẤY GIT TRÊN MÁY TÍNH CỦA BẠN.
