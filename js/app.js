@@ -2187,19 +2187,21 @@ const AppState = {
     const spec4Title = car.acceleration ? "Tăng tốc (0 - 100 km/h)" : "Vận tốc tối đa";
     const spec4Val = car.acceleration ? `${car.acceleration}` : (car.topSpeed || '210 km/h');
 
-    // Build categorized gallery items (supports vehicle-template categorizedImages + legacy fallback)
+    // Build categorized gallery items strictly from data (NO FAKE / DUMMY PLACEHOLDERS)
     const catImgs = car.categorizedImages || {};
     const categorizedGalleryItems = [];
     const addCatItems = (arr, catKey, catLabel) => {
       if (Array.isArray(arr)) {
         arr.forEach((src) => {
-          if (src && !categorizedGalleryItems.some(item => item.src === src)) {
+          if (src && typeof src === 'string' && !categorizedGalleryItems.some(item => item.src === src)) {
             categorizedGalleryItems.push({ src, category: catKey, label: catLabel });
           }
         });
       }
     };
-    if (car.image) categorizedGalleryItems.push({ src: car.image, category: 'exterior', label: 'Ngoại thất' });
+    if (car.image && typeof car.image === 'string') {
+      categorizedGalleryItems.push({ src: car.image, category: 'exterior', label: 'Ngoại thất' });
+    }
     addCatItems(catImgs.exterior, 'exterior', 'Ngoại thất');
     addCatItems(catImgs.interior, 'interior', 'Nội thất');
     addCatItems(catImgs.dashboard, 'dashboard', 'Khoang lái');
@@ -2209,28 +2211,53 @@ const AppState = {
 
     if (Array.isArray(car.galleryImages)) {
       car.galleryImages.forEach(src => {
-        if (src && !categorizedGalleryItems.some(item => item.src === src)) {
+        if (src && typeof src === 'string' && !categorizedGalleryItems.some(item => item.src === src)) {
           categorizedGalleryItems.push({ src, category: 'gallery', label: 'Góc nhìn chi tiết' });
         }
       });
     }
 
-    if (categorizedGalleryItems.length <= 1) {
-      [
-        { src: 'assets/detail-gallery-1.jpg', category: 'exterior', label: 'Ngoại thất' },
-        { src: 'assets/detail-gallery-2.jpg', category: 'interior', label: 'Nội thất' },
-        { src: 'assets/detail-gallery-3.jpg', category: 'dashboard', label: 'Khoang lái' },
-        { src: 'assets/detail-gallery-4.jpg', category: 'engine', label: 'Khung gầm & Pin' },
-        { src: 'assets/detail-gallery-5.jpg', category: 'gallery', label: 'Chi tiết' }
-      ].forEach(item => categorizedGalleryItems.push(item));
+    if (categorizedGalleryItems.length === 0) {
+      categorizedGalleryItems.push({ src: car.image || 'assets/model-e.jpg', category: 'exterior', label: 'Ngoại thất' });
     }
 
-    const galleryImages = categorizedGalleryItems.map(i => i.src);
-    const galleryHTML = categorizedGalleryItems.map((item, idx) => `
-      <div class="gallery-thumb-item ${idx === 0 ? 'active' : ''}" data-src="${item.src}" data-cat="${item.category}" data-label="${escapeHtml(item.label)}" title="${escapeHtml(item.label)}">
-        <img src="${item.src}" alt="${escapeHtml(car.name)} - ${escapeHtml(item.label)} ${idx + 1}">
+    // Only render categories that actually contain images
+    const categoryCounts = {};
+    categorizedGalleryItems.forEach(item => {
+      categoryCounts[item.category] = (categoryCounts[item.category] || 0) + 1;
+    });
+    const categoryLabels = {
+      exterior: 'Ngoại thất',
+      interior: 'Nội thất',
+      dashboard: 'Khoang lái',
+      engine: 'Động cơ / Khung gầm',
+      specifications: 'Bản vẽ KT',
+      gallery: 'Thư viện'
+    };
+    const distinctCategories = Object.keys(categoryCounts);
+    const showCatBar = distinctCategories.length > 1 && categorizedGalleryItems.length > 1;
+
+    const categoryButtonsHTML = showCatBar ? `
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 8px;" id="detail-gallery-cat-bar">
+        <button type="button" class="chip-btn detail-gal-cat-btn active" data-gal-cat="all" style="padding:4px 10px; font-size:11.5px;">Tất cả (${categorizedGalleryItems.length})</button>
+        ${distinctCategories.map(catKey => `
+          <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="${catKey}" style="padding:4px 10px; font-size:11.5px;">${categoryLabels[catKey] || catKey} (${categoryCounts[catKey]})</button>
+        `).join('')}
       </div>
-    `).join('');
+    ` : '';
+
+    const galleryImages = categorizedGalleryItems.map(i => i.src);
+    const galleryHTML = categorizedGalleryItems.length > 1 ? categorizedGalleryItems.map((item, idx) => `
+      <div class="gallery-thumb-item ${idx === 0 ? 'active' : ''}" data-src="${item.src}" data-cat="${item.category}" data-label="${escapeHtml(item.label)}" title="${escapeHtml(item.label)}">
+        <img src="${item.src}" alt="${escapeHtml(car.name)} - ${escapeHtml(item.label)} ${idx + 1}" onerror="this.parentElement.style.display='none';">
+      </div>
+    `).join('') : '';
+
+    const galleryStripHTML = categorizedGalleryItems.length > 1 ? `
+      <div class="detail-gallery-strip" id="detail-gallery-strip">
+        ${galleryHTML}
+      </div>
+    ` : '';
 
     // Dynamic colors
     const colorsHTML = (car.colors && car.colors.length > 0) ? car.colors.map((c, idx) => `
@@ -2362,20 +2389,11 @@ const AppState = {
                 </div>
               </div>
 
-              <!-- Category Filter Pills for Gallery -->
-              <div style="display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 8px;" id="detail-gallery-cat-bar">
-                <button type="button" class="chip-btn detail-gal-cat-btn active" data-gal-cat="all" style="padding:4px 10px; font-size:11.5px;">Tất cả (${categorizedGalleryItems.length})</button>
-                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="exterior" style="padding:4px 10px; font-size:11.5px;">Ngoại thất</button>
-                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="interior" style="padding:4px 10px; font-size:11.5px;">Nội thất</button>
-                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="dashboard" style="padding:4px 10px; font-size:11.5px;">Khoang lái</button>
-                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="engine" style="padding:4px 10px; font-size:11.5px;">Động cơ / Khung gầm</button>
-                <button type="button" class="chip-btn detail-gal-cat-btn" data-gal-cat="specifications" style="padding:4px 10px; font-size:11.5px;">Bản vẽ KT</button>
-              </div>
+              <!-- Category Filter Pills (rendered only when real categories exist) -->
+              ${categoryButtonsHTML}
               
-              <!-- Multi-angle Gallery Strip -->
-              <div class="detail-gallery-strip" id="detail-gallery-strip">
-                ${galleryHTML}
-              </div>
+              <!-- Multi-angle Gallery Strip (rendered only when more than 1 image exists) -->
+              ${galleryStripHTML}
 
               <!-- Color Switcher -->
               <div class="color-picker-bar">
@@ -2683,7 +2701,15 @@ const AppState = {
       lightboxImg.src = item.src;
       isZoomed2x = false;
       lightboxImg.style.transform = 'scale(1)';
-      if (lightboxSub) lightboxSub.textContent = `${item.label} (${currentLightboxIdx + 1}/${categorizedGalleryItems.length})`;
+      const prevBtn = document.getElementById('btn-lightbox-prev');
+      const nextBtn = document.getElementById('btn-lightbox-next');
+      if (prevBtn) prevBtn.style.display = categorizedGalleryItems.length > 1 ? 'block' : 'none';
+      if (nextBtn) nextBtn.style.display = categorizedGalleryItems.length > 1 ? 'block' : 'none';
+      if (lightboxSub) {
+        lightboxSub.textContent = categorizedGalleryItems.length > 1 
+          ? `${item.label} (${currentLightboxIdx + 1}/${categorizedGalleryItems.length})`
+          : 'Độ phân giải gốc HD';
+      }
       lightboxModal.style.display = 'flex';
     };
 

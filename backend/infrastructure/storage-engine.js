@@ -2158,38 +2158,17 @@ function seedInitialData() {
         },
         "image": "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg",
         "galleryImages": [
-            "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg",
-            "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg",
-            "assets/vehicles/tesla-cybertruck/images/exterior/rear-vault-34.svg",
-            "assets/vehicles/tesla-cybertruck/images/exterior/side-profile.svg",
-            "assets/vehicles/tesla-cybertruck/images/interior/cabin-overview.svg",
-            "assets/vehicles/tesla-cybertruck/images/dashboard/digital-cockpit.svg",
-            "assets/vehicles/tesla-cybertruck/images/engine/powertrain-architecture.svg",
-            "assets/vehicles/tesla-cybertruck/images/specifications/dimensions-blueprint.svg",
-            "assets/vehicles/tesla-cybertruck/images/gallery/showroom-stage.svg"
+            "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg"
         ],
         "categorizedImages": {
             "exterior": [
-                "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg",
-                "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg",
-                "assets/vehicles/tesla-cybertruck/images/exterior/rear-vault-34.svg",
-                "assets/vehicles/tesla-cybertruck/images/exterior/side-profile.svg"
+                "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg"
             ],
-            "interior": [
-                "assets/vehicles/tesla-cybertruck/images/interior/cabin-overview.svg"
-            ],
-            "dashboard": [
-                "assets/vehicles/tesla-cybertruck/images/dashboard/digital-cockpit.svg"
-            ],
-            "engine": [
-                "assets/vehicles/tesla-cybertruck/images/engine/powertrain-architecture.svg"
-            ],
-            "specifications": [
-                "assets/vehicles/tesla-cybertruck/images/specifications/dimensions-blueprint.svg"
-            ],
-            "gallery": [
-                "assets/vehicles/tesla-cybertruck/images/gallery/showroom-stage.svg"
-            ]
+            "interior": [],
+            "dashboard": [],
+            "engine": [],
+            "specifications": [],
+            "gallery": []
         },
         "colors": [
             {
@@ -2200,17 +2179,17 @@ function seedInitialData() {
             {
                 "name": "Đen Satin Chiến Thuật (Satin Stealth Black)",
                 "hex": "#1E293B",
-                "img": "assets/vehicles/tesla-cybertruck/images/exterior/hero-front-34.svg"
+                "img": "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg"
             },
             {
                 "name": "Trắng Satin Bắc Cực (Satin Ceramic White)",
                 "hex": "#F1F5F9",
-                "img": "assets/vehicles/tesla-cybertruck/images/exterior/rear-vault-34.svg"
+                "img": "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg"
             },
             {
                 "name": "Xanh Rêu Quân Đội (Tactical Green Wrap)",
                 "hex": "#3F6212",
-                "img": "assets/vehicles/tesla-cybertruck/images/exterior/side-profile.svg"
+                "img": "assets/vehicles/tesla-cybertruck/images/exterior/cover.jpg"
             }
         ],
         "colorsSummary": "Thép Không Gỉ 30X, Đen Satin, Trắng Satin, Xanh Chiến Thuật",

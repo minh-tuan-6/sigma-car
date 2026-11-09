@@ -871,19 +871,7 @@ function processVehicleFolder(sourceFolderPath, options = {}) {
     return true;
   });
 
-  // If the folder has a real 3D GLB mesh (with geometry) and no vehicle photos yet, render studio images from the 3D mesh!
-  if (imageFiles.length === 0 && foundGlbPath && !options.dryRun) {
-    console.log(`   🎨 Folder chưa có ảnh chụp — Tự động kết xuất bộ ảnh Studio từ mô hình 3D thật (${path.basename(foundGlbPath)})...`);
-    renderStudioImagesFromGlb(foundGlbPath, absFolder, rawVehicle);
-  }
-
-  const finalImageFiles = walkFiles(absFolder).filter(f => {
-    const ext = path.extname(f).toLowerCase();
-    if (!IMAGE_EXTENSIONS.has(ext)) return false;
-    const rel = path.relative(absFolder, f).replace(/\\/g, '/').toLowerCase();
-    if (rel.includes('texture') || rel.includes('internal_ground_ao')) return false;
-    return true;
-  });
+  const finalImageFiles = imageFiles;
 
   for (const imgPath of finalImageFiles) {
     const relFromFolder = path.relative(absFolder, imgPath).replace(/\\/g, '/').toLowerCase();

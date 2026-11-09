@@ -140,26 +140,13 @@
     "thumbnail": "images/exterior/cover.jpg",
     "cover": "images/exterior/cover.jpg",
     "exterior": [
-      "images/exterior/cover.jpg",
-      "images/exterior/hero-front-34.svg",
-      "images/exterior/rear-vault-34.svg",
-      "images/exterior/side-profile.svg"
+      "images/exterior/cover.jpg"
     ],
-    "interior": [
-      "images/interior/cabin-overview.svg"
-    ],
-    "dashboard": [
-      "images/dashboard/digital-cockpit.svg"
-    ],
-    "engine": [
-      "images/engine/powertrain-architecture.svg"
-    ],
-    "specifications": [
-      "images/specifications/dimensions-blueprint.svg"
-    ],
-    "gallery": [
-      "images/gallery/showroom-stage.svg"
-    ]
+    "interior": [],
+    "dashboard": [],
+    "engine": [],
+    "specifications": [],
+    "gallery": []
   },
   "model3d": {
     "enabled": true,
