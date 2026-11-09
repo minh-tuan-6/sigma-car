@@ -2246,8 +2246,8 @@
         ]
       },
       "documents": {
-        "specificationsPdf": null,
-        "warrantyPdf": null
+        "specificationsPdf": "assets/vehicles/tesla-cybertruck/documents/specifications.pdf",
+        "warrantyPdf": "assets/vehicles/tesla-cybertruck/documents/warranty.pdf"
       },
       "isAvailable": true,
       "statusText": "Nhận đặt hàng nhập khẩu",
@@ -3038,7 +3038,7 @@
   "meta": {
     "version": "3.0.0",
     "initializedAt": "2026-11-09T09:43:03.605Z",
-    "lastSavedAt": "2026-11-09T16:40:50.532Z"
+    "lastSavedAt": "2026-11-09T16:53:16.003Z"
   },
   "certifiedVehicles": [
     {

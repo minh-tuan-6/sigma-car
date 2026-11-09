@@ -2236,8 +2236,8 @@ const SIGMA_DATA = {
         ]
       },
       "documents": {
-        "specificationsPdf": null,
-        "warrantyPdf": null
+        "specificationsPdf": "assets/vehicles/tesla-cybertruck/documents/specifications.pdf",
+        "warrantyPdf": "assets/vehicles/tesla-cybertruck/documents/warranty.pdf"
       },
       "isAvailable": true,
       "statusText": "Nhận đặt hàng nhập khẩu",

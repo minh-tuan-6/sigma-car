@@ -215,8 +215,8 @@
     ]
   },
   "documents": {
-    "specificationsPdf": null,
-    "warrantyPdf": null
+    "specificationsPdf": "documents/specifications.pdf",
+    "warrantyPdf": "documents/warranty.pdf"
   },
   "businessStatus": {
     "isAvailable": true,
