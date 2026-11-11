@@ -1,0 +1,159 @@
+================================================================================
+
+                    BẢNG THÔNG TIN CHI TIẾT VINFAST VF 3
+
+================================================================================
+
+
+
+I. GIÁ BÁN NIÊM YẾT (VNĐ)
+
+--------------------------------------------------------------------------------
+
+1. Giá xe niêm yết chính thức:
+
+   - Thuê pin:                 240.000.000 VNĐ
+
+   - Kèm pin (Mua đứt pin):     322.000.000 VNĐ
+
+   *(Lưu ý: Mức giá cọc đợt đầu ưu đãi từng áp dụng 235 triệu thuê pin / 315 triệu kèm pin).*
+
+
+
+2. Chi phí thuê pin (dành cho bản thuê pin):
+
+   - Dưới 1.500 km/tháng:       900.000 VNĐ/tháng
+
+   - Từ 1.500 - 2.500 km/tháng: 1.200.000 VNĐ/tháng
+
+   - Trên 2.500 km/tháng:       2.000.000 VNĐ/tháng
+
+
+
+3. Chính sách bảo hành:
+
+   - Xe:                        7 năm hoặc 160.000 km (tùy điều kiện nào đến trước)
+
+   - Pin:                       8 năm không giới hạn số km
+
+
+
+
+
+II. THÔNG SỐ KỸ THUẬT CƠ BẢN
+
+--------------------------------------------------------------------------------
+
+1. Kích thước & Trọng lượng:
+
+   - Phân khúc:                 Mini SUV / Xe điện mini đô thị
+
+   - Số chỗ ngồi:               04 chỗ
+
+   - Số cửa:                    03 cửa (2 cửa hông, 1 cửa cốp sau)
+
+   - Kích thước tổng thể:       3.190 x 1.679 x 1.622 (mm) (Dài x Rộng x Cao)
+
+   - Chiều dài cơ sở:           2.075 mm
+
+   - Khoảng sáng gầm xe:        191 mm
+
+   - Bán kính quay đầu:         Tối thiểu ~9 m
+
+   - Bộ mâm/lốp:                16 inch (thông số lốp 175/75 R16)
+
+   - Dung tích khoang hành lý:  36 L (khi dùng hàng ghế sau), mở rộng lên 285 L khi gập phẳng ghế sau
+
+
+
+2. Hệ thống truyền động & Khả năng vận hành:
+
+   - Loại động cơ:              1 mô tơ điện (Electric Motor)
+
+   - Hệ dẫn động:               Cầu sau (RWD)
+
+   - Công suất cực đại:         32 kW (~43 mã lực)
+
+   - Mô-men xoắn cực đại:       110 Nm
+
+   - Khả năng tăng tốc:         0 - 50 km/h trong khoảng 5,3 giây
+
+   - Tốc độ tối đa:             100 km/h
+
+
+
+3. Pin & Thời gian sạc:
+
+   - Loại pin:                  Lithium Iron Phosphate (LFP)
+
+   - Dung lượng pin khả dụng:   18,64 kWh
+
+   - Quãng đường di chuyển:     ~210 - 215 km / 1 lần sạc đầy (theo chuẩn NEDC)
+
+   - Sạc nhanh DC (10% - 70%):  ~36 phút
+
+   - Sạc chậm AC tại nhà:       Khoảng 5 - 8 tiếng (tùy công suất sạc)
+
+
+
+
+
+III. CÁC TÍNH NĂNG VÀ CHỨC NĂNG ĐẶC BIỆT
+
+--------------------------------------------------------------------------------
+
+1. Thiết kế & Tối ưu không gian:
+
+   - Kiểu dáng vuông vức, đậm chất mini SUV việt dã cá tính.
+
+   - Khoảng sáng gầm xe lên đến 191 mm (cao tương đương/vượt nhiều dòng CUV hạng B), giúp lội nước ngập nhẹ và leo vỉa hè, di chuyển linh hoạt trong đô thị Việt Nam.
+
+   - Thiết kế 4 chỗ ngồi thực thụ tối ưu diện tích sàn xe điện phẳng.
+
+   - Bảng màu ngoại thất đa dạng (màu cơ bản và màu nâng cao phối nóc tương phản).
+
+
+
+2. Trang bị nội thất & Tiện nghi:
+
+   - Màn hình cảm ứng trung tâm: 10 inch liền mạch, tích hợp toàn bộ bảng đồng hồ tốc độ và giải trí.
+
+   - Kết nối thông minh: Hỗ trợ kết nối điện thoại, Bluetooth, cổng kết nối tiện ích.
+
+   - Cần gạt số tích hợp sau vô-lăng kiểu hiện đại, tối ưu triệt để diện tích cụm điều khiển giữa 2 ghế trước.
+
+   - Vô-lăng 2 chấu thiết kế vát đáy D-cut thể thao.
+
+   - Điều hòa chỉnh cơ làm mát nhanh.
+
+
+
+3. Hệ thống an toàn & Hỗ trợ lái:
+
+   - Hệ thống chống bó cứng phanh (ABS)
+
+   - Hỗ trợ lực phanh khẩn cấp (BA)
+
+   - Kiểm soát lực kéo / Chống trượt (TCS)
+
+   - Hỗ trợ khởi hành ngang dốc (HSA)
+
+   - Cảm biến lùi hỗ trợ đỗ xe
+
+   - Camera lùi tích hợp hiển thị trực quan trên màn hình trung tâm
+
+   - Túi khí an toàn cho người lái
+
+   - Khóa cửa tự động theo tốc độ xe
+
+   - Móc ghế trẻ em ISOFIX ở hàng ghế sau
+
+
+
+4. Hệ sinh thái & Ứng dụng thông minh (Smart Services):
+
+   - Tương thích ứng dụng VinFast trên điện thoại: theo dõi dung lượng pin, tìm trạm sạc, kiểm tra lịch sử sạc và trạng thái xe từ xa.
+
+   - Hệ thống mạng lưới trạm sạc công cộng V-GREEN phủ rộng khắp cả nước.
+
+================================================================================

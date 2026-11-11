@@ -1567,6 +1567,21 @@ async function main() {
     fs.writeFileSync(path.join(vehicleTemplateDir, 'vehicle.json'), vJsonContent, 'utf8');
     fs.writeFileSync(path.join(vehicleAssetDir, 'vehicle.json'), vJsonContent, 'utf8');
 
+    // Copy data/data.txt and create README.md in vehicleTemplateDir and vehicleAssetDir
+    const tplDataDir = path.join(vehicleTemplateDir, 'data');
+    const assetDataDir = path.join(vehicleAssetDir, 'data');
+    ensureDir(tplDataDir);
+    ensureDir(assetDataDir);
+    const dataTxtFile = allFiles.find(f => /data\.txt$/i.test(path.basename(f)));
+    if (dataTxtFile) {
+      const rawTxt = fs.readFileSync(dataTxtFile, 'utf8');
+      fs.writeFileSync(path.join(tplDataDir, 'data.txt'), rawTxt, 'utf8');
+      fs.writeFileSync(path.join(assetDataDir, 'data.txt'), rawTxt, 'utf8');
+    }
+    const readmeContent = `# THÔNG TIN MẪU XE: ${meta.brand.toUpperCase()} ${meta.name.toUpperCase()} (${meta.year})\n\nThư mục này tuân thủ cấu trúc chuẩn **\`vehicle-template\`** của hệ thống thương mại điện tử ô tô SIGMACAR.\n\n---\n\n## 1. Cấu trúc thư mục\n\n\`\`\`text\n${meta.id}/\n├── vehicle.json\n├── README.md\n├── images/\n│   ├── exterior/\n│   ├── interior/\n│   ├── dashboard/\n│   ├── engine/\n│   ├── specifications/\n│   └── gallery/\n├── 3d/\n│   └── model.glb\n├── documents/\n│   ├── specifications.pdf\n│   └── warranty.pdf\n└── data/\n    └── data.txt\n\`\`\`\n\n---\n\n## 2. Thông số kỹ thuật chính\n\n- **Thương hiệu**: ${meta.brand}\n- **Tên mẫu xe**: ${meta.name}\n- **Năm**: ${meta.year}\n- **Giá niêm yết**: **${formatPriceVnd(meta.price)}**\n- **Động cơ**: ${meta.engine || meta.powertrain}\n- **Công suất**: ${meta.power}\n- **Hộp số**: ${meta.transmission}\n- **Hệ dẫn động**: ${meta.drive}\n- **Kích thước**: ${meta.dimensions}\n`;
+    fs.writeFileSync(path.join(vehicleTemplateDir, 'README.md'), readmeContent, 'utf8');
+    fs.writeFileSync(path.join(vehicleAssetDir, 'README.md'), readmeContent, 'utf8');
+
     // 4.6 Upsert into catalog (no duplicate IDs or duplicate brand+name)
     const existingIdx = finalCars.findIndex(c =>
       c.id === meta.id ||

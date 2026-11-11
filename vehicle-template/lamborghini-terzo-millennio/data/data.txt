@@ -1,0 +1,71 @@
+THÔNG TIN CHUNG
+
+Tên sản phẩm: Lamborghini Terzo Millennio (Tiếng Ý: "Thiên niên kỷ thứ 3")
+
+Hãng sản xuất: Automobili Lamborghini S.p.A. hợp tác cùng Viện Công nghệ Massachusetts (MIT)
+
+Phân khúc: Siêu xe điện khái niệm tương lai (All-Electric Concept Hypercar)
+
+Tình trạng sản xuất: Xe ý tưởng (Concept Car - Không sản xuất thương mại hàng loạt)
+
+Kiểu dáng: Coupe 2 cửa, thiết kế khí động học viễn tưởng siêu thấp
+
+Cấu hình chỗ ngồi: 2 chỗ ngồi chuyên biệt
+
+
+MỨC GIÁ DỰ KIẾN / GIÁ TRỊ TÀI SẢN (QUY ĐỔI VNĐ)
+
+Giá trị ước tính (Chi phí nghiên cứu & phát triển mẫu Concept):
+
+~2.500.000 USD ~ 63.750.000.000 VNĐ
+
+Giá trị thị trường / Sưu tầm:
+
+Không định giá thương mại (Được lưu giữ làm biểu tượng định hướng thiết kế và công nghệ tương lai của Lamborghini).
+
+
+THÔNG SỐ VẬN HÀNH & KỸ THUẬT ĐỘNG CƠ
+
+Động cơ: Hệ thống 4 mô-tơ điện độc lập tích hợp trực tiếp vào 4 bánh xe (In-wheel Electric Motors)
+
+Hệ dẫn động: Dẫn động 4 bánh toàn thời gian (AWD) điều khiển mô-men xoắn độc lập từng bánh
+
+Lưu trữ năng lượng: Hệ thống Siêu tụ điện (Supercapacitors) kết hợp vật liệu Nanotube sợi carbon (Không sử dụng pin Lithium-ion truyền thống)
+
+Tốc độ tối đa (Top Speed Dự kiến): > 350 km/h (> 217 mph)
+
+Khả năng tăng tốc (0 - 100 km/h Dự kiến): < 2,0 giây
+
+Tính năng sạc & Phục hồi năng lượng:
+
+Khả năng nạp/xả điện năng siêu tốc tức thời thông qua phanh tái sinh (Regenerative Braking)
+
+Tuổi thọ lưu trữ năng lượng gấp nhiều lần pin hóa học thông thường mà không bị chai.
+
+
+TÍNH NĂNG ĐẶC BIỆT: VẬT LIỆU TỰ PHỤC HỒI & SIÊU TỤ ĐIỆN MIT
+
+a. Công nghệ Thân xe Tự phục hồi (Self-Healing Carbon Fiber Structure):
+
+Bề mặt thân xe sợi carbon chứa các vi kênh (micro-channels) filled với hóa chất hàn vết thương.
+
+Khi phát hiện vết nứt hoặc hư hỏng nhỏ do va chạm, hóa chất tự động chảy ra và chữa lành cấu trúc carbon ngay lập tức.
+
+b. Thân xe lưu trữ điện năng (Body-Integrated Energy Storage):
+
+Các ống nano carbon (Carbon Nanotubes) được tích hợp giữa 2 lớp vỏ sợi carbon của xe, biến toàn bộ thân xe thành một bình chứa năng lượng khổng lồ.
+
+c. Âm thanh cảm xúc nhân tạo (Emotional Acoustic Sound):
+
+Dù là xe thuần điện, Lamborghini thiết kế hệ thống khuếch đại khí động học để tạo ra âm thanh đặc trưng phản ánh vận tốc và lực G khi xe di chuyển.
+
+
+CÔNG NGHỆ BỔ TRỢ & NỘI THẤT
+
+Khoang lái ảo (Virtual Cockpit) trang bị màn hình hiển thị kính lái HUD công nghệ thực tế ảo tăng cường (AR).
+
+Chế độ đường đua ảo (Pilot Simulator Mode): Cho phép người lái chạy theo một "bóng xe ma" (Ghost Car) trên kính lái để luyện kỹ năng lái xe đua.
+
+Mâm xe thiết kế tối ưu khí động học tích hợp mô-tơ phát sáng màu cam đặc trưng.
+
+Khung gầm sợi carbon liền khối (Carbon Monocoque) tối ưu trọng lượng đạt mức siêu nhẹ.

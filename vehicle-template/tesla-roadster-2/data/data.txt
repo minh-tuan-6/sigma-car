@@ -1,0 +1,121 @@
+================================================================================
+
+                    TESLA ROADSTER 2.0 (SPACEX PACKAGE)
+
+                     BẢNG THÔNG SỐ & TÍNH NĂNG CHI TIẾT
+
+================================================================================
+
+
+
+1. THÔNG TIN CHUNG
+
+--------------------------------------------------------------------------------
+
+- Tên sản phẩm: Tesla Roadster (Thế hệ thứ 2)
+
+- Hãng sản xuất: Tesla, Inc. hợp tác kỹ thuật cùng SpaceX
+
+- Phân khúc: Siêu xe điện thể thao (All-Electric Hypercar)
+
+- Kiểu dáng: Coupe 2 cửa, mui kính tháo rời (Targa top)
+
+- Cấu hình chỗ ngồi: 2+2 (Bản tiêu chuẩn) hoặc 2 chỗ ngồi (Bản trang bị gói SpaceX Thruster)
+
+
+
+2. MỨC GIÁ DỰ KIẾN (QUY ĐỔI VNĐ)
+
+--------------------------------------------------------------------------------
+
+- Giá niêm yết tại Mỹ (Bản tiêu chuẩn): 
+
+  + 200.000 USD ~ 5.100.000.000 VNĐ
+
+- Giá niêm yết tại Mỹ (Phiên bản giới hạn Founders Series): 
+
+  + 250.000 USD ~ 6.375.000.000 VNĐ
+
+- Gói tùy chọn SpaceX Thruster Package (Dự kiến): 
+
+  + Thêm khoảng 50.000 - 100.000 USD (~ 1.275.000.000 - 2.550.000.000 VNĐ)
+
+- Giá ước tính khi nhập khẩu về Việt Nam (sau thuế tiêu thụ đặc biệt xe điện, VAT, phí trước bạ):
+
+  + Dao động từ: 8.500.000.000 VNĐ đến hơn 12.000.000.000 VNĐ (tùy phiên bản và thời điểm áp thuế).
+
+
+
+3. THÔNG SỐ VẬN HÀNH & KỸ THUẬT ĐỘNG CƠ
+
+--------------------------------------------------------------------------------
+
+- Động cơ: Hệ thống 3 mô-tơ điện (Tri-Motor, dẫn động 4 bánh toàn thời gian AWD)
+
+  + 1 mô-tơ cầu trước
+
+  + 2 mô-tơ cầu sau
+
+- Dung lượng pin: ~200 kWh (công nghệ pin tiên tiến tối ưu mật độ năng lượng)
+
+- Tầm hoạt động (Range): Lên tới 1.000 km (khoảng 620 dặm) cho 1 lần sạc đầy
+
+- Tốc độ tối đa (Top Speed): > 400 km/h (> 250 mph)
+
+- Mô-men xoắn cực đại tại bánh xe: 10.000 Nm
+
+- Khả năng tăng tốc (0 - 100 km/h):
+
+  + Bản tiêu chuẩn: ~1,9 giây
+
+  + Bản kèm gói SpaceX Thrusters: ~1,1 giây (hoặc dưới 1 giây theo thử nghiệm khí áp lực cao)
+
+- Thời gian hoàn thành 1/4 dặm (400m drag): ~8,8 giây
+
+
+
+4. TÍNH NĂNG ĐẶC BIỆT: GÓI SPACEX & KHẢ NĂNG "BAY"
+
+--------------------------------------------------------------------------------
+
+a. Công nghệ Cold Gas Thrusters (Động cơ đẩy khí nén lạnh):
+
+   - Xe được tích hợp khoảng 10 vòi phun khí áp suất cực cao giấu xung quanh thân xe và phía sau biển số xe gập mở tự động.
+
+   - Sử dụng công nghệ tên lửa SpaceX: Khí nén tinh khiết được xả ra qua các van điều khiển điện tử với tốc độ siêu âm.
+
+
+
+b. Bình chứa khí nén COPV (Composite Overwrapped Pressure Vessel):
+
+   - Khí được nén ở áp suất lên tới ~10.000 psi bên trong bình chứa vật liệu sợi carbon tổng hợp siêu nhẹ, siêu chịu lực.
+
+   - Bình COPV được đặt ở vị trí hàng ghế sau (thay thế 2 ghế phụ).
+
+   - Hệ thống máy nén điện tích hợp tự động nạp lại áp suất khi xe hoạt động hoặc phanh tái sinh.
+
+
+
+c. Cơ chế hoạt động & Khả năng "Bay":
+
+   - Bay lơ lửng ngắn (Short Hop / Levitation): Hệ thống vòi phun hướng xuống có thể nâng thân xe nhấc khỏi mặt đất từ 1 đến vài mét trong thời gian ngắn để tránh chướng ngại vật hoặc phô diễn kỹ thuật.
+
+   - Tối ưu lực bám (Active Downforce): Phun khí ngược lên trên giúp xe bám chặt mặt đường khi ôm cua gắt ở vận tốc trên 200 km/h.
+
+   - Hỗ trợ phanh khẩn cấp: Vòi phun khí nén phía trước có thể hãm ngược quán tính, giúp rút ngắn quãng đường phanh xuống mức kỷ lục.
+
+
+
+5. CÔNG NGHỆ BỔ TRỢ & NỘI THẤT
+
+--------------------------------------------------------------------------------
+
+- Vô lăng thiết kế kiểu Yoke (phi thuyền không gian).
+
+- Màn hình trung tâm cảm ứng OLED cong nối liền bệ tỳ tay.
+
+- Mui xe bằng kính cường lực có thể tháo rời cất gọn vào cốp sau.
+
+- Hệ thống hỗ trợ lái tự động Tesla Full Self-Driving (FSD) thế hệ mới nhất với phần cứng AI chuyên dụng.
+
+================================================================================

@@ -1,0 +1,177 @@
+================================================================================
+
+          THÔNG TIN TỔNG QUAN VỀ LAMBORGHINI AVENTADOR LP750-4 SV
+
+================================================================================
+
+
+
+1. GIỚI THIỆU CHUNG
+
+- Dòng xe: Siêu xe thể thao động cơ đặt giữa (Mid-engine Supercar)
+
+- Phiên bản: LP750-4 SuperVeloce (SV) Coupe / Roadster
+
+- Số lượng sản xuất: 600 chiếc bản Coupe, 500 chiếc bản Roadster trên toàn cầu
+
+- Tên gọi giải mã:
+
+  + LP (Longitudinale Posteriore): Động cơ đặt dọc phía sau cabin
+
+  + 750: Công suất cực đại 750 mã lực (PS)
+
+  + 4: Hệ dẫn động 4 bánh toàn thời gian (AWD)
+
+  + SV (SuperVeloce): Tiếng Ý nghĩa là "Siêu nhanh" (tối ưu khí động học và giảm trọng lượng)
+
+
+
+--------------------------------------------------------------------------------
+
+2. GIÁ BÁN THAM KHẢO (VNĐ)
+
+- Giá xuất xưởng quốc tế (MSRP khi ra mắt):
+
+  + Bản Coupe: ~493.000 USD (~12,5 - 13 tỷ VNĐ quy đổi tỷ giá gốc)
+
+  + Bản Roadster: ~530.000 USD (~13,5 - 14 tỷ VNĐ quy đổi tỷ giá gốc)
+
+- Giá nhập khẩu và lăn bánh biển trắng tại Việt Nam:
+
+  + Khoảng: 38.000.000.000 - 45.000.000.000 VNĐ (38 đến 45 tỷ VNĐ)
+
+  + Mức giá này chịu tác động bởi thuế nhập khẩu, thuế tiêu thụ đặc biệt (150% cho động cơ >6.0L), thuế GTGT (10%) và phí trước bạ.
+
+- Thị trường xe cũ/sưu tầm hiện nay:
+
+  + Giao động từ 15 đến 25 tỷ VNĐ (tùy tình trạng biển số CV/ngoại giao hoặc biển trắng cá nhân).
+
+
+
+--------------------------------------------------------------------------------
+
+3. THÔNG SỐ KỸ THUẬT CƠ BẢN
+
+[Động cơ & Hiệu suất]
+
+- Loại động cơ: V12 hút khí tự nhiên (Naturally Aspirated), góc nghiêng 60 độ
+
+- Dung tích xi-lanh: 6.498 cc (6.5L)
+
+- Công suất cực đại: 750 mã lực (552 kW / 740 hp) tại 8.400 vòng/phút
+
+- Mô-men xoắn cực đại: 690 Nm tại 5.500 vòng/phút
+
+- Giới hạn tua máy (Redline): 8.500 vòng/phút
+
+- Tăng tốc 0 - 100 km/h: 2,8 giây
+
+- Tăng tốc 0 - 200 km/h: 8,6 giây
+
+- Vận tốc tối đa (Top Speed): > 350 km/h (217 mph)
+
+- Quãng đường phanh 100 - 0 km/h: 30 mét
+
+
+
+[Hộp số & Dẫn động]
+
+- Hộp số: 7 cấp ISR (Independent Shifting Rods) ly hợp đơn tự động
+
+- Thời gian sang số: Khoảng 50 mili-giây (ở chế độ Corsa)
+
+- Hệ dẫn động: 4 bánh toàn thời gian (AWD) điều khiển điện tử với ly hợp Haldex thế hệ thứ IV kết hợp vi sai tự khóa cầu sau
+
+
+
+[Kích thước & Trọng lượng]
+
+- Chiều dài x Rộng x Cao: 4.835 x 2.030 x 1.136 (mm)
+
+- Chiều dài cơ sở: 2.700 mm
+
+- Trọng lượng khô (Dry Weight): 1.525 kg (nhẹ hơn 50 kg so với bản Aventador LP700-4 tiêu chuẩn)
+
+- Tỷ lệ trọng lượng / công suất: 2,03 kg/mã lực
+
+- Tỷ lệ phân bổ trọng lượng: 43% trước / 57% sau
+
+- Dung tích bình xăng: 90 lít
+
+
+
+[Hệ thống treo, Phanh & Bánh xe]
+
+- Hệ thống treo: Treo từ tính kiểu đòn đẩy (Pushrod Magnetorheological Suspension)
+
+- Hệ thống phanh: Đĩa gốm-carbon (Carbon Ceramic Brakes)
+
+  + Đĩa trước: 400 x 38 mm (kẹp phanh 6 piston)
+
+  + Đĩa sau: 380 x 38 mm (kẹp phanh 4 piston)
+
+- Lốp xe: Pirelli P Zero Corsa chuyên dụng
+
+  + Trước: 255/35 ZR20
+
+  + Sau: 355/25 ZR21
+
+- Mâm xe: Hợp kim siêu nhẹ khóa tâm đơn (Center-lock) phong cách xe đua
+
+
+
+--------------------------------------------------------------------------------
+
+4. CÁC TÍNH NĂNG VÀ CÔNG NGHỆ ĐẶC BIỆT
+
+- Khung gầm Carbon Monocoque:
+
+  Toàn bộ cabin trung tâm và khung xe sử dụng sợi carbon nguyên khối siêu cứng và nhẹ, bổ sung khung phụ trước/sau bằng nhôm.
+
+
+
+- Gói khí động học tối ưu (High-Downforce Aero):
+
+  + Cánh gió sau cỡ lớn cố định bằng sợi carbon với 3 nấc điều chỉnh thủ công (High, Mid, Low downforce).
+
+  + Tăng lực ép mặt đường (downforce) lên đến 170% so với bản Aventador LP700-4.
+
+  + Bộ khuếch tán gió sau (rear diffuser) và hốc hút gió trước mở rộng tối đa để làm mát động cơ và phanh.
+
+
+
+- Giảm cân triệt để (Weight-Saving Architecture):
+
+  + Sử dụng vật liệu Carbon Skin độc quyền siêu nhẹ phủ nội thất.
+
+  + Ghế đua thể thao bằng sợi carbon cố định.
+
+  + Loại bỏ hệ thống giải trí/âm thanh và thảm cách âm ở cấu hình xuất xưởng tiêu chuẩn (có thể tùy chọn thêm nếu khách yêu cầu).
+
+  + Tay nắm mở cửa bên trong thay bằng dây kéo nẹp vải phong cách xe đua chuyên nghiệp.
+
+
+
+- Hệ thống lái thể thao thích ứng (LDS - Lamborghini Dynamic Steering):
+
+  Tự động thay đổi tỉ số truyền lái theo tốc độ và góc đánh lái, mang lại độ chính xác cao khi vào cua ở tốc độ cao.
+
+
+
+- Hệ thống quản lý lái ANIMA (Adaptive Network Intelligent Management):
+
+  Cung cấp 3 chế độ lái chuyên biệt:
+
+  + STRADA: Êm ái, ổn định cho việc lái xe hàng ngày.
+
+  + SPORT: Thú vị, ưu tiên truyền động cầu sau và tiếng pô gầm vang.
+
+  + CORSA: Tối ưu cho đường đua, sang số cực gắt trong 50ms, can thiệp ESC tối thiểu và phản hồi ga tức thì.
+
+
+
+- Hệ thống xả thể thao trọng lượng nhẹ:
+
+  Ống xả 4 họng đặt giữa phía sau làm bằng vật liệu nhẹ, giảm áp suất ngược và tạo ra âm thanh V12 hút khí tự nhiên vang dội đặc trưng.
+
+================================================================================
