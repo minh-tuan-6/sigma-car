@@ -26,8 +26,43 @@ const AppState = {
   userMessages: [],
   vehiclesList: [],
   certifiedList: [],
+  vehicleConfigs: {},
   currentUser: (typeof ApiClient !== 'undefined' && ApiClient.getCurrentUser) ? ApiClient.getCurrentUser() : null
 };
+
+  // Centralized Vehicle Resolver & Multi-View Configuration State
+  function getVehicleById(carId) {
+    if (!carId) return null;
+    const v = (AppState.vehiclesList || []).find(c => c.id === carId);
+    if (v) return v;
+    const c = (AppState.certifiedList || []).find(c => c.id === carId);
+    if (c) return c;
+    return null;
+  }
+
+  function getVehicleConfig(carId) {
+    if (!carId) return null;
+    if (!AppState.vehicleConfigs[carId]) {
+      const car = getVehicleById(carId);
+      const defaultHex = (car && car.colors && car.colors[0]) ? car.colors[0].hex : '#94A3B8';
+      const defaultColorName = (car && car.colors && car.colors[0]) ? car.colors[0].name : 'Tiêu chuẩn';
+      AppState.vehicleConfigs[carId] = {
+        colorIdx: 0,
+        colorHex: defaultHex,
+        colorName: defaultColorName,
+        wheelId: 'wheel-21-sport',
+        rotationAngle: 137
+      };
+    }
+    return AppState.vehicleConfigs[carId];
+  }
+
+  function setVehicleConfig(carId, updates) {
+    if (!carId) return;
+    const current = getVehicleConfig(carId);
+    AppState.vehicleConfigs[carId] = { ...current, ...updates };
+    return AppState.vehicleConfigs[carId];
+  }
 
 
   // =================================================================
@@ -490,7 +525,7 @@ const AppState = {
       targetHash += `?tab=${AppState.activeSellerTab}`;
     } else if (route === 'profile' && AppState.activeProfileTab) {
       targetHash += `?tab=${AppState.activeProfileTab}`;
-    } else if (route === 'vehicle-detail' && AppState.currentDetailCar) {
+    } else if ((route === 'detail' || route === 'vehicle-detail' || route === 'vr-ar' || route === 'ar-live' || route === 'ar-home') && AppState.currentDetailCar) {
       targetHash += `?carId=${AppState.currentDetailCar}`;
     }
 
@@ -561,19 +596,21 @@ const AppState = {
     requireAuth('đăng ký lái thử', () => navigateTo('test-drive'));
   };
 
-  window.openVrArShowroom = function(carId) {
+  window.openVrArShowroom = function(carId, config) {
     if (carId) AppState.currentDetailCar = carId;
-    navigateTo('vr-ar');
+    if (config) setVehicleConfig(AppState.currentDetailCar, config);
+    navigateTo('vr-ar', { carId: AppState.currentDetailCar });
   };
 
-  window.openArLive = function(carId) {
+  window.openArLive = function(carId, config) {
     if (carId) AppState.currentDetailCar = carId;
-    navigateTo('ar-live');
+    if (config) setVehicleConfig(AppState.currentDetailCar, config);
+    navigateTo('ar-live', { carId: AppState.currentDetailCar });
   };
 
   window.openArAtHome = function(carId) {
     if (carId) AppState.currentDetailCar = carId;
-    navigateTo('ar-home');
+    navigateTo('ar-home', { carId: AppState.currentDetailCar });
   };
 
   function renderCurrentRoute() {
@@ -582,6 +619,16 @@ const AppState = {
         window._activeCar3DViewer.dispose();
       } catch (e) {}
       window._activeCar3DViewer = null;
+    }
+
+    if (AppState.currentRoute !== 'ar-live') {
+      if (window._activeAr3DViewer) {
+        try { window._activeAr3DViewer.dispose(); } catch (e) {}
+        window._activeAr3DViewer = null;
+      }
+      if (window.SigmaARAdapter && typeof window.SigmaARAdapter.dispose === 'function') {
+        try { window.SigmaARAdapter.dispose(); } catch (e) {}
+      }
     }
 
     switch (AppState.currentRoute) {
@@ -3657,9 +3704,7 @@ const AppState = {
       window._activeCar3DViewer = null;
     }
 
-    const car = AppState.vehiclesList.find(c => c.id === AppState.currentDetailCar) ||
-                AppState.certifiedList.find(c => c.id === AppState.currentDetailCar) ||
-                AppState.vehiclesList[0];
+    const car = getVehicleById(AppState.currentDetailCar) || AppState.vehiclesList[0];
 
     const isElectric = !!(car.battery || (car.range && car.range > 0) || getVehicleFuel(car) === 'ev');
     const modelUrl = (car.model3d && car.model3d.glbPath)
@@ -3715,9 +3760,10 @@ const AppState = {
       { name: 'Đen Ánh Kim', hex: '#0F172A', img: car.image }
     ];
 
-    let currentAngle = 137;
-    let selectedWheel = wheelsList[0];
-    let selectedColorIdx = 0;
+    const cfg = getVehicleConfig(car.id);
+    let selectedColorIdx = (cfg && typeof cfg.colorIdx === 'number' && cfg.colorIdx < carColors.length) ? cfg.colorIdx : 0;
+    let selectedWheel = (cfg && cfg.wheelId) ? (wheelsList.find(w => w.id === cfg.wheelId) || wheelsList[0]) : wheelsList[0];
+    let currentAngle = (cfg && typeof cfg.rotationAngle === 'number') ? cfg.rotationAngle : 137;
     let isMuted = true;
     let audioCtx = null;
     let motorOscillator = null;
@@ -3832,11 +3878,11 @@ const AppState = {
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:8px;">
                   <span style="font-weight:700; color:var(--text-dark);">CHỌN MÀU SƠN / WRAP PBR:</span>
-                  <span style="color:var(--primary); font-weight:600;" id="vr-selected-color-name">${escapeHtml(carColors[0]?.name || 'Tiêu chuẩn')}</span>
+                  <span style="color:var(--primary); font-weight:600;" id="vr-selected-color-name">${escapeHtml(carColors[selectedColorIdx]?.name || 'Tiêu chuẩn')}</span>
                 </div>
                 <div class="vr-color-picker-group">
                   ${carColors.map((c, idx) => `
-                    <div class="vr-color-dot ${idx === 0 ? 'active' : ''}" data-idx="${idx}" data-name="${escapeHtml(c.name)}" style="background:${c.hex};" title="${escapeHtml(c.name)}"></div>
+                    <div class="vr-color-dot ${idx === selectedColorIdx ? 'active' : ''}" data-idx="${idx}" data-name="${escapeHtml(c.name)}" style="background:${c.hex};" title="${escapeHtml(c.name)}"></div>
                   `).join('')}
                 </div>
               </div>
@@ -3845,8 +3891,8 @@ const AppState = {
               <div>
                 <div style="font-size:12.5px; font-weight:700; color:var(--text-dark); margin-bottom:8px;">CHỌN MÂM XE:</div>
                 <div style="display:flex; flex-direction:column; gap:8px;">
-                  ${wheelsList.map((w, idx) => `
-                    <div class="vr-wheel-card ${idx === 0 ? 'active' : ''}" data-wheel-id="${w.id}" data-wheel-price="${w.price}">
+                  ${wheelsList.map((w) => `
+                    <div class="vr-wheel-card ${w.id === selectedWheel.id ? 'active' : ''}" data-wheel-id="${w.id}" data-wheel-price="${w.price}">
                       <div>
                         <strong style="font-size:13px; color:var(--text-dark);">${escapeHtml(w.name)}</strong>
                         <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(w.desc)}</div>
@@ -4039,13 +4085,14 @@ const AppState = {
     if (window.Car3DViewer && window.Car3DViewer.isSupported() && viewerContainer) {
       viewer = window.Car3DViewer.init(viewerContainer, {
         modelUrl: modelUrl,
-        initialColor: carColors[0]?.hex || '#0284C7',
+        initialColor: carColors[selectedColorIdx]?.hex || '#0284C7',
         initialAngle: currentAngle,
         hotspots: hotspotsList,
         onRotate: (angleDeg) => {
           currentAngle = angleDeg;
           if (rotInput) rotInput.value = angleDeg;
           if (rotLabel) rotLabel.textContent = `${angleDeg}° »`;
+          setVehicleConfig(car.id, { rotationAngle: currentAngle });
         },
         onHotspotClick: (h) => {
           showToast(`🔍 ${h.name}: ${h.desc}`, '💡');
@@ -4071,6 +4118,7 @@ const AppState = {
     rotInput?.addEventListener('input', (e) => {
       currentAngle = parseInt(e.target.value, 10);
       rotLabel.textContent = `${currentAngle}° »`;
+      setVehicleConfig(car.id, { rotationAngle: currentAngle });
       if (viewer) {
         viewer.setRotationAngle(currentAngle);
       }
@@ -4085,6 +4133,11 @@ const AppState = {
         const name = dot.getAttribute('data-name');
         document.getElementById('vr-selected-color-name').textContent = name;
         const chosen = carColors[selectedColorIdx];
+        setVehicleConfig(car.id, {
+          colorIdx: selectedColorIdx,
+          colorHex: chosen?.hex,
+          colorName: chosen?.name
+        });
         if (viewer && chosen?.hex) {
           viewer.setBodyColor(chosen.hex);
         }
@@ -4101,6 +4154,7 @@ const AppState = {
         const wheelObj = wheelsList.find(w => w.id === wheelId);
         if (wheelObj) {
           selectedWheel = wheelObj;
+          setVehicleConfig(car.id, { wheelId: wheelId });
           const basePrice = car.price || 1405000000;
           const totalWithWheel = basePrice + wheelObj.price;
           document.getElementById('vr-panel-price').textContent = `${totalWithWheel.toLocaleString('vi-VN')} VNĐ`;
@@ -4128,13 +4182,39 @@ const AppState = {
       document.getElementById('btn-mode-360').classList.add('active');
       if (vrHud) vrHud.style.display = 'none';
       if (viewer) {
+        viewer.stopCamera();
         viewer.setVRStudioMode(false);
+        viewer.setTransparentMode(false);
         viewer.resetView();
+        document.getElementById('vr-car-viewport')?.classList.remove('camera-active');
       }
     });
-    document.getElementById('btn-mode-vr')?.addEventListener('click', activateImmersiveVrStudio);
-    document.getElementById('btn-mode-ar')?.addEventListener('click', () => {
-      window.openArLive(car.id);
+    document.getElementById('btn-mode-vr')?.addEventListener('click', () => {
+      if (viewer) {
+        viewer.stopCamera();
+        document.getElementById('vr-car-viewport')?.classList.remove('camera-active');
+      }
+      activateImmersiveVrStudio();
+    });
+    document.getElementById('btn-mode-ar')?.addEventListener('click', async () => {
+      document.querySelectorAll('.vr-mode-pills .vr-mode-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-mode-ar')?.classList.add('active');
+      if (vrHud) vrHud.style.display = 'none';
+      if (viewer) {
+        viewer.setVRStudioMode(false);
+        try {
+          showToast('Đang kết nối Camera thiết bị cho chế độ AR...', '📹');
+          await viewer.startCamera();
+          document.getElementById('vr-car-viewport')?.classList.add('camera-active');
+          showToast('🟢 Đã bật Camera AR! Chiếc xe đang hiển thị trên nền môi trường thật.', '📹');
+        } catch (err) {
+          showToast('Không thể mở Camera: ' + (err.message || 'Lỗi thiết bị'), '⚠️');
+          document.querySelectorAll('.vr-mode-pills .vr-mode-btn').forEach(b => b.classList.remove('active'));
+          document.getElementById('btn-mode-360')?.classList.add('active');
+          viewer.setTransparentMode(false);
+          document.getElementById('vr-car-viewport')?.classList.remove('camera-active');
+        }
+      }
     });
     document.getElementById('btn-vr-hud-webxr')?.addEventListener('click', async () => {
       if (viewer && typeof viewer.enterWebXR === 'function') {
@@ -4227,39 +4307,39 @@ const AppState = {
   }
 
   // =================================================================
-  // VIEW 5C: CHẾ ĐỘ AR TRỰC TIẾP (Chế độ AR (Trắng - Xanh).pdf)
+  // VIEW 5C: CHẾ ĐỘ AR THỰC TẾ (REAL AUGMENTED REALITY 1:1)
   // =================================================================
   function renderArLiveModePage() {
+    // 1. Dispose previous sessions cleanly
+    if (window.SigmaARAdapter && typeof window.SigmaARAdapter.dispose === 'function') {
+      try { window.SigmaARAdapter.dispose(); } catch (e) {}
+    }
     if (window._activeAr3DViewer) {
       try { window._activeAr3DViewer.dispose(); } catch (e) {}
       window._activeAr3DViewer = null;
     }
 
-    const car = AppState.vehiclesList.find(c => c.id === AppState.currentDetailCar) || AppState.vehiclesList[0];
-    const modelUrl = (car.model3d && car.model3d.glbPath)
-      ? car.model3d.glbPath
-      : (car.id === 'tesla-cybertruck' ? 'assets/models/tesla_cybertruck.glb' : 'assets/models/sigma-car-3d.glb');
+    // 2. Resolve target vehicle & pre-selected configuration
+    const car = getVehicleById(AppState.currentDetailCar) || AppState.vehiclesList[0];
+    const cfg = getVehicleConfig(car.id);
 
     const carColors = (car.colors && car.colors.length > 0) ? car.colors : [
-      { name: 'Xanh Cyan Ánh Kim', hex: '#0284C7', img: car.image },
-      { name: 'Trắng Ngọc Trai', hex: '#F8FAFC', img: car.image },
-      { name: 'Đen Ánh Kim', hex: '#0F172A', img: car.image },
-      { name: 'Đỏ Thể Thao', hex: '#DC2626', img: car.image },
-      { name: 'Xám Xi Măng', hex: '#64748B', img: car.image }
+      { name: 'Thép Không Gỉ 30X', hex: '#94A3B8', img: car.image },
+      { name: 'Đen Satin Chiến Thuật', hex: '#1E293B', img: car.image },
+      { name: 'Trắng Satin Bắc Cực', hex: '#F1F5F9', img: car.image },
+      { name: 'Xanh Rêu Quân Đội', hex: '#3F6212', img: car.image }
     ];
 
-    let currentScale = 100; // 50 - 150
-    let currentRotation = 35; // 0 - 360
+    let selectedColorIdx = (cfg && typeof cfg.colorIdx === 'number' && cfg.colorIdx < carColors.length) ? cfg.colorIdx : 0;
+    const isVerifiedAr = typeof SIGMA_AR_MANIFEST !== 'undefined' && SIGMA_AR_MANIFEST.isVehicleArVerified(car.id);
+    const arConfig = typeof SIGMA_AR_MANIFEST !== 'undefined' ? SIGMA_AR_MANIFEST.getVehicleArConfig(car.id, selectedColorIdx) : null;
+    const dims = arConfig ? arConfig.dimensionsMeters : { length: 5.682, width: 2.200, height: 1.791 };
+
+    let currentScale = 100;
     let hasRealShadow = true;
     let hasEnvLight = true;
-    let showGrid = true;
-    let posX = 0;
-    let posY = 0;
-    let isDragging = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
 
-    // Photos taken
+    // Photos taken in session
     let capturedList = [
       car.image || 'assets/project3/ar-capture-1.jpg',
       'assets/project3/ar-capture-1.jpg',
@@ -4278,11 +4358,13 @@ const AppState = {
                 <a href="javascript:void(0)" onclick="window.location.hash='vr-ar'">Showroom 3D</a> / 
                 <span style="color:var(--text-dark); font-weight:700;">Trải nghiệm AR — ${escapeHtml(car.name)}</span>
               </div>
-              <h2 style="font-size:26px; font-weight:800; color:var(--text-dark); margin:0;">Chế độ Thực tế tăng cường (AR 3D) — ${escapeHtml(car.name)}</h2>
+              <h2 style="font-size:26px; font-weight:800; color:var(--text-dark); margin:0;">Chế độ Thực tế tăng cường (AR Camera 1:1) — ${escapeHtml(car.name)}</h2>
             </div>
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <span class="badge-pill-live">AR 3D LIVE</span>
-              <span class="badge-role" style="background:#ECFDF5; color:#059669; font-weight:700;">📷 Mô hình 3D (${escapeHtml(modelUrl.split('/').pop())}) trên không gian thực</span>
+              <span class="badge-role" style="background:#ECFDF5; color:#059669; font-weight:700;">
+                ${isVerifiedAr ? '✓ Mô hình AR 1:1 đã kiểm định vật lý' : 'ℹ️ Mô hình AR 3D tỉ lệ chuẩn'}
+              </span>
               <button class="btn-card-outline" onclick="window.openVrArShowroom('${car.id}')" style="padding:6px 14px; font-size:12.5px;">🥽 Chuyển sang VR 360°</button>
               <button class="btn-card-outline" onclick="window.openCarDetail('${car.id}')" style="padding:6px 14px; font-size:12.5px;">✕ Thoát AR</button>
             </div>
@@ -4291,45 +4373,50 @@ const AppState = {
           <!-- Main Layout 2 Columns: AR Live Stage 68% - Control Sidebar 32% -->
           <div class="ar-live-container">
             <!-- AR Live Stage Left -->
-            <div class="ar-live-viewport" id="ar-live-stage" style="background-image:url('assets/project3/ar-live-bg.jpg');">
-              <video id="ar-live-camera-video" class="ar-live-video-layer" autoplay playsinline muted style="display:none;"></video>
-              
-              <!-- Top Indicators -->
-              <div style="display:flex; justify-content:space-between; align-items:center; z-index:10;">
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                  <span class="badge-pill-live">AR 3D</span>
-                  <span class="badge-pill-white" id="ar-camera-status-badge">✓ Đã nhận diện mặt phẳng • Kéo để xoay 360° hoặc di chuyển xe</span>
+            <div class="ar-live-viewport" id="ar-live-stage">
+              <!-- Dark Studio Backdrop behind Camera Video -->
+              <div class="ar-camera-backdrop" id="ar-camera-backdrop"></div>
+
+              <!-- Top Indicators & Mode Switcher -->
+              <div style="display:flex; justify-content:space-between; align-items:center; z-index:10; position:relative;">
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                  <div class="ar-mode-switcher">
+                    <button id="btn-ar-mode-a" class="ar-mode-btn active" title="Chế độ xem mô hình 3D trong Studio">MODE A: 3D Studio</button>
+                    <button id="btn-ar-mode-b" class="ar-mode-btn" title="Chế độ Live Camera AR thực tế">MODE B: Live Camera AR</button>
+                  </div>
+                  <span class="badge-pill-white" id="ar-camera-status-badge">📷 Mode A: 3D Studio • Bấm "MODE B" hoặc "Bật Camera" để mở không gian thực</span>
                 </div>
-                <button class="vr-util-btn" onclick="window.openVrArShowroom('${car.id}')" title="Quay lại Showroom VR">✕</button>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <button id="btn-ar-switch-camera" class="ar-camera-switch-pill" style="display:none;" title="Chuyển đổi Camera (Trước / Sau)">🔄 Đổi Camera</button>
+                  <button class="vr-util-btn" onclick="window.openVrArShowroom('${car.id}')" title="Quay lại Showroom VR">✕</button>
+                </div>
               </div>
 
-              <!-- Center Entity & Ground Grid Ring -->
-              <div id="ar-ground-mesh" class="ar-ground-mesh" style="display:${showGrid ? 'block' : 'none'};"></div>
-              
-              <div id="ar-live-vehicle" class="ar-vehicle-entity ${hasRealShadow ? 'has-shadow' : ''}" style="transform:translate(calc(-50% + ${posX}px), ${posY}px); width:100%; max-width:680px; height:390px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                <div class="ar-vehicle-tag" id="ar-vehicle-tag-label" style="z-index:15;">
-                  ${escapeHtml(car.name)} • ${escapeHtml(carColors[0]?.name || '')} • Tỉ lệ: <span id="ar-tag-scale">${currentScale}%</span>
-                </div>
-                <!-- Real 3D Transparent WebGL Canvas for AR -->
-                <div id="ar-live-3d-canvas" style="width:100%; height:350px; position:relative; z-index:10;"></div>
-                <img id="ar-vehicle-img" src="${car.image}" alt="${escapeHtml(car.name)}" style="max-height:300px; display:none; pointer-events:none; filter:${hasEnvLight ? 'contrast(1.05) brightness(1.02)' : 'none'};">
+              <!-- Mount container for Real AR Video + <model-viewer> -->
+              <div id="ar-model-viewer-mount" style="position:absolute; inset:0; z-index:5;"></div>
+
+              <!-- Permission / Security Guidance Overlay Banner -->
+              <div id="ar-permission-overlay" class="ar-permission-banner" style="display:none;"></div>
+
+              <!-- Vehicle Floating Spec Tag -->
+              <div class="ar-vehicle-tag" id="ar-vehicle-tag-label" style="position:absolute; top:70px; left:50%; transform:translateX(-50%); z-index:15;">
+                ${escapeHtml(car.name)} • <span id="ar-tag-color">${escapeHtml(carColors[selectedColorIdx]?.name || '')}</span> • Tỉ lệ: <span id="ar-tag-scale">100% (Chuẩn 1:1)</span>
               </div>
 
               <!-- Floating Bottom Dock -->
               <div class="ar-floating-dock">
-                <button class="ar-dock-btn" id="btn-ar-dock-camera" title="Bật/Tắt Camera thiết bị thực tế">📷</button>
-                <button class="ar-dock-btn" id="btn-ar-dock-reset" title="Đặt lại vị trí & góc xe">↺</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-camera" title="Bật / Tắt Camera thực tế">📹</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-reset" title="Đặt lại góc nhìn xe 3D">↺</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-minus" title="Thu nhỏ 10%">−</button>
-                <button class="ar-dock-btn primary-capture" id="btn-ar-dock-shutter" title="Chụp ảnh AR">📸</button>
-                <button class="ar-dock-btn" id="btn-ar-dock-grid" title="Bật/Tắt lưới định vị mặt phẳng">⊞</button>
+                <button class="ar-dock-btn primary-capture" id="btn-ar-dock-shutter" title="Chụp ảnh AR (Nền Camera thật + Xe 3D)">📸</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-plus" title="Phóng to 10%">+</button>
-                <button class="ar-dock-btn" id="btn-ar-dock-video" title="Quay video AR">📹</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-fullscreen" title="Toàn màn hình">⛶</button>
               </div>
             </div>
 
             <!-- Control Sidebar Right (Bảng điều khiển) -->
             <div class="vr-config-panel" style="padding:22px;">
-              <h3 style="font-size:18px; font-weight:800; color:var(--text-dark); margin:0 0 16px;">Bảng điều khiển AR 3D</h3>
+              <h3 style="font-size:18px; font-weight:800; color:var(--text-dark); margin:0 0 16px;">Bảng điều khiển AR Camera</h3>
 
               <!-- Vehicle Switcher -->
               <div>
@@ -4339,46 +4426,67 @@ const AppState = {
                 </select>
               </div>
 
+              <!-- Camera Device Selector -->
+              <div>
+                <label class="filter-label">Thiết bị Camera thực tế</label>
+                <select id="ar-camera-device-select" class="filter-select">
+                  <option value="">Tự động (Camera sau / Mặc định)</option>
+                </select>
+              </div>
+
               <!-- Color Swatches -->
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
-                  <span style="font-weight:700;">MÀU SƠN / VẬT LIỆU 3D:</span>
-                  <span id="ar-color-label" style="color:var(--primary); font-weight:600;">${escapeHtml(carColors[0]?.name || '')}</span>
+                  <span style="font-weight:700;">MÀU SƠN / VẬT LIỆU PBR:</span>
+                  <span id="ar-color-label" style="color:var(--primary); font-weight:600;">${escapeHtml(carColors[selectedColorIdx]?.name || '')}</span>
                 </div>
                 <div class="vr-color-picker-group">
                   ${carColors.map((c, idx) => `
-                    <div class="vr-color-dot ${idx === 0 ? 'active' : ''}" data-idx="${idx}" data-hex="${c.hex}" data-name="${escapeHtml(c.name)}" style="background:${c.hex};" title="${escapeHtml(c.name)}"></div>
+                    <div class="vr-color-dot ${idx === selectedColorIdx ? 'active' : ''}" data-idx="${idx}" data-hex="${c.hex}" data-name="${escapeHtml(c.name)}" style="background:${c.hex};" title="${escapeHtml(c.name)}"></div>
                   `).join('')}
+                </div>
+              </div>
+
+              <!-- Physical Dimensions Card -->
+              <div style="padding:12px; background:#F8FAFC; border-radius:12px; border:1px solid #E2E8F0;">
+                <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px; text-transform:uppercase;">Kích Thước Xe Ngoài Đời Thực (Tỉ lệ 1:1)</div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; text-align:center;">
+                  <div>
+                    <div style="font-size:10px; color:var(--text-muted);">CHIỀU DÀI</div>
+                    <strong style="font-size:13px; color:var(--primary);">${dims.length.toFixed(2)} m</strong>
+                  </div>
+                  <div>
+                    <div style="font-size:10px; color:var(--text-muted);">CHIỀU RỘNG</div>
+                    <strong style="font-size:13px; color:var(--text-dark);">${dims.width.toFixed(2)} m</strong>
+                  </div>
+                  <div>
+                    <div style="font-size:10px; color:var(--text-muted);">CHIỀU CAO</div>
+                    <strong style="font-size:13px; color:var(--text-dark);">${dims.height.toFixed(2)} m</strong>
+                  </div>
                 </div>
               </div>
 
               <!-- Scale Slider -->
               <div>
                 <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                  <span style="font-weight:700;">PHÓNG TO / THU NHỎ (SCALE):</span>
-                  <span id="ar-scale-val-label" style="font-weight:800; color:var(--primary);">${currentScale}%</span>
+                  <span style="font-weight:700;">TỈ LỆ HIỂN THỊ (SCALE):</span>
+                  <span id="ar-scale-val-label" style="font-weight:800; color:var(--primary);">${currentScale}% (Chuẩn 1:1)</span>
                 </div>
                 <input type="range" id="ar-scale-input" class="vr-rotation-slider" min="50" max="150" value="${currentScale}" style="width:100%;">
                 <div style="display:flex; justify-content:space-between; font-size:10.5px; color:var(--text-muted); margin-top:2px;">
                   <span>50%</span>
-                  <span>100% (Chuẩn 1:1)</span>
+                  <span>100% (Khóa 1:1 khi mở AR)</span>
                   <span>150%</span>
                 </div>
               </div>
 
-              <!-- Rotation Slider -->
-              <div>
-                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                  <span style="font-weight:700;">XOAY GÓC XE 360°:</span>
-                  <span id="ar-rot-val-label" style="font-weight:800; color:var(--primary);">${currentRotation}°</span>
-                </div>
-                <input type="range" id="ar-rot-input" class="vr-rotation-slider" min="0" max="360" value="${currentRotation}" style="width:100%;">
-              </div>
-
-              <!-- 2 Toggle Switches -->
+              <!-- Placement Mode & Ground Shadow -->
               <div style="display:flex; flex-direction:column; gap:10px; padding:12px; background:#F8FAFC; border-radius:12px; border:1px solid #E2E8F0;">
+                <div style="font-size:12px; color:#475569; line-height:1.4;">
+                  <strong>🎯 Chế độ đặt xe:</strong> Phủ Camera thực tế 1:1 (Manual Camera Overlay). Vuốt 1 ngón để xoay 360°, kéo 2 ngón để di chuyển xe trên sàn phòng.
+                </div>
                 <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dark);">
-                  <span>☁️ Bóng đổ mặt đất (Contact Shadow)</span>
+                  <span>☁️ Bóng đổ tiếp đất (Contact Shadow)</span>
                   <input type="checkbox" id="ar-toggle-shadow" checked style="accent-color:#2563EB; width:16px; height:16px;">
                 </label>
                 <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dark);">
@@ -4387,23 +4495,34 @@ const AppState = {
                 </label>
               </div>
 
-              <!-- Camera Toggle & Big Shutter Button -->
+              <!-- Action Buttons -->
               <div style="display:flex; flex-direction:column; gap:8px;">
-                <button class="btn-secondary" id="btn-ar-sidebar-camera" style="width:100%; justify-content:center; padding:11px; font-size:13.5px; font-weight:700; border-color:#0284C7; color:#0284C7; background:#F0F9FF;">
-                  📱 Bật Camera Thiết Bị (AR Thực Tế)
+                <button class="btn-primary" id="btn-ar-sidebar-camera" style="width:100%; justify-content:center; padding:12px; font-size:14px; font-weight:800;">
+                  📹 Bật Camera Thực Tế (Mode B)
                 </button>
-                <button class="btn-primary" id="btn-ar-sidebar-shutter" style="width:100%; justify-content:center; padding:12px; font-size:14px; font-weight:800;">
-                  📸 Chụp ảnh AR ngay
+                <button class="btn-secondary" id="btn-ar-sidebar-shutter" style="width:100%; justify-content:center; padding:12px; font-size:13.5px; font-weight:800; border-color:#0284C7; color:#0284C7; background:#F0F9FF;">
+                  📸 Chụp ảnh AR (Nền thật + Xe 3D)
+                </button>
+                <button class="btn-card-outline" id="btn-ar-sidebar-native" style="width:100%; justify-content:center; padding:10px; font-size:12.5px; font-weight:700;">
+                  🚀 Khởi chạy WebXR / Scene Viewer / Quick Look
                 </button>
               </div>
 
-              <!-- QR Card -->
-              <div style="display:flex; align-items:center; gap:12px; padding:10px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px;">
-                <span style="font-size:24px;">🏁</span>
-                <div style="font-size:11.5px; color:#1E40AF;">
-                  <strong>Ưu tiên trải nghiệm Điện thoại</strong><br>
-                  Hỗ trợ cảm ứng đa điểm xoay 360°, phóng to/thu nhỏ và mở Camera sau trực tiếp.
+              <!-- QR Card for Mobile Handoff -->
+              <div style="display:flex; align-items:center; gap:12px; padding:12px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px;">
+                <span style="font-size:26px;">📱</span>
+                <div style="font-size:11.5px; color:#1E40AF; line-height:1.5;">
+                  <strong>Trải nghiệm camera trên Điện thoại</strong><br>
+                  Mở trực tiếp trên Safari / Chrome điện thoại để hướng camera vào phòng hoặc gara ngoài đời thực.
                 </div>
+              </div>
+
+              <!-- Diagnostics Debug Toggle Button & Panel -->
+              <div style="margin-top:14px; border-top:1px solid #E2E8F0; padding-top:12px;">
+                <button class="btn-card-outline" id="btn-ar-toggle-diagnostics" style="width:100%; justify-content:center; padding:7px 12px; font-size:12px; color:#475569; border-color:#CBD5E1;">
+                  🛠️ Chẩn đoán trạng thái Camera (Debug)
+                </button>
+                <div id="ar-diagnostics-card" style="display:none; margin-top:10px; padding:12px; background:#0F172A; color:#E2E8F0; border-radius:10px; font-size:11.5px; line-height:1.6; border:1px solid #334155;"></div>
               </div>
             </div>
           </div>
@@ -4413,8 +4532,8 @@ const AppState = {
             <!-- Captured Gallery -->
             <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:20px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin:0;">Ảnh đã chụp (<span id="ar-captured-count">${capturedList.length}</span>)</h4>
-                <span style="font-size:12px; color:var(--primary); font-weight:600; cursor:pointer;" onclick="showToast('Toàn bộ ảnh chụp đã được lưu vào bộ sưu tập thiết bị.', '📸')">Xem tất cả →</span>
+                <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin:0;">Ảnh AR đã chụp (<span id="ar-captured-count">${capturedList.length}</span>)</h4>
+                <span style="font-size:12px; color:var(--primary); font-weight:600; cursor:pointer;" onclick="showToast('Ảnh chụp AR đã được lưu trong phiên.', '📸')">Xem tất cả →</span>
               </div>
               <div class="ar-capture-gallery" id="ar-captured-gallery-strip">
                 ${capturedList.map((cImg, idx) => `
@@ -4423,24 +4542,24 @@ const AppState = {
               </div>
             </div>
 
-            <!-- Gesture Instruction Cards (3 Thẻ) -->
+            <!-- Gesture Instruction Cards -->
             <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:20px; display:flex; flex-direction:column; justify-content:space-between;">
-              <h4 style="font-size:15px; font-weight:800; color:var(--text-dark); margin:0 0 10px;">Hướng dẫn cử chỉ thao tác AR 3D</h4>
+              <h4 style="font-size:15px; font-weight:800; color:var(--text-dark); margin:0 0 10px;">Hướng dẫn cử chỉ thao tác AR Camera</h4>
               <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; font-size:12px; text-align:center;">
                 <div style="padding:10px 6px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
                   <div style="font-size:20px; margin-bottom:4px;">🔄</div>
                   <strong>Xoay 360°</strong>
-                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Vuốt/kéo trên mô hình xe</div>
+                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Vuốt 1 ngón quanh xe</div>
                 </div>
                 <div style="padding:10px 6px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
                   <div style="font-size:20px; margin-bottom:4px;">👆</div>
                   <strong>Di chuyển vị trí</strong>
-                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Giữ nhãn tên xe để kéo</div>
+                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Kéo 2 ngón trên màn hình</div>
                 </div>
                 <div style="padding:10px 6px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
                   <div style="font-size:20px; margin-bottom:4px;">👌</div>
-                  <strong>Thu phóng tỉ lệ</strong>
-                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Chụm 2 ngón hoặc thanh trượt</div>
+                  <strong>Thu phóng Tỉ lệ</strong>
+                  <div style="color:var(--text-muted); font-size:10.5px; margin-top:2px;">Chụm 2 ngón hoặc dùng thanh trượt</div>
                 </div>
               </div>
             </div>
@@ -4450,82 +4569,238 @@ const AppState = {
     `;
 
     // Elements
-    const vehicleNode = document.getElementById('ar-live-vehicle');
-    const arCanvasBox = document.getElementById('ar-live-3d-canvas');
-    const vehicleImg = document.getElementById('ar-vehicle-img');
+    const mountNode = document.getElementById('ar-model-viewer-mount');
+    const statusBadge = document.getElementById('ar-camera-status-badge');
+    const permissionOverlay = document.getElementById('ar-permission-overlay');
+    const cameraSelect = document.getElementById('ar-camera-device-select');
+    const switchCameraBtn = document.getElementById('btn-ar-switch-camera');
+    const sidebarCameraBtn = document.getElementById('btn-ar-sidebar-camera');
+    const tagScale = document.getElementById('ar-tag-scale');
+    const tagColor = document.getElementById('ar-tag-color');
     const scaleInput = document.getElementById('ar-scale-input');
     const scaleLabel = document.getElementById('ar-scale-val-label');
-    const tagScale = document.getElementById('ar-tag-scale');
-    const rotInput = document.getElementById('ar-rot-input');
-    const rotLabel = document.getElementById('ar-rot-val-label');
-    const toggleShadow = document.getElementById('ar-toggle-shadow');
-    const toggleLight = document.getElementById('ar-toggle-light');
-    const groundMesh = document.getElementById('ar-ground-mesh');
     const carSelector = document.getElementById('ar-car-selector');
-    const tagLabel = document.getElementById('ar-vehicle-tag-label');
 
-    // Initialize Transparent 3D AR Viewer
-    let arViewer = null;
-    if (window.Car3DViewer && window.Car3DViewer.isSupported() && arCanvasBox) {
-      arViewer = window.Car3DViewer.init(arCanvasBox, {
-        modelUrl: modelUrl,
-        transparent: true,
-        initialColor: carColors[0]?.hex || '#C0C5CE',
-        initialAngle: currentRotation,
-        hotspots: [],
-        onRotate: (deg) => {
-          currentRotation = deg;
-          if (rotInput) rotInput.value = deg;
-          if (rotLabel) rotLabel.textContent = `${deg}°`;
+    // Populate camera list in dropdown
+    const updateCameraDeviceOptions = (devices) => {
+      if (!cameraSelect) return;
+      if (!devices || devices.length === 0) {
+        cameraSelect.innerHTML = '<option value="">Camera Mặc định (Tự động)</option>';
+        return;
+      }
+      cameraSelect.innerHTML = `
+        <option value="">Tự động (Camera sau / Môi trường)</option>
+        ${devices.map(d => `<option value="${d.deviceId}">${escapeHtml(d.label || 'Camera')}</option>`).join('')}
+      `;
+    };
+
+    // UI State Handler for Camera Permissions & Lifecycles
+    const handleCameraStateChange = (state, detail = {}) => {
+      console.log('[ARLivePage] Camera State Change:', state, detail);
+
+      const stage = document.getElementById('ar-live-stage');
+      const backdrop = document.getElementById('ar-camera-backdrop');
+      const btnModeA = document.getElementById('btn-ar-mode-a');
+      const btnModeB = document.getElementById('btn-ar-mode-b');
+
+      if (state === 'active') {
+        if (backdrop) backdrop.style.display = 'none';
+        if (stage) stage.classList.add('camera-active');
+        if (btnModeA) btnModeA.classList.remove('active');
+        if (btnModeB) btnModeB.classList.add('active');
+        if (statusBadge) {
+          statusBadge.innerHTML = '🟢 <strong>MODE B: LIVE CAMERA AR (1:1)</strong> • Đang hiển thị xe trên nền môi trường thật';
+        }
+        if (permissionOverlay) permissionOverlay.style.display = 'none';
+        if (sidebarCameraBtn) sidebarCameraBtn.textContent = '⏹️ Tắt Camera & Về 3D Studio (Mode A)';
+        if (switchCameraBtn) switchCameraBtn.style.display = 'flex';
+      } else if (state === 'requesting') {
+        if (statusBadge) statusBadge.textContent = '📷 Đang xin quyền Camera thiết bị...';
+        if (permissionOverlay) permissionOverlay.style.display = 'none';
+      } else if (state === 'permission_denied') {
+        if (backdrop) backdrop.style.display = 'block';
+        if (stage) stage.classList.remove('camera-active');
+        if (btnModeB) btnModeB.classList.remove('active');
+        if (btnModeA) btnModeA.classList.add('active');
+        if (statusBadge) statusBadge.textContent = '⚠️ Quyền Camera bị từ chối • Đang ở Mode A (3D Studio)';
+        if (sidebarCameraBtn) sidebarCameraBtn.textContent = '📹 Bật Camera Thực Tế (Mode B)';
+        if (permissionOverlay) {
+          permissionOverlay.style.display = 'block';
+          permissionOverlay.innerHTML = `
+            <h4>🔒 Cần cấp quyền truy cập Camera</h4>
+            <p>Trình duyệt đang chặn Camera. Để quan sát chiếc xe ngay trong căn phòng hoặc gara thực tế của bạn:</p>
+            <div class="ar-permission-steps">
+              1. Bấm vào biểu tượng <strong>Ổ khóa 🔒</strong> (hoặc Cài đặt trang web) trên thanh địa chỉ trình duyệt.<br>
+              2. Chuyển quyền <strong>Máy ảnh / Camera</strong> sang <strong>Cho phép (Allow)</strong>.<br>
+              3. Nhấn nút <strong>Thử lại</strong> bên dưới.
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+              <button id="btn-ar-retry-permission" class="btn-primary" style="padding:8px 18px; font-size:13px;">🔄 Thử lại quyền Camera</button>
+              <button id="btn-ar-dismiss-permission" class="btn-card-outline" style="padding:8px 18px; font-size:13px; color:#FFFFFF; border-color:rgba(255,255,255,0.4);">Tiếp tục xem 3D Studio (Mode A)</button>
+            </div>
+          `;
+          document.getElementById('btn-ar-retry-permission')?.addEventListener('click', () => {
+            window.SigmaARAdapter?.startCamera();
+          });
+          document.getElementById('btn-ar-dismiss-permission')?.addEventListener('click', () => {
+            if (permissionOverlay) permissionOverlay.style.display = 'none';
+          });
+        }
+      } else if (state === 'insecure_context') {
+        if (backdrop) backdrop.style.display = 'block';
+        if (stage) stage.classList.remove('camera-active');
+        if (btnModeB) btnModeB.classList.remove('active');
+        if (btnModeA) btnModeA.classList.add('active');
+        if (statusBadge) statusBadge.textContent = '⚠️ Camera yêu cầu kết nối bảo mật HTTPS hoặc localhost';
+        if (permissionOverlay) {
+          permissionOverlay.style.display = 'block';
+          permissionOverlay.innerHTML = `
+            <h4>🔒 Yêu cầu kết nối bảo mật HTTPS (SecurityError)</h4>
+            <p>Theo tiêu chuẩn WebRTC, trình duyệt chỉ cho phép truy cập Camera khi chạy trên <strong>HTTPS</strong> hoặc <strong>localhost</strong>.</p>
+            <button id="btn-ar-dismiss-https" class="btn-card-outline" style="padding:8px 18px; font-size:13px; color:#FFFFFF; border-color:rgba(255,255,255,0.4);">Xem 3D Studio (Mode A)</button>
+          `;
+          document.getElementById('btn-ar-dismiss-https')?.addEventListener('click', () => {
+            if (permissionOverlay) permissionOverlay.style.display = 'none';
+          });
+        }
+      } else if (state === 'stopped') {
+        if (backdrop) backdrop.style.display = 'block';
+        if (stage) stage.classList.remove('camera-active');
+        if (btnModeB) btnModeB.classList.remove('active');
+        if (btnModeA) btnModeA.classList.add('active');
+        if (statusBadge) statusBadge.textContent = '📷 Mode A: 3D Studio • Bấm "MODE B" hoặc "Bật Camera" để mở không gian thực';
+        if (sidebarCameraBtn) sidebarCameraBtn.textContent = '📹 Bật Camera Thực Tế (Mode B)';
+        if (switchCameraBtn) switchCameraBtn.style.display = 'none';
+        if (permissionOverlay) permissionOverlay.style.display = 'none';
+      } else if (state === 'camera_unavailable' || state === 'camera_in_use' || state === 'overconstrained' || state === 'security_error' || state === 'type_error') {
+        if (backdrop) backdrop.style.display = 'block';
+        if (stage) stage.classList.remove('camera-active');
+        if (btnModeB) btnModeB.classList.remove('active');
+        if (btnModeA) btnModeA.classList.add('active');
+        if (statusBadge) statusBadge.textContent = `⚠️ ${detail.title || 'Không thể mở Camera'}`;
+        if (permissionOverlay) {
+          permissionOverlay.style.display = 'block';
+          permissionOverlay.innerHTML = `
+            <h4>⚠️ ${escapeHtml(detail.title || 'Lỗi Camera')}</h4>
+            <p style="margin-bottom:12px;">${escapeHtml(detail.message || 'Không thể kết nối Camera thiết bị.')}</p>
+            <div style="font-size:11.5px; color:#94A3B8; margin-bottom:14px; text-align:left; background:rgba(0,0,0,0.3); padding:8px 12px; border-radius:8px;">
+              Mã lỗi kỹ thuật: <strong>${escapeHtml(detail.code || state)}</strong>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+              <button id="btn-ar-retry-unavail" class="btn-primary" style="padding:8px 18px; font-size:13px;">🔄 Thử kết nối lại</button>
+              <button id="btn-ar-dismiss-err" class="btn-card-outline" style="padding:8px 18px; font-size:13px; color:#FFFFFF; border-color:rgba(255,255,255,0.4);">Tiếp tục xem 3D Studio (Mode A)</button>
+            </div>
+          `;
+          document.getElementById('btn-ar-retry-unavail')?.addEventListener('click', () => {
+            window.SigmaARAdapter?.startCamera();
+          });
+          document.getElementById('btn-ar-dismiss-err')?.addEventListener('click', () => {
+            if (permissionOverlay) permissionOverlay.style.display = 'none';
+          });
+        }
+      }
+    };
+
+    // Mode A & Mode B buttons
+    document.getElementById('btn-ar-mode-a')?.addEventListener('click', () => {
+      window.SigmaARAdapter?.stopCamera();
+    });
+    document.getElementById('btn-ar-mode-b')?.addEventListener('click', () => {
+      window.SigmaARAdapter?.startCamera();
+    });
+
+    // Mount real AR Session via SigmaARAdapter
+    if (mountNode && window.SigmaARAdapter) {
+      window.SigmaARAdapter.init(mountNode, {
+        carId: car.id,
+        colorIdx: selectedColorIdx,
+        autoStartCamera: true, // Proactively request camera permission and start video feed immediately!
+        onCameraStateChange: handleCameraStateChange,
+        onDevicesUpdated: (devices) => updateCameraDeviceOptions(devices),
+        onStatusChange: (status, msg) => {
+          if (statusBadge && status !== 'active') statusBadge.textContent = msg;
         },
-        onError: () => {
-          if (arCanvasBox) arCanvasBox.style.display = 'none';
-          if (vehicleImg) vehicleImg.style.display = 'block';
+        onError: (err) => {
+          if (statusBadge) statusBadge.textContent = 'ℹ️ Đang hiển thị mô hình 3D tương tác 360°';
         }
       });
-      window._activeAr3DViewer = arViewer;
-    } else {
-      if (arCanvasBox) arCanvasBox.style.display = 'none';
-      if (vehicleImg) vehicleImg.style.display = 'block';
+
+      // Populate available cameras
+      window.SigmaARAdapter.getAvailableCameras().then(devices => {
+        updateCameraDeviceOptions(devices);
+      });
     }
 
-    function updateVehicleTransform() {
-      if (arViewer) {
-        vehicleNode.style.transform = `translate(calc(-50% + ${posX}px), ${posY}px)`;
-        arViewer.setScale(currentScale / 100);
-        arViewer.setRotationAngle(currentRotation);
-      } else {
-        vehicleNode.style.transform = `translate(calc(-50% + ${posX}px), ${posY}px) scale(${currentScale / 100}) rotate(${currentRotation}deg)`;
+    // Toggle Camera stream
+    const handleCameraToggle = async () => {
+      if (window.SigmaARAdapter) {
+        await window.SigmaARAdapter.toggleCamera();
       }
-      if (scaleLabel) scaleLabel.textContent = `${currentScale}%`;
-      if (tagScale) tagScale.textContent = `${currentScale}%`;
-      if (rotLabel) rotLabel.textContent = `${currentRotation}°`;
-    }
+    };
 
-    scaleInput?.addEventListener('input', (e) => {
-      currentScale = parseInt(e.target.value, 10);
-      updateVehicleTransform();
+    document.getElementById('btn-ar-dock-camera')?.addEventListener('click', handleCameraToggle);
+    sidebarCameraBtn?.addEventListener('click', handleCameraToggle);
+
+    // Switch Camera button (Front <-> Back toggle)
+    switchCameraBtn?.addEventListener('click', async () => {
+      if (window.SigmaARAdapter) {
+        showToast('Đang chuyển đổi Camera...', '🔄');
+        await window.SigmaARAdapter.switchCamera();
+      }
     });
 
-    rotInput?.addEventListener('input', (e) => {
-      currentRotation = parseInt(e.target.value, 10);
-      updateVehicleTransform();
+    // Camera Device Select Dropdown
+    cameraSelect?.addEventListener('change', async (e) => {
+      const selectedId = e.target.value;
+      if (window.SigmaARAdapter) {
+        if (selectedId) {
+          await window.SigmaARAdapter.switchCamera(selectedId);
+        } else {
+          await window.SigmaARAdapter.switchCamera('environment');
+        }
+      }
     });
 
-    toggleShadow?.addEventListener('change', (e) => {
-      hasRealShadow = e.target.checked;
-      vehicleNode.classList.toggle('has-shadow', hasRealShadow);
-      if (arViewer) arViewer.setShadowVisible(hasRealShadow);
+    // Native AR Launcher (Google Scene Viewer / Apple Quick Look / WebXR)
+    document.getElementById('btn-ar-sidebar-native')?.addEventListener('click', async () => {
+      if (window.SigmaARAdapter) {
+        await window.SigmaARAdapter.activateAR();
+      }
     });
 
-    toggleLight?.addEventListener('change', (e) => {
-      hasEnvLight = e.target.checked;
-      if (vehicleImg) vehicleImg.style.filter = hasEnvLight ? 'contrast(1.05) brightness(1.02)' : 'none';
-      if (arViewer) arViewer.setEnvExposure(hasEnvLight ? 1.25 : 0.7);
-    });
-
-    carSelector?.addEventListener('change', (e) => {
-      window.openArLive(e.target.value);
+    // Camera Diagnostic Inspector Toggle
+    const diagBtn = document.getElementById('btn-ar-toggle-diagnostics');
+    const diagCard = document.getElementById('ar-diagnostics-card');
+    diagBtn?.addEventListener('click', async () => {
+      if (!diagCard) return;
+      if (diagCard.style.display === 'block') {
+        diagCard.style.display = 'none';
+        diagBtn.textContent = '🛠️ Chẩn đoán trạng thái Camera (Debug)';
+      } else {
+        diagCard.style.display = 'block';
+        diagBtn.textContent = '✕ Đóng bảng chẩn đoán';
+        const d = await window.SigmaARAdapter?.getDiagnostics();
+        if (!d) {
+          diagCard.innerHTML = '<em>Không có thông tin phiên AR.</em>';
+          return;
+        }
+        diagCard.innerHTML = `
+          <div style="font-weight:700; color:#38BDF8; margin-bottom:6px; font-size:12px;">📊 BÁO CÁO KỸ THUẬT CAMERA WEBAR</div>
+          <div><strong>Trình duyệt:</strong> ${escapeHtml(d.browser)} (${escapeHtml(d.platform)})</div>
+          <div><strong>Kết nối bảo mật:</strong> ${d.isSecureContext ? '<span style="color:#4ADE80;">✓ Đạt chuẩn SecureContext (HTTPS/localhost)</span>' : '<span style="color:#F87171;">✗ Không an toàn (Yêu cầu HTTPS)</span>'}</div>
+          <div><strong>Protocol / Host:</strong> ${escapeHtml(d.protocol)} // ${escapeHtml(d.hostname)}</div>
+          <div><strong>API MediaDevices:</strong> ${d.hasMediaDevices ? '<span style="color:#4ADE80;">✓ Có hỗ trợ</span>' : '<span style="color:#F87171;">✗ Không hỗ trợ</span>'}</div>
+          <div><strong>Quyền truy cập (Permissions API):</strong> <code style="background:#1E293B; padding:1px 4px; border-radius:4px;">${escapeHtml(d.permissionState)}</code></div>
+          <div><strong>Số lượng Camera:</strong> ${d.cameraCount} thiết bị phát hiện</div>
+          <div><strong>Trạng thái Camera:</strong> <code style="background:#1E293B; padding:1px 4px; border-radius:4px; color:${d.cameraState === 'active' ? '#4ADE80' : '#FBBF24'};">${escapeHtml(d.cameraState)}</code></div>
+          <div><strong>Camera đang chọn:</strong> ${escapeHtml(d.activeFacingMode || 'Mặc định')}</div>
+          ${d.lastError ? `
+            <div style="margin-top:6px; padding:6px; background:rgba(239,68,68,0.2); border-left:3px solid #EF4444; border-radius:4px;">
+              <strong style="color:#FCA5A5;">Lỗi gần nhất:</strong> ${escapeHtml(d.lastError.name)}: ${escapeHtml(d.lastError.message)}
+            </div>
+          ` : '<div style="color:#4ADE80; margin-top:4px;">✓ Không phát hiện lỗi phần cứng</div>'}
+        `;
+      }
     });
 
     // Color Swatches
@@ -4533,140 +4808,104 @@ const AppState = {
       dot.addEventListener('click', () => {
         document.querySelectorAll('.vr-color-dot').forEach(d => d.classList.remove('active'));
         dot.classList.add('active');
+        selectedColorIdx = parseInt(dot.getAttribute('data-idx'), 10);
         const cName = dot.getAttribute('data-name');
         const cHex = dot.getAttribute('data-hex');
         document.getElementById('ar-color-label').textContent = cName;
-        if (tagLabel) {
-          tagLabel.innerHTML = `${escapeHtml(car.name)} • ${escapeHtml(cName)} • Tỉ lệ: <span id="ar-tag-scale">${currentScale}%</span>`;
+        if (tagColor) tagColor.textContent = cName;
+
+        setVehicleConfig(car.id, {
+          colorIdx: selectedColorIdx,
+          colorHex: cHex,
+          colorName: cName
+        });
+
+        if (window.SigmaARAdapter) {
+          window.SigmaARAdapter.setVehicleColor(cHex, cName, selectedColorIdx);
         }
-        if (arViewer && cHex) {
-          arViewer.setBodyColor(cHex);
-        }
-        showToast(`Đã đổi màu xe AR: ${cName}`, '🎨');
+        showToast(`Đã đổi màu xe AR: ${cName} 🎨`, '🎨');
       });
     });
 
-    // Drag vehicle position via the tag label (so 3D canvas handles 360 orbit rotation)
-    const dragHandle = tagLabel || vehicleNode;
-    dragHandle?.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      dragStartX = e.clientX - posX;
-      dragStartY = e.clientY - posY;
-    });
-    window.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      posX = e.clientX - dragStartX;
-      posY = e.clientY - dragStartY;
-      updateVehicleTransform();
-    });
-    window.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
-
-    dragHandle?.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        isDragging = true;
-        dragStartX = e.touches[0].clientX - posX;
-        dragStartY = e.touches[0].clientY - posY;
+    // Scale slider handling
+    scaleInput?.addEventListener('input', (e) => {
+      currentScale = parseInt(e.target.value, 10);
+      if (scaleLabel) scaleLabel.textContent = `${currentScale}% ${currentScale === 100 ? '(Chuẩn 1:1)' : ''}`;
+      if (tagScale) tagScale.textContent = `${currentScale}% ${currentScale === 100 ? '(Chuẩn 1:1)' : ''}`;
+      const inst = window.SigmaARAdapter?.getInstance();
+      if (inst && typeof inst.setScale === 'function') {
+        inst.setScale(currentScale / 100);
       }
-    }, { passive: true });
-    window.addEventListener('touchmove', (e) => {
-      if (!isDragging || e.touches.length !== 1) return;
-      posX = e.touches[0].clientX - dragStartX;
-      posY = e.touches[0].clientY - dragStartY;
-      updateVehicleTransform();
-    }, { passive: true });
-    window.addEventListener('touchend', () => {
-      isDragging = false;
+      const mv = document.getElementById('sigma-ar-model-viewer');
+      if (mv) {
+        mv.style.transform = `scale(${currentScale / 100})`;
+      }
     });
 
     // Dock Buttons
     document.getElementById('btn-ar-dock-minus')?.addEventListener('click', () => {
       currentScale = Math.max(50, currentScale - 10);
-      scaleInput.value = currentScale;
-      updateVehicleTransform();
+      if (scaleInput) scaleInput.value = currentScale;
+      scaleInput?.dispatchEvent(new Event('input'));
     });
+
     document.getElementById('btn-ar-dock-plus')?.addEventListener('click', () => {
       currentScale = Math.min(150, currentScale + 10);
-      scaleInput.value = currentScale;
-      updateVehicleTransform();
+      if (scaleInput) scaleInput.value = currentScale;
+      scaleInput?.dispatchEvent(new Event('input'));
     });
+
     document.getElementById('btn-ar-dock-reset')?.addEventListener('click', () => {
-      posX = 0;
-      posY = 0;
-      currentRotation = 35;
       currentScale = 100;
-      scaleInput.value = 100;
-      rotInput.value = 35;
-      if (arViewer) arViewer.resetView();
-      updateVehicleTransform();
-      showToast('Đã đặt lại vị trí và góc nhìn xe 3D!', '↺');
-    });
-    document.getElementById('btn-ar-dock-grid')?.addEventListener('click', () => {
-      showGrid = !showGrid;
-      groundMesh.style.display = showGrid ? 'block' : 'none';
-      showToast(showGrid ? 'Đã bật lưới mặt phẳng' : 'Đã ẩn lưới mặt phẳng', '⊞');
-    });
-    document.getElementById('btn-ar-dock-video')?.addEventListener('click', () => {
-      showToast('Chế độ ghi hình AR Video 60fps sẵn sàng ghi!', '📹');
+      if (scaleInput) scaleInput.value = 100;
+      scaleInput?.dispatchEvent(new Event('input'));
+      window.SigmaARAdapter?.getInstance()?.resetView();
+      showToast('Đã đặt lại góc nhìn xe 3D!', '↺');
     });
 
-    // Real Camera Stream handler
-    let mediaStream = null;
-    const toggleCameraStream = async () => {
-      const videoEl = document.getElementById('ar-live-camera-video');
-      const statusBadge = document.getElementById('ar-camera-status-badge');
-      const sidebarCamBtn = document.getElementById('btn-ar-sidebar-camera');
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(t => t.stop());
-        mediaStream = null;
-        if (videoEl) videoEl.style.display = 'none';
-        if (statusBadge) statusBadge.textContent = '✓ Đã nhận diện mặt phẳng • Kéo để xoay 360° hoặc di chuyển xe';
-        if (sidebarCamBtn) sidebarCamBtn.textContent = '📱 Bật Camera Thiết Bị (AR Thực Tế)';
-        showToast('Đã dừng Camera và chuyển sang nền sân nhà AR', '📷');
+    document.getElementById('btn-ar-dock-fullscreen')?.addEventListener('click', () => {
+      const stage = document.getElementById('ar-live-stage');
+      if (!document.fullscreenElement) {
+        stage?.requestFullscreen().catch(() => {});
       } else {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          try {
-            mediaStream = await navigator.mediaDevices.getUserMedia({
-              video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-            });
-            if (videoEl) {
-              videoEl.srcObject = mediaStream;
-              videoEl.style.display = 'block';
-            }
-            if (statusBadge) statusBadge.textContent = '🟢 CAMERA AR TRỰC TIẾP ĐANG HOẠT ĐỘNG • Xoay & Phóng to mô hình 3D';
-            if (sidebarCamBtn) sidebarCamBtn.textContent = '⏹️ Tắt Camera Thiết Bị';
-            showToast('✓ Đã bật Camera AR thực tế! Đặt mô hình 3D vào không gian của bạn.', '📷');
-          } catch (err) {
-            showToast('Thiết bị không có Camera hoặc từ chối quyền (Đang sử dụng nền mô phỏng AR chuẩn)', 'ℹ️');
-          }
-        } else {
-          showToast('Trình duyệt không hỗ trợ WebRTC Camera trực tiếp (Đang dùng nền sân nhà AR)', 'ℹ️');
-        }
+        document.exitFullscreen().catch(() => {});
       }
-    };
-    document.getElementById('btn-ar-dock-camera')?.addEventListener('click', toggleCameraStream);
-    document.getElementById('btn-ar-sidebar-camera')?.addEventListener('click', toggleCameraStream);
+    });
 
-    // Shutter capture handler
-    function doCapture() {
+    // Vehicle Switcher
+    carSelector?.addEventListener('change', (e) => {
+      window.openArLive(e.target.value);
+    });
+
+    // Toggles
+    document.getElementById('ar-toggle-shadow')?.addEventListener('change', (e) => {
+      hasRealShadow = e.target.checked;
+      window.SigmaARAdapter?.getInstance()?.setShadowVisible(hasRealShadow);
+    });
+
+    document.getElementById('ar-toggle-light')?.addEventListener('change', (e) => {
+      hasEnvLight = e.target.checked;
+      window.SigmaARAdapter?.getInstance()?.setEnvExposure(hasEnvLight ? 1.05 : 0.7);
+    });
+
+    // Photo Capture with REAL CAMERA BACKGROUND + 3D MODEL
+    const doCapture = async () => {
       const flash = document.createElement('div');
-      flash.style.position = 'fixed';
-      flash.style.top = '0';
-      flash.style.left = '0';
-      flash.style.width = '100vw';
-      flash.style.height = '100vh';
-      flash.style.background = '#FFFFFF';
-      flash.style.zIndex = '99999';
-      flash.style.opacity = '0.85';
-      flash.style.transition = 'opacity 0.4s ease-out';
+      flash.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#FFFFFF; z-index:99999; opacity:0.85; transition:opacity 0.4s ease-out; pointer-events:none;';
       document.body.appendChild(flash);
       setTimeout(() => {
         flash.style.opacity = '0';
         setTimeout(() => flash.remove(), 400);
       }, 50);
 
-      const newPhoto = car.image || 'assets/project3/ar-capture-1.jpg';
+      let newPhoto = null;
+      if (window.SigmaARAdapter) {
+        newPhoto = await window.SigmaARAdapter.getInstance()?.capturePhoto();
+      }
+      if (!newPhoto) {
+        newPhoto = car.image || 'assets/project3/ar-capture-1.jpg';
+      }
+
       capturedList.unshift(newPhoto);
       document.getElementById('ar-captured-count').textContent = capturedList.length;
       const gallery = document.getElementById('ar-captured-gallery-strip');
@@ -4676,7 +4915,7 @@ const AppState = {
         `).join('');
       }
       showToast('📸 Đã chụp và lưu ảnh AR xe vào bộ sưu tập!', '📸');
-    }
+    };
 
     document.getElementById('btn-ar-dock-shutter')?.addEventListener('click', doCapture);
     document.getElementById('btn-ar-sidebar-shutter')?.addEventListener('click', doCapture);

@@ -3743,6 +3743,11 @@ img {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background-size: cover;
   background-position: center;
+  transition: background 0.3s ease;
+}
+.ar-live-viewport.camera-active,
+.vr-car-viewport.camera-active {
+  background: transparent !important;
 }
 .ar-live-video-layer {
   position: absolute;
@@ -3752,6 +3757,120 @@ img {
   height: 100%;
   object-fit: cover;
   z-index: 1;
+  pointer-events: none;
+}
+.ar-camera-backdrop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 40%, #1e293b 0%, #0b1120 100%);
+  z-index: 0;
+  transition: opacity 0.3s ease;
+}
+#ar-model-viewer-mount canvas,
+#vr-3d-canvas-container canvas,
+.ar-threejs-canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 2 !important;
+  background: transparent !important;
+}
+.ar-mode-switcher {
+  display: inline-flex;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 4px;
+  z-index: 15;
+}
+.ar-mode-btn {
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: #94A3B8;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ar-mode-btn.active {
+  background: #0284C7;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+.ar-permission-banner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  border-radius: 18px;
+  padding: 24px 28px;
+  max-width: 90%;
+  width: 440px;
+  z-index: 12;
+  text-align: center;
+  color: #FFFFFF;
+}
+.ar-permission-banner h4 {
+  font-size: 17px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: #FCA5A5;
+}
+.ar-permission-banner p {
+  font-size: 13px;
+  color: #CBD5E1;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.ar-permission-steps {
+  text-align: left;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: #94A3B8;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.ar-permission-steps strong {
+  color: #FFFFFF;
+}
+.ar-camera-switch-pill {
+  position: absolute;
+  top: 18px;
+  right: 56px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(10px);
+  color: #FFFFFF;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.ar-camera-switch-pill:hover {
+  background: rgba(37, 99, 235, 0.9);
+  border-color: rgba(37, 99, 235, 1);
+  transform: scale(1.04);
 }
 .ar-live-bg-img {
   position: absolute;
@@ -3809,6 +3928,30 @@ img {
   white-space: nowrap;
   border: 1px solid rgba(255, 255, 255, 0.2);
   pointer-events: none;
+}
+
+/* Real AR <model-viewer> Stage Integration */
+.ar-model-viewer-element {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  --poster-color: transparent;
+  outline: none;
+  background: transparent;
+}
+.ar-model-loading-poster {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 17, 32, 0.88);
+  backdrop-filter: blur(8px);
+  z-index: 10;
 }
 
 .ar-floating-dock {
@@ -4316,6 +4459,20 @@ img {
   }
 }
 @media (max-width: 768px) {
+  .ar-live-viewport {
+    min-height: 440px;
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .ar-floating-dock {
+    padding: 6px 12px;
+    gap: 8px;
+  }
+  .ar-dock-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
   .vr-methods-grid,
   .return-photo-upload-grid,
   .email-template-cards-grid,

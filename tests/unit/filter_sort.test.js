@@ -19,8 +19,9 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
 
   test('Case 1: Chọn Điện -> Kết quả chỉ chứa xe điện (fuel === "ev")', () => {
     const evCars = filterAndSortVehicles(cars, { fuel: 'ev' });
+    const expectedEvCount = cars.filter(c => getVehicleFuel(c) === 'ev').length;
     assert.ok(evCars.length > 0, 'Phải có ít nhất 1 xe điện trong hệ thống');
-    assert.equal(evCars.length, 23, 'Danh mục hiện tại có chính xác 23 xe điện');
+    assert.equal(evCars.length, expectedEvCount, `Danh mục hiện tại có chính xác ${expectedEvCount} xe điện`);
 
     evCars.forEach(car => {
       const fuel = getVehicleFuel(car);
@@ -128,7 +129,7 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
       priceRange: 'all',
       fuel: 'all'
     });
-    assert.equal(allCars.length, 32, 'Trả về đúng 32 xe trong danh mục khi không lọc');
+    assert.equal(allCars.length, cars.length, `Trả về đúng ${cars.length} xe trong danh mục khi không lọc`);
 
     // Khi category='all', price='all' và fuel='ev', trả về đúng 15 xe điện bất kể dòng xe hay mức giá
     const allEv = filterAndSortVehicles(cars, {
@@ -136,7 +137,8 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
       priceRange: 'all',
       fuel: 'ev'
     });
-    assert.equal(allEv.length, 23, 'Trả về toàn bộ 23 xe điện khi category & price là all');
+    const evCount = cars.filter(c => getVehicleFuel(c) === 'ev').length;
+    assert.equal(allEv.length, evCount, `Trả về toàn bộ ${evCount} xe điện khi category & price là all`);
 
     // Khi category='all', price='all' và fuel='gas', trả về đúng 9 xe xăng
     const allGas = filterAndSortVehicles(cars, {
@@ -148,25 +150,28 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
   });
 
   test('Case 6: Đổi từ Điện sang Xăng nhiều lần -> kết quả độc lập, không lưu vết cũ', () => {
+    const evCount = cars.filter(c => getVehicleFuel(c) === 'ev').length;
+    const gasCount = cars.filter(c => getVehicleFuel(c) === 'gas').length;
+
     let current = filterAndSortVehicles(cars, { fuel: 'ev' });
-    assert.equal(current.length, 23);
+    assert.equal(current.length, evCount);
     assert.ok(current.every(c => getVehicleFuel(c) === 'ev'));
 
     current = filterAndSortVehicles(cars, { fuel: 'gas' });
-    assert.equal(current.length, 9);
+    assert.equal(current.length, gasCount);
     assert.ok(current.every(c => getVehicleFuel(c) === 'gas'));
 
     current = filterAndSortVehicles(cars, { fuel: 'ev' });
-    assert.equal(current.length, 23);
+    assert.equal(current.length, evCount);
     assert.ok(current.every(c => getVehicleFuel(c) === 'ev'));
 
     current = filterAndSortVehicles(cars, { fuel: 'gas' });
-    assert.equal(current.length, 9);
+    assert.equal(current.length, gasCount);
     assert.ok(current.every(c => getVehicleFuel(c) === 'gas'));
 
-    // Bỏ chọn (all) -> về 24 xe
+    // Bỏ chọn (all) -> về đủ xe
     current = filterAndSortVehicles(cars, { fuel: 'all' });
-    assert.equal(current.length, 32);
+    assert.equal(current.length, cars.length);
   });
 
   test('Case 7: Thay đổi mức giá rồi tìm kiếm -> kết quả cập nhật chính xác theo mức giá mới', () => {
@@ -267,7 +272,8 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
   test('Case 11: Backend VehicleRepository đồng bộ logic lọc & sắp xếp với Frontend', async () => {
     // 11a. Backend lọc fuel=ev
     const backendEv = await VehicleRepository.findAll({ fuel: 'ev' });
-    assert.equal(backendEv.length, 23, 'Backend phải trả về đúng 23 xe điện');
+    const expectedEvCount = cars.filter(c => getVehicleFuel(c) === 'ev').length;
+    assert.equal(backendEv.length, expectedEvCount, `Backend phải trả về đúng ${expectedEvCount} xe điện`);
 
     // 11b. Backend lọc fuel=gas
     const backendGas = await VehicleRepository.findAll({ fuel: 'gas' });

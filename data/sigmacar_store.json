@@ -7,7 +7,34 @@
       "role": "admin",
       "phone": "+84 1900 8888",
       "passwordHash": "a1b2c3d4e5f60718:bab2a93e2652d2f52154956d3ba6bb630dd9a0eed67ea16219f5c8bc6e9bb41874afd1360799b2881b1e84467432cf2a46752ff84e9a3d4d5eb05ce6bf2f910c",
-      "createdAt": "2026-11-09T09:43:03.603Z"
+      "createdAt": "2026-11-11T11:58:26.488Z"
+    },
+    {
+      "id": "usr_seller_01",
+      "email": "minhphan.seller@sigmacar.vn",
+      "fullName": "Minh Phan - Chuyên Viên Tư Vấn SIGMACAR",
+      "role": "seller",
+      "phone": "+84 1900 8889",
+      "passwordHash": "a1b2c3d4e5f60718:71310ffc58451e88c8948633c5f24c9ebb6f34ff74ba749342743437d9c5b71980b24179b8c49efcfa678a01968d5420a78dacc131ba7e2d87b6efc40133d4d6",
+      "createdAt": "2026-11-11T11:58:26.489Z"
+    },
+    {
+      "id": "usr_buyer_01",
+      "email": "minhhoang.sigma@example.com",
+      "fullName": "Minh Hoàng",
+      "role": "buyer",
+      "phone": "+84 912 345 678",
+      "passwordHash": "a1b2c3d4e5f60718:0a0a1a86da0c59460482ba8a9a27a51f6eb756c2b509058c483862b48aa699859017186d465e4b64db158508e384749d903a958e650a1c15bd93129516b8428d",
+      "createdAt": "2026-11-11T11:58:26.489Z"
+    },
+    {
+      "id": "usr_buyer_02",
+      "email": "thanhthao.ev@example.com",
+      "fullName": "Phạm Thanh Thảo",
+      "role": "buyer",
+      "phone": "+84 908 765 432",
+      "passwordHash": "a1b2c3d4e5f60718:0a0a1a86da0c59460482ba8a9a27a51f6eb756c2b509058c483862b48aa699859017186d465e4b64db158508e384749d903a958e650a1c15bd93129516b8428d",
+      "createdAt": "2026-11-11T11:58:26.489Z"
     }
   ],
   "vehicles": [
@@ -2260,7 +2287,7 @@
       "orderStatus": "Delivered",
       "paymentStatus": "Fully_Paid",
       "paymentMethod": "Chuyển khoản Ngân hàng Vietcombank",
-      "deliveredAt": "2026-11-06T09:43:03.604Z",
+      "deliveredAt": "2026-11-08T11:58:26.489Z",
       "history": [
         {
           "status": "Pending",
@@ -2274,7 +2301,7 @@
         },
         {
           "status": "Delivered",
-          "timestamp": "2026-11-06T09:43:03.604Z",
+          "timestamp": "2026-11-08T11:58:26.489Z",
           "updatedBy": "usr_admin_01"
         }
       ],
@@ -2337,7 +2364,7 @@
       "orderStatus": "Delivered",
       "paymentStatus": "Fully_Paid",
       "paymentMethod": "Chuyển khoản Ngân hàng Techcombank",
-      "deliveredAt": "2026-11-07T09:43:03.604Z",
+      "deliveredAt": "2026-11-09T11:58:26.489Z",
       "history": [
         {
           "status": "Pending",
@@ -2346,7 +2373,7 @@
         },
         {
           "status": "Delivered",
-          "timestamp": "2026-11-07T09:43:03.604Z",
+          "timestamp": "2026-11-09T11:58:26.489Z",
           "updatedBy": "usr_admin_01"
         }
       ],
@@ -2374,7 +2401,7 @@
       "orderStatus": "Delivered",
       "paymentStatus": "Fully_Paid",
       "paymentMethod": "Chuyển khoản QR Napas 24/7",
-      "deliveredAt": "2026-11-05T09:43:03.604Z",
+      "deliveredAt": "2026-11-07T11:58:26.489Z",
       "history": [
         {
           "status": "Pending",
@@ -2383,7 +2410,7 @@
         },
         {
           "status": "Delivered",
-          "timestamp": "2026-11-05T09:43:03.604Z",
+          "timestamp": "2026-11-07T11:58:26.489Z",
           "updatedBy": "usr_admin_01"
         }
       ],
@@ -2447,35 +2474,35 @@
           "status": "Chờ tiếp nhận",
           "note": "Khách hàng gửi yêu cầu đổi trả trực tuyến qua Trung tâm Đổi trả 7 ngày.",
           "updatedBy": "Minh Hoàng",
-          "timestamp": "2026-11-07T09:43:03.605Z"
+          "timestamp": "2026-11-09T11:58:26.489Z"
         },
         {
           "status": "Đang kiểm tra điều kiện",
           "note": "Hệ thống xác nhận đơn hàng nằm trong hạn 7 ngày (ngày thứ 3 sau bàn giao) và ODO < 500 km.",
           "updatedBy": "Hệ thống Tự động",
-          "timestamp": "2026-11-07T09:43:03.605Z"
+          "timestamp": "2026-11-09T11:58:26.489Z"
         },
         {
           "status": "Đã duyệt yêu cầu",
           "note": "Đã phê duyệt hồ sơ đổi trả. Đủ điều kiện hoàn/đổi theo chính sách 7 ngày.",
           "updatedBy": "Minh Phan (Seller)",
-          "timestamp": "2026-11-08T09:43:03.605Z"
+          "timestamp": "2026-11-10T11:58:26.489Z"
         },
         {
           "status": "Chờ đặt lịch thu hồi",
           "note": "Khách hàng đã chọn khung giờ thu hồi xe tại Ciputra, Tây Hồ.",
           "updatedBy": "Minh Hoàng",
-          "timestamp": "2026-11-08T09:43:03.605Z"
+          "timestamp": "2026-11-10T11:58:26.489Z"
         },
         {
           "status": "Đã xác nhận lịch xe tải",
           "note": "Đã điều phối xe tải sàn trượt chuyên dụng 29H-889.01 và kỹ thuật viên Trần Quốc Hưng.",
           "updatedBy": "Trần Quốc Hưng",
-          "timestamp": "2026-11-09T09:43:03.605Z"
+          "timestamp": "2026-11-11T11:58:26.489Z"
         }
       ],
-      "createdAt": "2026-11-07T09:43:03.605Z",
-      "updatedAt": "2026-11-09T09:43:03.605Z"
+      "createdAt": "2026-11-09T11:58:26.489Z",
+      "updatedAt": "2026-11-11T11:58:26.489Z"
     },
     {
       "id": "RET-2026-1002",
@@ -2528,17 +2555,17 @@
           "status": "Chờ tiếp nhận",
           "note": "Tiếp nhận yêu cầu đổi trả trực tuyến.",
           "updatedBy": "Nguyễn Thanh Hà",
-          "timestamp": "2026-11-08T09:43:03.605Z"
+          "timestamp": "2026-11-10T11:58:26.489Z"
         },
         {
           "status": "Đang kiểm tra điều kiện",
           "note": "Đang kiểm tra điều kiện thực tế và yêu cầu bổ sung ảnh màn hình ODO.",
           "updatedBy": "Minh Phan",
-          "timestamp": "2026-11-09T09:43:03.605Z"
+          "timestamp": "2026-11-11T11:58:26.489Z"
         }
       ],
-      "createdAt": "2026-11-08T09:43:03.605Z",
-      "updatedAt": "2026-11-09T09:43:03.605Z"
+      "createdAt": "2026-11-10T11:58:26.489Z",
+      "updatedAt": "2026-11-11T11:58:26.489Z"
     }
   ],
   "warranties": [
@@ -2879,7 +2906,7 @@
           "createdAt": "2026-10-24T10:18:00Z"
         }
       ],
-      "slaDueAt": "2026-11-10T09:43:03.605Z",
+      "slaDueAt": "2026-11-12T11:58:26.489Z",
       "firstRespondedAt": "2026-10-24T10:15:00Z",
       "createdAt": "2026-10-24T09:00:00Z",
       "updatedAt": "2026-10-24T10:15:00Z"
@@ -2921,7 +2948,7 @@
           "createdAt": "2026-10-25T08:30:00Z"
         }
       ],
-      "slaDueAt": "2026-11-09T21:43:03.605Z",
+      "slaDueAt": "2026-11-11T23:58:26.489Z",
       "firstRespondedAt": null,
       "createdAt": "2026-10-25T08:00:00Z",
       "updatedAt": "2026-10-25T08:30:00Z"
@@ -3020,8 +3047,8 @@
   ],
   "meta": {
     "version": "3.0.0",
-    "initializedAt": "2026-11-09T09:43:03.605Z",
-    "lastSavedAt": "2026-11-09T17:07:35.532Z"
+    "initializedAt": "2026-11-11T11:58:26.489Z",
+    "lastSavedAt": "2026-11-11T12:06:47.892Z"
   },
   "certifiedVehicles": [
     {

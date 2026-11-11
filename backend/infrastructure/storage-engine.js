@@ -106,6 +106,33 @@ function seedInitialData() {
       phone: '+84 1900 8888',
       passwordHash: `${defaultSalt}:${adminKey}`,
       createdAt: new Date().toISOString()
+    },
+    {
+      id: 'usr_seller_01',
+      email: 'minhphan.seller@sigmacar.vn',
+      fullName: 'Minh Phan - Chuyên Viên Tư Vấn SIGMACAR',
+      role: ROLES.SELLER,
+      phone: '+84 1900 8889',
+      passwordHash: `${defaultSalt}:${sellerKey}`,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'usr_buyer_01',
+      email: 'minhhoang.sigma@example.com',
+      fullName: 'Minh Hoàng',
+      role: ROLES.BUYER,
+      phone: '+84 912 345 678',
+      passwordHash: `${defaultSalt}:${buyerKey}`,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'usr_buyer_02',
+      email: 'thanhthao.ev@example.com',
+      fullName: 'Phạm Thanh Thảo',
+      role: ROLES.BUYER,
+      phone: '+84 908 765 432',
+      passwordHash: `${defaultSalt}:${buyerKey}`,
+      createdAt: new Date().toISOString()
     }
   ];
 

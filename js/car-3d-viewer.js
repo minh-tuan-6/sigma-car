@@ -201,6 +201,8 @@
         initialColor: '#0284C7',
         initialAngle: 137,
         transparent: false,
+        arMode: false,
+        autoStartCamera: false,
         enableKeyboard: true,
         vrMode: false,
         hotspots: [],
@@ -209,6 +211,8 @@
         onProgress: null,
         onReady: null,
         onError: null,
+        onCameraStateChange: null,
+        onDevicesUpdated: null,
         ...options
       };
 
@@ -233,6 +237,16 @@
       this.baseScale = 1;
       this.keysPressed = {};
 
+      // Camera AR Layer Properties
+      this.videoElement = null;
+      this.mediaStream = null;
+      this.isCameraActive = false;
+      this.currentMode = (this.options.transparent || this.options.arMode) ? 'ar_camera' : 'studio';
+      this.activeDeviceId = null;
+      this.activeFacingMode = 'environment';
+      this.lastCameraError = null;
+      this._deviceChangeHandler = null;
+
       this.init();
     }
 
@@ -246,9 +260,41 @@
       const width = this.container.clientWidth || 800;
       const height = this.container.clientHeight || 520;
 
-      // 1. Scene
+      const isTransparent = !!(this.options.transparent || this.options.arMode);
+
+      // 0. LAYER 1: Dedicated Video Element for Camera Feed
+      this.container.innerHTML = '';
+      this.container.style.position = 'relative';
+      this.container.style.overflow = 'hidden';
+
+      let video = this.container.querySelector('video.ar-live-video-layer');
+      if (!video) {
+        video = document.createElement('video');
+        video.id = 'ar-camera-live-feed';
+        video.className = 'ar-live-video-layer';
+        video.setAttribute('autoplay', '');
+        video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
+        video.muted = true;
+        video.defaultMuted = true;
+        video.playsInline = true;
+        if (!video.style) video.style = {};
+        video.style.position = 'absolute';
+        video.style.top = '0';
+        video.style.left = '0';
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
+        video.style.zIndex = '1';
+        video.style.pointerEvents = 'none';
+        video.style.display = isTransparent ? 'block' : 'none';
+        this.container.appendChild(video);
+      }
+      this.videoElement = video;
+
+      // 1. Scene: Null background when transparent/AR to allow camera video to show through!
       this.scene = new THREE.Scene();
-      if (this.options.transparent) {
+      if (isTransparent) {
         this.scene.background = null;
         this.scene.fog = null;
       } else {
@@ -260,15 +306,17 @@
       this.camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
       this.camera.position.set(4.8, 1.8, 4.2);
 
-      // 3. Renderer with Premium PBR & WebXR Settings
+      // 3. Renderer: LAYER 2 with Alpha enabled & Transparent ClearColor in AR mode
       this.renderer = new THREE.WebGLRenderer({
         antialias: true,
-        alpha: !!this.options.transparent,
+        alpha: true, // Always allow alpha so Three.js can dynamically render over camera
         preserveDrawingBuffer: true,
         powerPreference: 'high-performance'
       });
-      if (this.options.transparent) {
+      if (isTransparent) {
         this.renderer.setClearColor(0x000000, 0);
+      } else {
+        this.renderer.setClearColor(0x0B1120, 1);
       }
       this.renderer.setSize(width, height);
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -280,12 +328,14 @@
         this.renderer.xr.enabled = true;
       }
 
-      // Append canvas
-      this.container.innerHTML = '';
-      this.container.style.position = 'relative';
-      this.container.style.overflow = 'hidden';
+      // Ensure canvas is transparent and positioned above camera video (LAYER 2: z-index 2)
+      this.renderer.domElement.style.position = 'absolute';
+      this.renderer.domElement.style.top = '0';
+      this.renderer.domElement.style.left = '0';
       this.renderer.domElement.style.width = '100%';
       this.renderer.domElement.style.height = '100%';
+      this.renderer.domElement.style.zIndex = '2';
+      this.renderer.domElement.style.background = 'transparent';
       this.renderer.domElement.style.display = 'block';
       this.container.appendChild(this.renderer.domElement);
 
@@ -349,6 +399,24 @@
       this.setRotationAngle(this.currentAngle);
       if (this.options.vrMode) {
         this.setVRStudioMode(true);
+      }
+
+      // Auto start camera if requested
+      if (this.options.autoStartCamera) {
+        this.startCamera().catch(err => {
+          console.warn('[ViewerInstance] Auto-start camera:', err.message);
+        });
+      }
+
+      // Listen for camera hardware changes
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === 'function') {
+        this._deviceChangeHandler = async () => {
+          const devices = await this.getAvailableCameras();
+          if (typeof this.options.onDevicesUpdated === 'function') {
+            this.options.onDevicesUpdated(devices);
+          }
+        };
+        navigator.mediaDevices.addEventListener('devicechange', this._deviceChangeHandler);
       }
     }
 
@@ -454,7 +522,7 @@
       this.shadowMesh.position.y = 0.003;
       this.scene.add(this.shadowMesh);
 
-      if (this.options.transparent) {
+      if (this.options.transparent || this.options.arMode) {
         return; // In AR transparent mode, only render the contact shadow underneath the 3D car
       }
 
@@ -965,11 +1033,479 @@
       }
     }
 
+    setColor(hexColor) {
+      this.setBodyColor(hexColor);
+    }
+
+    setTransparentMode(active) {
+      if (!this.scene || !this.renderer) return;
+      if (active) {
+        this.scene.background = null;
+        this.scene.fog = null;
+        this.renderer.setClearColor(0x000000, 0);
+        if (this.floorMesh) this.floorMesh.visible = false;
+        if (this.ringMesh) this.ringMesh.visible = false;
+        if (this.shadowMesh) this.shadowMesh.visible = true;
+        if (this.renderer.domElement) this.renderer.domElement.style.background = 'transparent';
+        if (this.videoElement) this.videoElement.style.display = 'block';
+      } else {
+        this.scene.background = new THREE.Color(0x0B1120);
+        this.scene.fog = new THREE.FogExp2(0x0B1120, 0.035);
+        this.renderer.setClearColor(0x0B1120, 1);
+        if (this.floorMesh) this.floorMesh.visible = true;
+        if (this.ringMesh) this.ringMesh.visible = true;
+        if (this.videoElement) this.videoElement.style.display = 'none';
+      }
+    }
+
+    async _acquireCameraStream(options = {}) {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        const err = new Error('navigator.mediaDevices.getUserMedia not supported');
+        err.name = 'TypeError';
+        throw err;
+      }
+
+      const isSecure = Boolean(
+        typeof window !== 'undefined' &&
+        (window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'https:')
+      );
+      if (!isSecure) {
+        const err = new Error('Camera access requires HTTPS or localhost');
+        err.name = 'InsecureContextError';
+        throw err;
+      }
+
+      const requestedDeviceId = options.deviceId || this.activeDeviceId;
+      const requestedFacing = options.facingMode || this.activeFacingMode || 'environment';
+
+      const profiles = [];
+      if (requestedDeviceId) {
+        profiles.push({
+          label: 'Specific Device with Ideal 1080p',
+          constraints: {
+            video: {
+              deviceId: { exact: requestedDeviceId },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            },
+            audio: false
+          }
+        });
+        profiles.push({
+          label: 'Specific Device fallback',
+          constraints: {
+            video: { deviceId: { exact: requestedDeviceId } },
+            audio: false
+          }
+        });
+      }
+
+      if (requestedFacing === 'environment') {
+        profiles.push({
+          label: 'Environment Camera 1080p',
+          constraints: {
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            },
+            audio: false
+          }
+        });
+        profiles.push({
+          label: 'Environment Camera 720p',
+          constraints: {
+            video: {
+              facingMode: { ideal: 'environment' },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            },
+            audio: false
+          }
+        });
+        profiles.push({
+          label: 'Environment Camera Unconstrained',
+          constraints: {
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false
+          }
+        });
+      }
+
+      profiles.push({
+        label: 'Generic Camera 1080p',
+        constraints: {
+          video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false
+        }
+      });
+      profiles.push({
+        label: 'Generic Camera 720p',
+        constraints: {
+          video: { width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        }
+      });
+      profiles.push({
+        label: 'Minimal Video Stream { video: true }',
+        constraints: {
+          video: true,
+          audio: false
+        }
+      });
+
+      let lastError = null;
+      for (const p of profiles) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(p.constraints);
+          if (stream && stream.active) {
+            console.log(`[Car3DViewer/AR] Successfully initialized camera with profile: "${p.label}"`);
+            const tracks = stream.getVideoTracks();
+            if (tracks.length > 0 && typeof tracks[0].getSettings === 'function') {
+              const settings = tracks[0].getSettings();
+              this.activeDeviceId = settings.deviceId || requestedDeviceId;
+              this.activeFacingMode = settings.facingMode || requestedFacing;
+            }
+            return stream;
+          }
+        } catch (err) {
+          lastError = err;
+          if (['NotAllowedError', 'PermissionDeniedError', 'NotFoundError', 'DevicesNotFoundError', 'SecurityError'].includes(err.name)) {
+            break;
+          }
+        }
+      }
+      throw lastError || new Error('All camera profiles failed');
+    }
+
+    _handleCameraError(err) {
+      this.lastCameraError = err;
+      let state = 'camera_unavailable';
+      let title = 'Không thể mở Camera';
+      let message = err.message || 'Lỗi thiết bị camera.';
+
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        state = 'permission_denied';
+        title = 'Quyền Camera bị từ chối';
+        message = 'Trình duyệt đang chặn quyền Camera. Vui lòng cấp quyền trong cài đặt trình duyệt để tiếp tục.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        state = 'camera_unavailable';
+        title = 'Không tìm thấy Camera';
+        message = 'Không tìm thấy thiết bị máy ảnh nào kết nối với máy.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        state = 'camera_in_use';
+        title = 'Camera đang bận';
+        message = 'Camera đang bị ứng dụng khác chiếm dụng hoặc bị khóa bởi hệ điều hành.';
+      } else if (err.name === 'OverconstrainedError') {
+        state = 'overconstrained';
+        title = 'Cấu hình không tương thích';
+        message = 'Camera không đáp ứng độ phân giải hoặc chế độ yêu cầu.';
+      } else if (err.name === 'InsecureContextError') {
+        state = 'insecure_context';
+        title = 'Yêu cầu kết nối HTTPS';
+        message = 'WebRTC Camera yêu cầu kết nối bảo mật HTTPS hoặc localhost.';
+      } else if (err.name === 'SecurityError') {
+        state = 'security_error';
+        title = 'Lỗi bảo mật (SecurityError)';
+        message = 'Quyền truy cập Camera bị chặn bởi chính sách bảo mật trang web.';
+      } else if (err.name === 'TypeError') {
+        state = 'type_error';
+        title = 'Lỗi khởi tạo Camera';
+        message = 'API MediaDevices không khả dụng trên trình duyệt hiện tại.';
+      }
+
+      if (typeof this.options.onCameraStateChange === 'function') {
+        this.options.onCameraStateChange(state, {
+          title,
+          message,
+          code: err.name,
+          error: err
+        });
+      }
+    }
+
+    async startCamera(options = {}) {
+      if (this.isDisposed) return;
+
+      if (typeof this.options.onCameraStateChange === 'function') {
+        this.options.onCameraStateChange('requesting', { message: 'Đang xin quyền truy cập Camera...' });
+      }
+
+      try {
+        // Reuse existing live stream if active (NO duplicate streams!)
+        if (!this.mediaStream || !this.mediaStream.active || !this.mediaStream.getVideoTracks().some(t => t.readyState === 'live')) {
+          this.mediaStream = await this._acquireCameraStream(options);
+        }
+
+        if (!this.videoElement) {
+          throw new Error('Video element not available in ViewerInstance container');
+        }
+
+        this.videoElement.srcObject = this.mediaStream;
+        this.videoElement.defaultMuted = true;
+        this.videoElement.muted = true;
+        this.videoElement.playsInline = true;
+
+        // Wait for video playback readiness
+        await new Promise((resolve) => {
+          if (this.videoElement.readyState >= 2) {
+            resolve();
+          } else {
+            const onLoaded = () => {
+              this.videoElement.removeEventListener('loadedmetadata', onLoaded);
+              resolve();
+            };
+            this.videoElement.addEventListener('loadedmetadata', onLoaded);
+            setTimeout(resolve, 1500);
+          }
+        });
+
+        try {
+          const playPromise = this.videoElement.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
+        } catch (playErr) {
+          console.warn('[Car3DViewer] Video autoplay needs user gesture:', playErr);
+          const handleFirstGesture = () => {
+            if (this.videoElement) this.videoElement.play().catch(() => {});
+            if (typeof window !== 'undefined') {
+              window.removeEventListener('click', handleFirstGesture);
+              window.removeEventListener('touchstart', handleFirstGesture);
+            }
+          };
+          if (typeof window !== 'undefined') {
+            window.addEventListener('click', handleFirstGesture, { once: true });
+            window.addEventListener('touchstart', handleFirstGesture, { once: true });
+          }
+        }
+
+        // Enable transparent Three.js WebGL canvas above video!
+        this.setTransparentMode(true);
+        this.isCameraActive = true;
+        this.currentMode = 'ar_camera';
+        this.lastCameraError = null;
+
+        // Apply camera-active classes to clear any container blue backgrounds
+        if (this.container && this.container.classList) {
+          this.container.classList.add('camera-active');
+          if (this.container.parentElement && this.container.parentElement.classList) {
+            this.container.parentElement.classList.add('camera-active');
+          }
+        }
+        if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+          const liveStage = document.getElementById('ar-live-stage');
+          if (liveStage && liveStage.classList) liveStage.classList.add('camera-active');
+          const vrStage = document.getElementById('vr-car-viewport');
+          if (vrStage && vrStage.classList) vrStage.classList.add('camera-active');
+          const backdrop = document.getElementById('ar-camera-backdrop');
+          if (backdrop && backdrop.style) backdrop.style.display = 'none';
+        }
+
+        if (typeof this.options.onCameraStateChange === 'function') {
+          this.options.onCameraStateChange('active', {
+            message: 'Camera thực tế đang hoạt động',
+            stream: this.mediaStream,
+            deviceId: this.activeDeviceId,
+            facingMode: this.activeFacingMode
+          });
+        }
+
+        return this.mediaStream;
+      } catch (err) {
+        this._handleCameraError(err);
+        throw err;
+      }
+    }
+
+    stopCamera() {
+      if (this.mediaStream) {
+        this.mediaStream.getTracks().forEach(track => {
+          try { track.stop(); } catch (e) {}
+        });
+        this.mediaStream = null;
+      }
+      if (this.videoElement) {
+        this.videoElement.srcObject = null;
+        this.videoElement.style.display = 'none';
+      }
+      this.isCameraActive = false;
+      this.currentMode = 'studio';
+
+      // Restore container backgrounds
+      if (this.container && this.container.classList) {
+        this.container.classList.remove('camera-active');
+        if (this.container.parentElement && this.container.parentElement.classList) {
+          this.container.parentElement.classList.remove('camera-active');
+        }
+      }
+      if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+        const liveStage = document.getElementById('ar-live-stage');
+        if (liveStage && liveStage.classList) liveStage.classList.remove('camera-active');
+        const vrStage = document.getElementById('vr-car-viewport');
+        if (vrStage && vrStage.classList) vrStage.classList.remove('camera-active');
+        const backdrop = document.getElementById('ar-camera-backdrop');
+        if (backdrop && backdrop.style) backdrop.style.display = 'block';
+      }
+
+      // Restore studio if not fixed AR mode
+      if (!this.options.arMode) {
+        this.setTransparentMode(false);
+      }
+
+      if (typeof this.options.onCameraStateChange === 'function') {
+        this.options.onCameraStateChange('stopped', { message: 'Camera đã tắt' });
+      }
+    }
+
+    async setMode(mode) {
+      if (mode === 'ar_camera' || mode === 'ar' || mode === 'mode_b') {
+        this.currentMode = 'ar_camera';
+        return await this.startCamera();
+      } else {
+        this.currentMode = 'studio';
+        this.stopCamera();
+        this.setTransparentMode(false);
+        return Promise.resolve();
+      }
+    }
+
+    async checkWebXRSupport() {
+      if (typeof navigator !== 'undefined' && navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
+        try {
+          const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+          return { supported: !!arSupported, type: 'immersive-ar' };
+        } catch (e) {
+          return { supported: false, error: e.message };
+        }
+      }
+      return { supported: false, reason: 'WebXR not available' };
+    }
+
+    async toggleCamera() {
+      if (this.isCameraActive) {
+        this.stopCamera();
+      } else {
+        await this.startCamera();
+      }
+    }
+
+    async switchCamera(targetDeviceIdOrFacing) {
+      this.stopCamera();
+      if (targetDeviceIdOrFacing === 'user' || targetDeviceIdOrFacing === 'environment') {
+        this.activeFacingMode = targetDeviceIdOrFacing;
+        this.activeDeviceId = null;
+      } else if (targetDeviceIdOrFacing) {
+        this.activeDeviceId = targetDeviceIdOrFacing;
+      } else {
+        this.activeFacingMode = this.activeFacingMode === 'environment' ? 'user' : 'environment';
+        this.activeDeviceId = null;
+      }
+      return await this.startCamera({
+        deviceId: this.activeDeviceId,
+        facingMode: this.activeFacingMode
+      });
+    }
+
+    async getAvailableCameras() {
+      if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        return [];
+      }
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        return devices.filter(d => d.kind === 'videoinput');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async getDiagnostics() {
+      const isSecure = Boolean(
+        typeof window !== 'undefined' &&
+        (window.isSecureContext || location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'https:')
+      );
+      const hasMediaDevices = Boolean(typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function');
+      let permState = 'unknown';
+      if (typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query) {
+        try {
+          const res = await navigator.permissions.query({ name: 'camera' });
+          permState = res.state;
+        } catch (e) {}
+      }
+      const cameras = await this.getAvailableCameras();
+      return {
+        browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+        isSecureContext: isSecure,
+        hasMediaDevices: hasMediaDevices,
+        permissionState: permState,
+        cameraCount: cameras.length,
+        cameras: cameras.map((c, i) => ({ id: c.deviceId, label: c.label || `Camera ${i + 1}` })),
+        activeCamera: this.activeDeviceId || 'Default',
+        isCameraActive: this.isCameraActive,
+        lastError: this.lastCameraError ? { name: this.lastCameraError.name, message: this.lastCameraError.message } : null
+      };
+    }
+
+    captureCompositePhoto(filename = 'sigmacar-ar.jpg') {
+      const canvas = document.createElement('canvas');
+      const w = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.width : 1280;
+      const h = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.height : 720;
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+
+      // 1. Draw live camera frame if active
+      if (this.isCameraActive && this.videoElement && this.videoElement.videoWidth > 0) {
+        const v = this.videoElement;
+        const vRatio = v.videoWidth / v.videoHeight;
+        const cRatio = w / h;
+        let sWidth, sHeight, sx, sy;
+        if (vRatio > cRatio) {
+          sHeight = v.videoHeight;
+          sWidth = sHeight * cRatio;
+          sx = (v.videoWidth - sWidth) / 2;
+          sy = 0;
+        } else {
+          sWidth = v.videoWidth;
+          sHeight = sWidth / cRatio;
+          sx = 0;
+          sy = (v.videoHeight - sHeight) / 2;
+        }
+        ctx.drawImage(v, sx, sy, sWidth, sHeight, 0, 0, w, h);
+      } else {
+        ctx.fillStyle = '#0B1120';
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      // 2. Draw Three.js WebGL model layer directly over the camera frame
+      if (this.renderer && this.renderer.domElement) {
+        ctx.drawImage(this.renderer.domElement, 0, 0, w, h);
+      }
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+      if (typeof document !== 'undefined') {
+        const a = document.createElement('a');
+        a.download = filename;
+        a.href = dataUrl;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+      return dataUrl;
+    }
+
     dispose() {
       this.isDisposed = true;
       if (this.animId) {
         cancelAnimationFrame(this.animId);
         this.animId = null;
+      }
+
+      // Stop camera stream & release tracks
+      this.stopCamera();
+      if (this._deviceChangeHandler && typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.removeEventListener === 'function') {
+        navigator.mediaDevices.removeEventListener('devicechange', this._deviceChangeHandler);
+        this._deviceChangeHandler = null;
       }
 
       window.removeEventListener('resize', this.onWindowResize);
@@ -987,11 +1523,13 @@
       // Traverse scene and dispose geometries, materials, textures
       if (this.scene) {
         this.scene.traverse((obj) => {
-          if (obj.geometry) obj.geometry.dispose();
+          if (obj.geometry && typeof obj.geometry.dispose === 'function') obj.geometry.dispose();
           if (obj.material) {
             if (Array.isArray(obj.material)) {
-              obj.material.forEach(m => m.dispose());
-            } else {
+              obj.material.forEach(m => {
+                if (m && typeof m.dispose === 'function') m.dispose();
+              });
+            } else if (typeof obj.material.dispose === 'function') {
               obj.material.dispose();
             }
           }
@@ -1000,12 +1538,12 @@
 
       if (this.renderer) {
         this.renderer.dispose();
-        if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+        if (this.renderer.domElement && this.renderer.domElement.parentNode && typeof this.renderer.domElement.parentNode.removeChild === 'function') {
           this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
         }
       }
 
-      if (this.hotspotsOverlay && this.hotspotsOverlay.parentNode) {
+      if (this.hotspotsOverlay && this.hotspotsOverlay.parentNode && typeof this.hotspotsOverlay.parentNode.removeChild === 'function') {
         this.hotspotsOverlay.parentNode.removeChild(this.hotspotsOverlay);
       }
 

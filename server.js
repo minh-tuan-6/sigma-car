@@ -17,7 +17,10 @@ const MIME_TYPES = {
   '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
-  '.pdf': 'application/pdf'
+  '.pdf': 'application/pdf',
+  '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json',
+  '.usdz': 'model/vnd.usdz+zip'
 };
 
 const server = http.createServer(async (req, res) => {
@@ -25,6 +28,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Permissions-Policy', 'camera=(self), xr-spatial-tracking=(self)');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);

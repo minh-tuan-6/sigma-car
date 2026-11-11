@@ -1,0 +1,79 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-11-10T23:14:00+07:00",
+  "assetRevision": "ar-20261110-v1",
+  "vehicles": {
+    "tesla-cybertruck": {
+      "id": "tesla-cybertruck",
+      "name": "Tesla Cybertruck",
+      "readiness": "verified",
+      "dimensionsMeters": {
+        "length": 5.682,
+        "width": 2.200,
+        "height": 1.791
+      },
+      "dimensionReference": "Tesla Cybertruck Official Owners Manual 2024-2026 - Dimensions & Cargo Capacity",
+      "defaultGlbUrl": "assets/models/ar/tesla_cybertruck_ar_v1.glb",
+      "usdzUrl": null,
+      "scale": 1.0,
+      "placement": "floor",
+      "groundOffset": 0.0,
+      "initialYaw": 35,
+      "materialBindings": {
+        "body": {
+          "meshName": "Object_4",
+          "materialName": "Material_Body",
+          "defaultHex": "#94A3B8"
+        },
+        "glass": {
+          "meshName": "Object_5",
+          "materialName": "Material_Glass"
+        },
+        "trim": {
+          "meshName": "Object_6",
+          "materialName": "Material_Trim"
+        },
+        "rims": {
+          "meshNames": ["Object_11", "Object_14", "Object_17", "Object_20"],
+          "materialName": "Material_Rims"
+        },
+        "tires": {
+          "meshNames": ["Object_12", "Object_15", "Object_18", "Object_21"],
+          "materialName": "Material_Tires"
+        }
+      },
+      "configurations": {
+        "color-0": {
+          "key": "stainless-steel",
+          "name": "Thép Không Gỉ 30X Nguyên Bản (Stainless Steel)",
+          "hex": "#94A3B8",
+          "glbUrl": "assets/models/ar/tesla_cybertruck_ar_v1.glb"
+        },
+        "color-1": {
+          "key": "stealth-black",
+          "name": "Đen Satin Chiến Thuật (Satin Stealth Black)",
+          "hex": "#1E293B",
+          "glbUrl": "assets/models/ar/tesla_cybertruck_ar_stealth_black.glb"
+        },
+        "color-2": {
+          "key": "ceramic-white",
+          "name": "Trắng Satin Bắc Cực (Satin Ceramic White)",
+          "hex": "#F1F5F9",
+          "glbUrl": "assets/models/ar/tesla_cybertruck_ar_ceramic_white.glb"
+        },
+        "color-3": {
+          "key": "tactical-green",
+          "name": "Xanh Rêu Quân Đội (Tactical Green Wrap)",
+          "hex": "#3F6212",
+          "glbUrl": "assets/models/ar/tesla_cybertruck_ar_tactical_green.glb"
+        }
+      }
+    }
+  },
+  "defaultFallback": {
+    "readiness": "unverified",
+    "isGenericModel": true,
+    "glbUrl": "assets/models/sigma-car-3d.glb",
+    "note": "Mẫu xe đang trong lộ trình số hóa AR 1:1. Tạm thời sử dụng mô hình 3D tham chiếu."
+  }
+}
