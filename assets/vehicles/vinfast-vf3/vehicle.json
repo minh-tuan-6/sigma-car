@@ -1,0 +1,160 @@
+{
+  "id": "vinfast-vf3",
+  "productCode": "VNF-VF3-25",
+  "name": "VinFast VF 3",
+  "brand": "VinFast",
+  "version": "Kèm Pin (Bản thương mại chính thức)",
+  "subtitle": "Mini SUV Thuần Điện Đô Thị Quốc Dân • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "SUV",
+  "subCategory": "Mini SUV Thuần Điện Đô Thị Quốc Dân",
+  "fuel": "ev",
+  "price": 322000000,
+  "priceFormatted": "322.000.000 VNĐ",
+  "priceShort": "322 triệu",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết chính thức kèm pin (Bản thuê pin: 240.000.000 VNĐ)",
+  "badge": "Xe Điện Quốc Dân",
+  "range": 215,
+  "rangeExtendedKm": null,
+  "hp": 43,
+  "power": "43 HP (32 kW), Động cơ điện cầu sau RWD",
+  "engine": "1 Mô-tơ điện Nam Châm Vĩnh Cửu đặt tại cầu sau",
+  "powertrain": "Động cơ Điện 1 Mô-tơ RWD, Pin LFP 18.64 kWh, Sạc nhanh DC 10-70% trong 36 phút",
+  "torque": "110 Nm tức thì",
+  "acceleration": "5.3s (0-50 km/h)",
+  "topSpeed": "100 km/h",
+  "transmission": "Hộp số điện tử 1 cấp",
+  "drive": "RWD / Cầu sau",
+  "seats": 4,
+  "dimensions": "3.190 x 1.679 x 1.622 mm",
+  "wheelbase": "2.075 mm",
+  "groundClearance": "191 mm (Cao nhất phân khúc mini car)",
+  "dimensionsDetail": {
+    "overall": "3.190 x 1.679 x 1.622 mm",
+    "lengthMm": 3190,
+    "widthMm": 1679,
+    "heightMm": 1622,
+    "wheelbase": "2.075 mm",
+    "groundClearance": "191 mm",
+    "curbWeight": "865 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2025,
+  "warranty": "7 năm hoặc 160.000 km cho xe & 8 năm không giới hạn km cho pin",
+  "warrantyDetail": {
+    "policy": "7 năm hoặc 160.000 km cho xe & 8 năm không giới hạn km cho pin"
+  },
+  "image": "assets/vehicles/vinfast-vf3/images/exterior/gia-xe-vinfast-vf-3-moi-nhat-1.jpg",
+  "thumbnail": "assets/vehicles/vinfast-vf3/images/exterior/gia-xe-vinfast-vf-3-moi-nhat-1.jpg",
+  "cover": "assets/vehicles/vinfast-vf3/images/exterior/gia-xe-vinfast-vf-3-moi-nhat-1.jpg",
+  "galleryImages": [
+    "assets/vehicles/vinfast-vf3/images/exterior/gia-xe-vinfast-vf-3-moi-nhat-1.jpg",
+    "assets/vehicles/vinfast-vf3/images/interior/4434c532-16-9-vinfast-2-1536x864-8202.jpg",
+    "assets/vehicles/vinfast-vf3/images/dashboard/images.jpg",
+    "assets/vehicles/vinfast-vf3/images/engine/images3.jpg",
+    "assets/vehicles/vinfast-vf3/images/gallery/images (2).jpg",
+    "assets/vehicles/vinfast-vf3/images/gallery/images (1).jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/vinfast-vf3/images/exterior/gia-xe-vinfast-vf-3-moi-nhat-1.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/vinfast-vf3/images/interior/4434c532-16-9-vinfast-2-1536x864-8202.jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/vinfast-vf3/images/dashboard/images.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/vinfast-vf3/images/engine/images3.jpg"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/vinfast-vf3/images/gallery/images (2).jpg",
+      "assets/vehicles/vinfast-vf3/images/gallery/images (1).jpg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Vàng Nắng Mai (Zenith Yellow)",
+      "hex": "#FACC15",
+      "img": "assets/vehicles/vinfast-vf3/images/exterior/gia-xe-vinfast-vf-3-moi-nhat-1.jpg"
+    },
+    {
+      "name": "Xanh Lá Tươi Mát (Mint Green)",
+      "hex": "#86EFAC",
+      "img": "assets/vehicles/vinfast-vf3/images/interior/4434c532-16-9-vinfast-2-1536x864-8202.jpg"
+    },
+    {
+      "name": "Hồng Phấn Ngọt Ngào (Rose Pink)",
+      "hex": "#F472B6",
+      "img": "assets/vehicles/vinfast-vf3/images/dashboard/images.jpg"
+    },
+    {
+      "name": "Xanh Biển Năng Động (Electric Blue)",
+      "hex": "#38BDF8",
+      "img": "assets/vehicles/vinfast-vf3/images/engine/images3.jpg"
+    },
+    {
+      "name": "Trắng Tinh Khôi (Infinity White)",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/vinfast-vf3/images/gallery/images (2).jpg"
+    }
+  ],
+  "colorsSummary": "Vàng Nắng Mai (Zenith Yellow), Xanh Lá Tươi Mát (Mint Green), Hồng Phấn Ngọt Ngào (Rose Pink), Xanh Biển Năng Động (Electric Blue), Trắng Tinh Khôi (Infinity White)",
+  "evSpecs": {
+    "batteryCapacity": "18.64 kWh (Pin Lithium Iron Phosphate LFP an toàn cao)",
+    "rangeKm": 215,
+    "fastCharge": "Sạc nhanh DC 10% - 70% trong 36 phút",
+    "architecture": "Hệ thống điện áp EV đô thị tối ưu"
+  },
+  "features": [
+    "Hiện tượng xe điện quốc dân với hơn 27.000 đơn đặt cọc chỉ sau 66 giờ mở bán",
+    "Khoảng sáng gầm xe lên tới 191 mm vượt vỉa hè và đường ngập nước đô thị dễ dàng",
+    "Mâm lốp kích thước lớn 16 inch đậm chất SUV việt dã cá tính",
+    "Màn hình giải trí cảm ứng 10 inch sắc nét trung tâm khoang lái",
+    "Pin LFP chống cháy nổ an toàn tuyệt đối với quãng đường di chuyển 215 km"
+  ],
+  "description": "Mẫu mini SUV điện quốc dân tạo cơn sốt lịch sử tại Việt Nam với thiết kế vuông vức cá tính, gầm cao 191 mm, mâm 16 inch, màn hình 10 inch và pin LFP đi 215 km.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/vinfast_vf3.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "VinFast VF 3 Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Mini SUV Thuần Điện Đô Thị Quốc Dân tối ưu lực ép không khí và khí chất thể thao đặc trưng VinFast."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Điện 1 Mô-tơ RWD, Pin LFP 18.64 kWh, Sạc nhanh DC 10-70% trong 36 phút sản sinh công suất 43 HP (32 kW), Động cơ điện cầu sau RWD cùng gia tốc 5.3s (0-50 km/h)."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/vinfast-vf3/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/vinfast-vf3/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

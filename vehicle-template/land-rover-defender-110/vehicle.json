@@ -1,0 +1,144 @@
+{
+  "id": "land-rover-defender-110",
+  "productCode": "LND-DF-110",
+  "name": "Land Rover Defender 110",
+  "brand": "Land Rover",
+  "version": "110 P400 3.0L MHEV X-Dynamic",
+  "subtitle": "SUV Địa Hình Hạng Sang Biểu Tượng Nước Anh • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "SUV",
+  "subCategory": "SUV Địa Hình Hạng Sang Biểu Tượng Nước Anh",
+  "fuel": "gas",
+  "price": 4999000000,
+  "priceFormatted": "4.999.000.000 VNĐ",
+  "priceShort": "4.999 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết chính hãng phân phối tại Việt Nam",
+  "badge": "Off-road King 900mm",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 400,
+  "power": "400 HP (294 kW) @ 5.500 rpm",
+  "engine": "3.0L i6 Turbocharged MHEV (Lai nhẹ 48V)",
+  "powertrain": "Động cơ Xăng 3.0L 6 xi-lanh thẳng hàng Turbo + 48V MHEV, Hộp số tự động 8 cấp ZF, 4WD hai cầu chậm có khóa vi sai trung tâm và cầu sau",
+  "torque": "550 Nm @ 2.000 - 5.000 rpm",
+  "acceleration": "6.1s",
+  "topSpeed": "191 km/h",
+  "transmission": "Tự động 8 cấp ZF với hộp số phụ 2 cấp (Twin-speed transfer box)",
+  "drive": "AWD / 4WD Toàn thời gian thông minh + Khóa vi sai trung tâm & vi sai cầu sau chủ động",
+  "seats": 7,
+  "dimensions": "5.018 x 2.008 x 1.967 mm",
+  "wheelbase": "3.022 mm",
+  "groundClearance": "291 mm (Treo khí nén nâng tối đa)",
+  "dimensionsDetail": {
+    "overall": "5.018 x 2.008 x 1.967 mm",
+    "lengthMm": 5018,
+    "widthMm": 2008,
+    "heightMm": 1967,
+    "wheelbase": "3.022 mm",
+    "groundClearance": "291 mm",
+    "curbWeight": "2.361 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2024,
+  "warranty": "3 năm hoặc 100.000 km chính hãng Land Rover Việt Nam",
+  "warrantyDetail": {
+    "policy": "3 năm hoặc 100.000 km chính hãng Land Rover Việt Nam"
+  },
+  "image": "assets/vehicles/land-rover-defender-110/images/exterior/dang_truoc.webp",
+  "thumbnail": "assets/vehicles/land-rover-defender-110/images/exterior/dang_truoc.webp",
+  "cover": "assets/vehicles/land-rover-defender-110/images/exterior/dang_truoc.webp",
+  "galleryImages": [
+    "assets/vehicles/land-rover-defender-110/images/exterior/dang_truoc.webp",
+    "assets/vehicles/land-rover-defender-110/images/exterior/dang_sau.webp",
+    "assets/vehicles/land-rover-defender-110/images/dashboard/ben_phai.jpeg",
+    "assets/vehicles/land-rover-defender-110/images/engine/ben_trai.jpeg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/land-rover-defender-110/images/exterior/dang_truoc.webp",
+      "assets/vehicles/land-rover-defender-110/images/exterior/dang_sau.webp"
+    ],
+    "interior": [],
+    "dashboard": [
+      "assets/vehicles/land-rover-defender-110/images/dashboard/ben_phai.jpeg"
+    ],
+    "engine": [
+      "assets/vehicles/land-rover-defender-110/images/engine/ben_trai.jpeg"
+    ],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Xanh Rêu Địa Hình Pangea Green",
+      "hex": "#4D7C0F",
+      "img": "assets/vehicles/land-rover-defender-110/images/exterior/dang_truoc.webp"
+    },
+    {
+      "name": "Xám Gondwana Stone",
+      "hex": "#78716C",
+      "img": "assets/vehicles/land-rover-defender-110/images/exterior/dang_sau.webp"
+    },
+    {
+      "name": "Đen Santorini Black",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/land-rover-defender-110/images/dashboard/ben_phai.jpeg"
+    },
+    {
+      "name": "Trắng Fuji White",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/land-rover-defender-110/images/engine/ben_trai.jpeg"
+    }
+  ],
+  "colorsSummary": "Xanh Rêu Địa Hình Pangea Green, Xám Gondwana Stone, Đen Santorini Black, Trắng Fuji White",
+  "evSpecs": null,
+  "features": [
+    "Khả năng lội nước sâu tới 900 mm với cảm biến Wade Sensing đo mực nước thời gian thực",
+    "Khung gầm liền khối D7x bằng nhôm siêu cứng gấp 3 lần khung gầm rời truyền thống",
+    "Hệ thống kiểm soát địa hình Terrain Response 2 tự động điều chỉnh hệ dẫn động theo từng mặt đường",
+    "Hệ thống camera 3D ClearSight Ground View nhìn xuyên nắp ca-pô xuống mặt đất",
+    "Treo khí nén điện tử có khả năng nâng gầm hành trình 145 mm vượt mọi hiểm địa"
+  ],
+  "description": "Biểu tượng SUV địa hình sang trọng từ nước Anh với động cơ 400 mã lực MHEV, khung nhôm D7x siêu cứng, khả năng lội nước 900 mm và nội thất 7 chỗ tiện nghi bậc nhất.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/land_rover_defender_110.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Land Rover Defender 110 Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng SUV Địa Hình Hạng Sang Biểu Tượng Nước Anh tối ưu lực ép không khí và khí chất thể thao đặc trưng Land Rover."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 3.0L 6 xi-lanh thẳng hàng Turbo + 48V MHEV, Hộp số tự động 8 cấp ZF, 4WD hai cầu chậm có khóa vi sai trung tâm và cầu sau sản sinh công suất 400 HP (294 kW) @ 5.500 rpm cùng gia tốc 6.1s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/land-rover-defender-110/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/land-rover-defender-110/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

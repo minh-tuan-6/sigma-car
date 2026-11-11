@@ -1,0 +1,147 @@
+{
+  "id": "lamborghini-terzo-millennio",
+  "productCode": "LAM-TM-30",
+  "name": "Lamborghini Terzo Millennio",
+  "brand": "Lamborghini",
+  "version": "Hypercar Thuần Điện Thiên Niên Kỷ Thứ 3",
+  "subtitle": "Siêu Xe Điện Tương Lai Sợi Carbon Tự Chữa Lành • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Siêu Xe",
+  "subCategory": "Siêu Xe Điện Tương Lai Sợi Carbon Tự Chữa Lành",
+  "fuel": "ev",
+  "price": 90000000000,
+  "priceFormatted": "90.000.000.000 VNĐ",
+  "priceShort": "90 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Mô hình ý tưởng tương lai độc bản hợp tác cùng viện MIT",
+  "badge": "MIT Supercapacitor EV",
+  "range": 500,
+  "rangeExtendedKm": null,
+  "hp": 1000,
+  "power": "1.000 HP (4 Mô-tơ điện đặt tại 4 bánh xe)",
+  "engine": "4 Động cơ điện tích hợp trong bánh xe (In-wheel Electric Motors)",
+  "powertrain": "Hệ thống siêu tụ điện (Supercapacitors) tích hợp thân vỏ pin nano carbon, dẫn động 4 bánh toàn thời gian AWD",
+  "torque": "1.500 Nm tức thì",
+  "acceleration": "1.9s",
+  "topSpeed": "380 km/h",
+  "transmission": "Hộp số điện tử truyền động trực tiếp 4 bánh",
+  "drive": "AWD / Dẫn động 4 bánh toàn thời gian điều hướng mô-men xoắn Torque Vectoring độc lập",
+  "seats": 2,
+  "dimensions": "4.800 x 2.100 x 1.050 mm",
+  "wheelbase": "2.750 mm",
+  "groundClearance": "100 mm",
+  "dimensionsDetail": {
+    "overall": "4.800 x 2.100 x 1.050 mm",
+    "lengthMm": 4800,
+    "widthMm": 2100,
+    "heightMm": 1050,
+    "wheelbase": "2.750 mm",
+    "groundClearance": "100 mm",
+    "curbWeight": "1.350 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2030,
+  "warranty": "Dự án nghiên cứu công nghệ tương lai hợp tác cùng Viện MIT Hoa Kỳ",
+  "warrantyDetail": {
+    "policy": "Dự án nghiên cứu công nghệ tương lai hợp tác cùng Viện MIT Hoa Kỳ"
+  },
+  "image": "assets/vehicles/lamborghini-terzo-millennio/images/exterior/-1x-1.jpg",
+  "thumbnail": "assets/vehicles/lamborghini-terzo-millennio/images/exterior/-1x-1.jpg",
+  "cover": "assets/vehicles/lamborghini-terzo-millennio/images/exterior/-1x-1.jpg",
+  "galleryImages": [
+    "assets/vehicles/lamborghini-terzo-millennio/images/exterior/-1x-1.jpg",
+    "assets/vehicles/lamborghini-terzo-millennio/images/interior/R.jpg",
+    "assets/vehicles/lamborghini-terzo-millennio/images/dashboard/3.jpg",
+    "assets/vehicles/lamborghini-terzo-millennio/images/engine/4.jpg",
+    "assets/vehicles/lamborghini-terzo-millennio/images/gallery/images.jpg",
+    "assets/vehicles/lamborghini-terzo-millennio/images/gallery/2.jpg",
+    "assets/vehicles/lamborghini-terzo-millennio/images/gallery/1.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/lamborghini-terzo-millennio/images/exterior/-1x-1.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/lamborghini-terzo-millennio/images/interior/R.jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/lamborghini-terzo-millennio/images/dashboard/3.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/lamborghini-terzo-millennio/images/engine/4.jpg"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/lamborghini-terzo-millennio/images/gallery/images.jpg",
+      "assets/vehicles/lamborghini-terzo-millennio/images/gallery/2.jpg",
+      "assets/vehicles/lamborghini-terzo-millennio/images/gallery/1.jpg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Xám Thép Carbon X-Concept",
+      "hex": "#334155",
+      "img": "assets/vehicles/lamborghini-terzo-millennio/images/exterior/-1x-1.jpg"
+    },
+    {
+      "name": "Cam Neon Terzo Orange",
+      "hex": "#EA580C",
+      "img": "assets/vehicles/lamborghini-terzo-millennio/images/interior/R.jpg"
+    }
+  ],
+  "colorsSummary": "Xám Thép Carbon X-Concept, Cam Neon Terzo Orange",
+  "evSpecs": {
+    "batteryCapacity": "Hệ thống Siêu Tụ Điện tích hợp trực tiếp vào Thân Vỏ Carbon",
+    "rangeKm": 500,
+    "fastCharge": "Nạp đầy năng lượng trong 5 phút với hệ thống sạc siêu tụ điện cao tần",
+    "architecture": "Kiến trúc điện áp siêu cao Nano-Carbon"
+  },
+  "features": [
+    "Công nghệ sợi carbon tự phát hiện vết nứt và tự sửa chữa nhờ ống vi mô hóa chất thông minh",
+    "Thân vỏ xe đóng vai trò là khối tích trữ điện năng (năng lượng lưu trữ trong tấm thân carbon)",
+    "Hệ thống siêu tụ điện (Supercapacitor) nạp xả dòng điện cực đại không bị suy giảm theo thời gian",
+    "Đèn LED tạo hình chữ Y đặc trưng định hình thiết kế tương lai của toàn bộ dải xe Lamborghini",
+    "Hệ thống âm thanh tổng hợp giả lập tần số cao độc quyền thay thế tiếng gầm động cơ V12"
+  ],
+  "description": "Tầm nhìn tương lai của siêu xe thuần điện với 4 mô-tơ trong bánh xe, khung vỏ carbon tự chữa lành kiêm pin tích điện và hệ thống siêu tụ điện nạp siêu tốc.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/lamborghini_terzo_millennio.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Lamborghini Terzo Millennio Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Siêu Xe Điện Tương Lai Sợi Carbon Tự Chữa Lành tối ưu lực ép không khí và khí chất thể thao đặc trưng Lamborghini."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Hệ thống siêu tụ điện (Supercapacitors) tích hợp thân vỏ pin nano carbon, dẫn động 4 bánh toàn thời gian AWD sản sinh công suất 1.000 HP (4 Mô-tơ điện đặt tại 4 bánh xe) cùng gia tốc 1.9s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/lamborghini-terzo-millennio/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/lamborghini-terzo-millennio/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

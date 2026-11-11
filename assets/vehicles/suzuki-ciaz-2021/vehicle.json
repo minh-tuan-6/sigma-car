@@ -1,0 +1,139 @@
+{
+  "id": "suzuki-ciaz-2021",
+  "productCode": "SZK-CIZ-21",
+  "name": "Suzuki Ciaz (2021)",
+  "brand": "Suzuki",
+  "version": "1.4L AT Nhập Khẩu Thái Lan",
+  "subtitle": "Sedan Hạng B Rộng Rãi Tiết Kiệm Nhiên Liệu Nhất • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Sedan",
+  "subCategory": "Sedan Hạng B Rộng Rãi Tiết Kiệm Nhiên Liệu Nhất",
+  "fuel": "gas",
+  "price": 534900000,
+  "priceFormatted": "534.900.000 VNĐ",
+  "priceShort": "535 triệu",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết xe nhập khẩu nguyên chiếc từ Thái Lan",
+  "badge": "Siêu Tiết Kiệm 4.7L",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 91,
+  "power": "91 HP (68 kW) @ 6.000 rpm",
+  "engine": "1.4L K14B 4 xi-lanh thẳng hàng 16 van VVT",
+  "powertrain": "Động cơ Xăng 1.4L K14B VVT, Hộp số tự động 4 cấp (4AT), Cầu trước FWD",
+  "torque": "130 Nm @ 4.400 rpm",
+  "acceleration": "11.8s",
+  "topSpeed": "175 km/h",
+  "transmission": "Tự động 4 cấp (4-Speed Automatic)",
+  "drive": "FWD / Cầu trước",
+  "seats": 5,
+  "dimensions": "4.490 x 1.730 x 1.475 mm",
+  "wheelbase": "2.650 mm (Rộng nhất phân khúc B)",
+  "groundClearance": "160 mm",
+  "dimensionsDetail": {
+    "overall": "4.490 x 1.730 x 1.475 mm",
+    "lengthMm": 4490,
+    "widthMm": 1730,
+    "heightMm": 1475,
+    "wheelbase": "2.650 mm",
+    "groundClearance": "160 mm",
+    "curbWeight": "1.025 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2021,
+  "warranty": "5 năm hoặc 150.000 km cho động cơ & hộp số",
+  "warrantyDetail": {
+    "policy": "5 năm hoặc 150.000 km cho động cơ & hộp số"
+  },
+  "image": "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_truoc.jpeg",
+  "thumbnail": "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_truoc.jpeg",
+  "cover": "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_truoc.jpeg",
+  "galleryImages": [
+    "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_truoc.jpeg",
+    "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_sau.jpeg",
+    "assets/vehicles/suzuki-ciaz-2021/images/dashboard/ben_phai.webp",
+    "assets/vehicles/suzuki-ciaz-2021/images/engine/ben_trai.webp"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_truoc.jpeg",
+      "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_sau.jpeg"
+    ],
+    "interior": [],
+    "dashboard": [
+      "assets/vehicles/suzuki-ciaz-2021/images/dashboard/ben_phai.webp"
+    ],
+    "engine": [
+      "assets/vehicles/suzuki-ciaz-2021/images/engine/ben_trai.webp"
+    ],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Trắng Ngọc Trai Pearl Snow White",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_truoc.jpeg"
+    },
+    {
+      "name": "Đen Ánh Kim Mineral Gray",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/suzuki-ciaz-2021/images/exterior/phia_sau.jpeg"
+    },
+    {
+      "name": "Nâu Hoàng Gia Dignity Brown",
+      "hex": "#78350F",
+      "img": "assets/vehicles/suzuki-ciaz-2021/images/dashboard/ben_phai.webp"
+    }
+  ],
+  "colorsSummary": "Trắng Ngọc Trai Pearl Snow White, Đen Ánh Kim Mineral Gray, Nâu Hoàng Gia Dignity Brown",
+  "evSpecs": null,
+  "features": [
+    "Khoang hành khách và khoảng để chân hàng ghế sau rộng rãi nhất phân khúc sedan hạng B",
+    "Mức tiêu thụ nhiên liệu siêu tiết kiệm chỉ 4.72 lít / 100 km đường trường",
+    "Hệ thống giải trí màn hình cảm ứng 9 inch tích hợp camera hành trình trước sau và cảnh báo va chạm",
+    "Hệ thống điều hòa tự động với khả năng làm lạnh nhanh sâu đặc trưng Suzuki",
+    "Dung tích khoang hành lý cốp sau khổng lồ 510 lít chứa vừa 3 vali lớn"
+  ],
+  "description": "Mẫu sedan hạng B nhập khẩu Thái Lan với không gian nội thất rộng rãi bậc nhất, độ bền bỉ cao, cốp 510 lít và mức tiêu hao nhiên liệu cực kỳ tiết kiệm chỉ từ 4.7L/100km.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/suzuki_ciaz_2021.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Suzuki Ciaz (2021) Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Sedan Hạng B Rộng Rãi Tiết Kiệm Nhiên Liệu Nhất tối ưu lực ép không khí và khí chất thể thao đặc trưng Suzuki."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 1.4L K14B VVT, Hộp số tự động 4 cấp (4AT), Cầu trước FWD sản sinh công suất 91 HP (68 kW) @ 6.000 rpm cùng gia tốc 11.8s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/suzuki-ciaz-2021/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/suzuki-ciaz-2021/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

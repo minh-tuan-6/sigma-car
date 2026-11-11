@@ -1,0 +1,148 @@
+{
+  "id": "lamborghini-aventador-sv",
+  "productCode": "LAM-AVSV-16",
+  "name": "Lamborghini Aventador LP750-4 SV",
+  "brand": "Lamborghini",
+  "version": "SuperVeloce V12 750 HP (Giới hạn 600 chiếc)",
+  "subtitle": "Siêu Xe Động Cơ V12 Hút Khí Tự Nhiên Đỉnh Cao • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Siêu Xe",
+  "subCategory": "Siêu Xe Động Cơ V12 Hút Khí Tự Nhiên Đỉnh Cao",
+  "fuel": "gas",
+  "price": 38000000000,
+  "priceFormatted": "38.000.000.000 VNĐ",
+  "priceShort": "38 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá ước tính lăn bánh nhập khẩu tư nhân tại Việt Nam",
+  "badge": "V12 SuperVeloce",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 750,
+  "power": "750 HP (552 kW) @ 8.400 rpm",
+  "engine": "6.5L V12 Hút khí tự nhiên (Natural Aspirated)",
+  "powertrain": "Động cơ Xăng V12 6.5L, Hộp số bán tự động 7 cấp ISR, Dẫn động 4 bánh toàn thời gian Haldex Gen IV AWD",
+  "torque": "690 Nm @ 5.500 rpm",
+  "acceleration": "2.8s",
+  "topSpeed": "350 km/h",
+  "transmission": "Bán tự động 7 cấp Independent Shifting Rods (ISR) chuyển số trong 50ms",
+  "drive": "AWD / Dẫn động 4 bánh toàn thời gian Haldex",
+  "seats": 2,
+  "dimensions": "4.835 x 2.030 x 1.136 mm",
+  "wheelbase": "2.700 mm",
+  "groundClearance": "115 mm (Có hệ thống nâng mũi xe Hydraulic Lift)",
+  "dimensionsDetail": {
+    "overall": "4.835 x 2.030 x 1.136 mm",
+    "lengthMm": 4835,
+    "widthMm": 2030,
+    "heightMm": 1136,
+    "wheelbase": "2.700 mm",
+    "groundClearance": "115 mm",
+    "curbWeight": "1.525 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2017,
+  "warranty": "Bảo hành chính hãng Lamborghini và chứng nhận nguồn gốc",
+  "warrantyDetail": {
+    "policy": "Bảo hành chính hãng Lamborghini và chứng nhận nguồn gốc"
+  },
+  "image": "assets/vehicles/lamborghini-aventador-sv/images/exterior/Lamborghini_Aventador_LP_750-4_Super_VELOCE_(17166321410).jpg",
+  "thumbnail": "assets/vehicles/lamborghini-aventador-sv/images/exterior/Lamborghini_Aventador_LP_750-4_Super_VELOCE_(17166321410).jpg",
+  "cover": "assets/vehicles/lamborghini-aventador-sv/images/exterior/Lamborghini_Aventador_LP_750-4_Super_VELOCE_(17166321410).jpg",
+  "galleryImages": [
+    "assets/vehicles/lamborghini-aventador-sv/images/exterior/Lamborghini_Aventador_LP_750-4_Super_VELOCE_(17166321410).jpg",
+    "assets/vehicles/lamborghini-aventador-sv/images/interior/-Lamborghini-Photo-Max-Earey-047.jpg",
+    "assets/vehicles/lamborghini-aventador-sv/images/dashboard/xedoisong_lamborghini_aventador_lp750_4_superveloce_sv_geneva_h3_vhsy.jpg",
+    "assets/vehicles/lamborghini-aventador-sv/images/engine/2016-lamborghini-aventador-lp750-4-superveloce-test-review-car-and-driver-photo-667354-s-original.avif",
+    "assets/vehicles/lamborghini-aventador-sv/images/gallery/images.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/lamborghini-aventador-sv/images/exterior/Lamborghini_Aventador_LP_750-4_Super_VELOCE_(17166321410).jpg"
+    ],
+    "interior": [
+      "assets/vehicles/lamborghini-aventador-sv/images/interior/-Lamborghini-Photo-Max-Earey-047.jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/lamborghini-aventador-sv/images/dashboard/xedoisong_lamborghini_aventador_lp750_4_superveloce_sv_geneva_h3_vhsy.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/lamborghini-aventador-sv/images/engine/2016-lamborghini-aventador-lp750-4-superveloce-test-review-car-and-driver-photo-667354-s-original.avif"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/lamborghini-aventador-sv/images/gallery/images.jpg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Đỏ Thể Thao Rosso Bia",
+      "hex": "#B91C1C",
+      "img": "assets/vehicles/lamborghini-aventador-sv/images/exterior/Lamborghini_Aventador_LP_750-4_Super_VELOCE_(17166321410).jpg"
+    },
+    {
+      "name": "Vàng Giallo Orion",
+      "hex": "#FACC15",
+      "img": "assets/vehicles/lamborghini-aventador-sv/images/interior/-Lamborghini-Photo-Max-Earey-047.jpg"
+    },
+    {
+      "name": "Cam Arancio Atlas",
+      "hex": "#F97316",
+      "img": "assets/vehicles/lamborghini-aventador-sv/images/dashboard/xedoisong_lamborghini_aventador_lp750_4_superveloce_sv_geneva_h3_vhsy.jpg"
+    },
+    {
+      "name": "Xanh Lá Verde Ithaca",
+      "hex": "#22C55E",
+      "img": "assets/vehicles/lamborghini-aventador-sv/images/engine/2016-lamborghini-aventador-lp750-4-superveloce-test-review-car-and-driver-photo-667354-s-original.avif"
+    }
+  ],
+  "colorsSummary": "Đỏ Thể Thao Rosso Bia, Vàng Giallo Orion, Cam Arancio Atlas, Xanh Lá Verde Ithaca",
+  "evSpecs": null,
+  "features": [
+    "Cắt giảm 50 kg trọng lượng nhờ ứng dụng sợi carbon gia cường khắp thân vỏ và nội thất",
+    "Tăng thêm 170% lực ép không khí (Downforce) so với bản Aventador tiêu chuẩn",
+    "Hệ thống giảm xóc từ tính chủ động Magneto-Rheological Suspension (MRS) kiểu xe đua F1",
+    "Cánh gió sau sợi carbon cỡ lớn điều chỉnh cơ học 3 nấc",
+    "Ống xả thể thao bằng hợp kim titan phát ra âm thanh gầm rú V12 xé gió ở 8.500 rpm"
+  ],
+  "description": "Tuyệt phẩm V12 hút khí tự nhiên thuần khiết nhất của Lamborghini đạt 750 mã lực, tăng tốc 0-100 km/h trong 2.8 giây cùng cánh gió khí động học sợi carbon.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/lamborghini_aventador_sv.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Lamborghini Aventador LP750-4 SV Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Siêu Xe Động Cơ V12 Hút Khí Tự Nhiên Đỉnh Cao tối ưu lực ép không khí và khí chất thể thao đặc trưng Lamborghini."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng V12 6.5L, Hộp số bán tự động 7 cấp ISR, Dẫn động 4 bánh toàn thời gian Haldex Gen IV AWD sản sinh công suất 750 HP (552 kW) @ 8.400 rpm cùng gia tốc 2.8s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/lamborghini-aventador-sv/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/lamborghini-aventador-sv/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

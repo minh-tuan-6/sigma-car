@@ -1,0 +1,144 @@
+{
+  "id": "hyundai-elantra-n-2024",
+  "productCode": "HYU-ELN-24",
+  "name": "Hyundai Elantra N (2024)",
+  "brand": "Hyundai",
+  "version": "2.0T Flat Power Facelift",
+  "subtitle": "Sedan Thể Thao Thuần Đua Hiệu Năng Cao • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Sedan",
+  "subCategory": "Sedan Thể Thao Thuần Đua Hiệu Năng Cao",
+  "fuel": "gas",
+  "price": 1829000000,
+  "priceFormatted": "1.829.000.000 VNĐ",
+  "priceShort": "1.829 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết xe nhập khẩu nguyên chiếc từ Hàn Quốc",
+  "badge": "N Power Beast",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 290,
+  "power": "280 HP (206 kW) / 290 HP khi kích hoạt NGS Mode",
+  "engine": "2.0L Turbo Flat Power GDI 4 xi-lanh",
+  "powertrain": "Động cơ Xăng 2.0L Turbo T-GDi, Hộp số ly hợp kép 8 cấp ướt N DCT, Cầu trước FWD có vi sai điện tử e-LSD",
+  "torque": "392 Nm @ 2.100 - 4.700 rpm",
+  "acceleration": "5.3s",
+  "topSpeed": "250 km/h",
+  "transmission": "Ly hợp kép 8 cấp ướt (8-Speed Wet N DCT)",
+  "drive": "FWD / Cầu trước + Vi sai chống trượt điện tử e-LSD (N Corner Carving Differential)",
+  "seats": 5,
+  "dimensions": "4.675 x 1.825 x 1.415 mm",
+  "wheelbase": "2.720 mm",
+  "groundClearance": "136 mm",
+  "dimensionsDetail": {
+    "overall": "4.675 x 1.825 x 1.415 mm",
+    "lengthMm": 4675,
+    "widthMm": 1825,
+    "heightMm": 1415,
+    "wheelbase": "2.720 mm",
+    "groundClearance": "136 mm",
+    "curbWeight": "1.485 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2024,
+  "warranty": "5 năm hoặc 100.000 km chính hãng Hyundai Thành Công",
+  "warrantyDetail": {
+    "policy": "5 năm hoặc 100.000 km chính hãng Hyundai Thành Công"
+  },
+  "image": "assets/vehicles/hyundai-elantra-n-2024/images/exterior/phia_truoc.webp",
+  "thumbnail": "assets/vehicles/hyundai-elantra-n-2024/images/exterior/phia_truoc.webp",
+  "cover": "assets/vehicles/hyundai-elantra-n-2024/images/exterior/phia_truoc.webp",
+  "galleryImages": [
+    "assets/vehicles/hyundai-elantra-n-2024/images/exterior/phia_truoc.webp",
+    "assets/vehicles/hyundai-elantra-n-2024/images/exterior/ben_phai.jpg",
+    "assets/vehicles/hyundai-elantra-n-2024/images/dashboard/phia_sau.jpg",
+    "assets/vehicles/hyundai-elantra-n-2024/images/engine/ben_trai.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/hyundai-elantra-n-2024/images/exterior/phia_truoc.webp",
+      "assets/vehicles/hyundai-elantra-n-2024/images/exterior/ben_phai.jpg"
+    ],
+    "interior": [],
+    "dashboard": [
+      "assets/vehicles/hyundai-elantra-n-2024/images/dashboard/phia_sau.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/hyundai-elantra-n-2024/images/engine/ben_trai.jpg"
+    ],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Xanh Hiệu Năng Performance Blue",
+      "hex": "#38BDF8",
+      "img": "assets/vehicles/hyundai-elantra-n-2024/images/exterior/phia_truoc.webp"
+    },
+    {
+      "name": "Đen Bóng Abyss Black Pearl",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/hyundai-elantra-n-2024/images/exterior/ben_phai.jpg"
+    },
+    {
+      "name": "Trắng Atlas White",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/hyundai-elantra-n-2024/images/dashboard/phia_sau.jpg"
+    },
+    {
+      "name": "Xám Xi Măng Cyber Gray Metallic",
+      "hex": "#64748B",
+      "img": "assets/vehicles/hyundai-elantra-n-2024/images/engine/ben_trai.jpg"
+    }
+  ],
+  "colorsSummary": "Xanh Hiệu Năng Performance Blue, Đen Bóng Abyss Black Pearl, Trắng Atlas White, Xám Xi Măng Cyber Gray Metallic",
+  "evSpecs": null,
+  "features": [
+    "Nút kích hoạt NGS (N Grin Shift) tăng thêm 10 mã lực tức thì trong 20 giây",
+    "Hệ thống vi sai điện tử e-LSD (N Corner Carving Differential) ôm cua không trượt",
+    "Hệ thống ống xả kép N Variable Exhaust Valve System nổ bắp rang cực kỳ phấn khích",
+    "Hệ thống treo thích ứng điện tử ECS kiểm soát dao động từng miligiây",
+    "Thanh giằng chữ H gia cố khoang hành lý tăng 29% độ cứng chống vặn xoắn thân xe"
+  ],
+  "description": "Sedan hiệu năng cao được tôi luyện tại trường đua Nürburgring với động cơ 2.0 Turbo 290 mã lực, hộp số 8 N-DCT, vi sai e-LSD và tiếng pô phấn khích tột độ.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/hyundai_elantra_n_2024.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Hyundai Elantra N (2024) Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Sedan Thể Thao Thuần Đua Hiệu Năng Cao tối ưu lực ép không khí và khí chất thể thao đặc trưng Hyundai."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 2.0L Turbo T-GDi, Hộp số ly hợp kép 8 cấp ướt N DCT, Cầu trước FWD có vi sai điện tử e-LSD sản sinh công suất 280 HP (206 kW) / 290 HP khi kích hoạt NGS Mode cùng gia tốc 5.3s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/hyundai-elantra-n-2024/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/hyundai-elantra-n-2024/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

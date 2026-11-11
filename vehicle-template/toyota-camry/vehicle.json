@@ -1,0 +1,145 @@
+{
+  "id": "toyota-camry",
+  "productCode": "TOY-CAM-25Q",
+  "name": "Toyota Camry 2.5Q",
+  "brand": "Toyota",
+  "version": "2.5Q Dynamic Force (Thế hệ mới)",
+  "subtitle": "Sedan Hạng D Doanh Nhân Cao Cấp • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Sedan",
+  "subCategory": "Sedan Hạng D Doanh Nhân Cao Cấp",
+  "fuel": "gas",
+  "price": 1405000000,
+  "priceFormatted": "1.405.000.000 VNĐ",
+  "priceShort": "1.405 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết chính hãng Toyota Việt Nam",
+  "badge": "Sedan Hạng D",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 207,
+  "power": "207 HP (152 kW) @ 6.600 rpm",
+  "engine": "2.5L 4 xi-lanh DOHC VVT-iE Dynamic Force (A25A-FKS)",
+  "powertrain": "Động cơ Xăng 2.5L Dynamic Force, Hộp số tự động 8 cấp Direct Shift 8AT, Cầu trước FWD",
+  "torque": "250 Nm @ 5.000 rpm",
+  "acceleration": "8.2s",
+  "topSpeed": "215 km/h",
+  "transmission": "Tự động 8 cấp (Direct Shift 8AT) tích hợp lẫy chuyển số",
+  "drive": "FWD / Cầu trước",
+  "seats": 5,
+  "dimensions": "4.885 x 1.840 x 1.445 mm",
+  "wheelbase": "2.825 mm",
+  "groundClearance": "140 mm",
+  "dimensionsDetail": {
+    "overall": "4.885 x 1.840 x 1.445 mm",
+    "lengthMm": 4885,
+    "widthMm": 1840,
+    "heightMm": 1445,
+    "wheelbase": "2.825 mm",
+    "groundClearance": "140 mm",
+    "curbWeight": "1.560 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2024,
+  "warranty": "5 năm hoặc 150.000 km chính hãng Toyota Việt Nam",
+  "warrantyDetail": {
+    "policy": "5 năm hoặc 150.000 km chính hãng Toyota Việt Nam"
+  },
+  "image": "assets/vehicles/toyota-camry/images/exterior/2020-Toyota-Camry-front_12148_032_1834x733_040_cropped.png",
+  "thumbnail": "assets/vehicles/toyota-camry/images/exterior/2020-Toyota-Camry-front_12148_032_1834x733_040_cropped.png",
+  "cover": "assets/vehicles/toyota-camry/images/exterior/2020-Toyota-Camry-front_12148_032_1834x733_040_cropped.png",
+  "galleryImages": [
+    "assets/vehicles/toyota-camry/images/exterior/2020-Toyota-Camry-front_12148_032_1834x733_040_cropped.png",
+    "assets/vehicles/toyota-camry/images/interior/2020-toyota-camry-mmp-2-1566921081.avif",
+    "assets/vehicles/toyota-camry/images/dashboard/2.jpg",
+    "assets/vehicles/toyota-camry/images/engine/1.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/toyota-camry/images/exterior/2020-Toyota-Camry-front_12148_032_1834x733_040_cropped.png"
+    ],
+    "interior": [
+      "assets/vehicles/toyota-camry/images/interior/2020-toyota-camry-mmp-2-1566921081.avif"
+    ],
+    "dashboard": [
+      "assets/vehicles/toyota-camry/images/dashboard/2.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/toyota-camry/images/engine/1.jpg"
+    ],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Trắng Ngọc Trai (089)",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/toyota-camry/images/exterior/2020-Toyota-Camry-front_12148_032_1834x733_040_cropped.png"
+    },
+    {
+      "name": "Đen Ánh Kim (218)",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/toyota-camry/images/interior/2020-toyota-camry-mmp-2-1566921081.avif"
+    },
+    {
+      "name": "Đỏ Ánh Kim (3T3)",
+      "hex": "#B91C1C",
+      "img": "assets/vehicles/toyota-camry/images/dashboard/2.jpg"
+    },
+    {
+      "name": "Ghi Bạc (1D4)",
+      "hex": "#94A3B8",
+      "img": "assets/vehicles/toyota-camry/images/engine/1.jpg"
+    }
+  ],
+  "colorsSummary": "Trắng Ngọc Trai (089), Đen Ánh Kim (218), Đỏ Ánh Kim (3T3), Ghi Bạc (1D4)",
+  "evSpecs": null,
+  "features": [
+    "Nền tảng khung gầm toàn cầu TNGA tăng cường độ cứng vững và hạ thấp trọng tâm",
+    "Gói an toàn chủ động Toyota Safety Sense 2.0+ (Phanh tự động PCS, giữ làn LTA, ga tự động DRCC)",
+    "Hàng ghế ông chủ phía sau tích hợp cụm điều khiển cảm ứng ngả điện và rèm che nắng điện",
+    "Hệ thống âm thanh 9 loa JBL cao cấp sống động",
+    "Màn hình hiển thị trên kính lái HUD kết hợp camera toàn cảnh 360 độ siêu nét"
+  ],
+  "description": "Biểu tượng sedan doanh nhân hạng D hàng đầu với khung gầm TNGA đầm chắc, động cơ 207 mã lực 8AT, gói an toàn TSS 2.0+ và hàng ghế sau chỉnh điện đẳng cấp thương gia.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/toyota_camry.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Toyota Camry 2.5Q Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Sedan Hạng D Doanh Nhân Cao Cấp tối ưu lực ép không khí và khí chất thể thao đặc trưng Toyota."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 2.5L Dynamic Force, Hộp số tự động 8 cấp Direct Shift 8AT, Cầu trước FWD sản sinh công suất 207 HP (152 kW) @ 6.600 rpm cùng gia tốc 8.2s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/toyota-camry/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/toyota-camry/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

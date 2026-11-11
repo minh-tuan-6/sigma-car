@@ -1,0 +1,142 @@
+{
+  "id": "honda-civic-eg6-1991",
+  "productCode": "HND-EG6-91",
+  "name": "Honda Civic SiR-II (EG6)",
+  "brand": "Honda",
+  "version": "SiR-II VTEC (1991)",
+  "subtitle": "Hatchback Thể Thao JDM Huyền Thoại • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Hatchback",
+  "subCategory": "Hatchback Thể Thao JDM Huyền Thoại",
+  "fuel": "gas",
+  "price": 450000000,
+  "priceFormatted": "450.000.000 VNĐ",
+  "priceShort": "450 triệu",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá sưu tầm xe cổ JDM nguyên bản nhập khẩu",
+  "badge": "Huyền thoại JDM",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 170,
+  "power": "170 HP (125 kW) @ 7.800 rpm",
+  "engine": "1.6L B16A DOHC VTEC Hút khí tự nhiên (Redline 8.200 rpm)",
+  "powertrain": "Động cơ Xăng 1.6L B16A DOHC VTEC, Hộp số sàn 5 cấp, Cầu trước FWD",
+  "torque": "157 Nm @ 7.300 rpm",
+  "acceleration": "7.2s",
+  "topSpeed": "215 km/h",
+  "transmission": "Số sàn 5 cấp (5-Speed Manual)",
+  "drive": "FWD / Cầu trước",
+  "seats": 4,
+  "dimensions": "4.070 x 1.695 x 1.350 mm",
+  "wheelbase": "2.570 mm",
+  "groundClearance": "140 mm",
+  "dimensionsDetail": {
+    "overall": "4.070 x 1.695 x 1.350 mm",
+    "lengthMm": 4070,
+    "widthMm": 1695,
+    "heightMm": 1350,
+    "wheelbase": "2.570 mm",
+    "groundClearance": "140 mm",
+    "curbWeight": "1.050 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 1991,
+  "warranty": "Bảo dưỡng định kỳ 6 tháng hoặc 5.000 km cho xe cổ sưu tầm",
+  "warrantyDetail": {
+    "policy": "Bảo dưỡng định kỳ 6 tháng hoặc 5.000 km cho xe cổ sưu tầm"
+  },
+  "image": "assets/vehicles/honda-civic-eg6-1991/images/exterior/eg6-sir-passenger-side-profile.avif",
+  "thumbnail": "assets/vehicles/honda-civic-eg6-1991/images/exterior/eg6-sir-passenger-side-profile.avif",
+  "cover": "assets/vehicles/honda-civic-eg6-1991/images/exterior/eg6-sir-passenger-side-profile.avif",
+  "galleryImages": [
+    "assets/vehicles/honda-civic-eg6-1991/images/exterior/eg6-sir-passenger-side-profile.avif",
+    "assets/vehicles/honda-civic-eg6-1991/images/interior/images (2).jpg",
+    "assets/vehicles/honda-civic-eg6-1991/images/dashboard/images (1).jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/honda-civic-eg6-1991/images/exterior/eg6-sir-passenger-side-profile.avif"
+    ],
+    "interior": [
+      "assets/vehicles/honda-civic-eg6-1991/images/interior/images (2).jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/honda-civic-eg6-1991/images/dashboard/images (1).jpg"
+    ],
+    "engine": [],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Đỏ Thể Thao Milano Red",
+      "hex": "#DC2626",
+      "img": "assets/vehicles/honda-civic-eg6-1991/images/exterior/eg6-sir-passenger-side-profile.avif"
+    },
+    {
+      "name": "Trắng Ngọc Frost White",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/honda-civic-eg6-1991/images/interior/images (2).jpg"
+    },
+    {
+      "name": "Đen Flint Black Metallic",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/honda-civic-eg6-1991/images/dashboard/images (1).jpg"
+    },
+    {
+      "name": "Xanh Ngọc Captiva Blue",
+      "hex": "#0284C7",
+      "img": "assets/vehicles/honda-civic-eg6-1991/images/exterior/eg6-sir-passenger-side-profile.avif"
+    }
+  ],
+  "colorsSummary": "Đỏ Thể Thao Milano Red, Trắng Ngọc Frost White, Đen Flint Black Metallic, Xanh Ngọc Captiva Blue",
+  "evSpecs": null,
+  "features": [
+    "Huyền thoại động cơ B16A DOHC VTEC đầu tiên đạt tỷ lệ công suất 100 HP/lít",
+    "Hệ thống treo độc lập 4 bánh tay đòn kép (Double Wishbone Suspension) chuẩn đua",
+    "Trọng lượng siêu nhẹ chỉ 1.050 kg mang lại cảm giác lái thuần khiết, linh hoạt",
+    "Vô lăng 3 chấu thể thao cổ điển cùng ghế nỉ thể thao ôm sát người lái",
+    "Cánh gió sau khí động học tích hợp đèn phanh LED trên cao"
+  ],
+  "description": "Chiếc hatchback JDM huyền thoại thế hệ thứ 5 của Honda với động cơ B16A VTEC trứ danh đạt 170 mã lực ở vòng tua 7.800 rpm, hệ thống treo Double Wishbone và trọng lượng nhẹ vượt trội.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/honda_civic_eg6_1991.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Honda Civic SiR-II (EG6) Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Hatchback Thể Thao JDM Huyền Thoại tối ưu lực ép không khí và khí chất thể thao đặc trưng Honda."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 1.6L B16A DOHC VTEC, Hộp số sàn 5 cấp, Cầu trước FWD sản sinh công suất 170 HP (125 kW) @ 7.800 rpm cùng gia tốc 7.2s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/honda-civic-eg6-1991/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/honda-civic-eg6-1991/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

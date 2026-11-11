@@ -1,0 +1,140 @@
+{
+  "id": "rolls-royce-boat-tail",
+  "productCode": "RR-BT-01",
+  "name": "Rolls-Royce Boat Tail",
+  "brand": "Rolls-Royce",
+  "version": "Coachbuild Độc Bản Xa Xỉ Nhất Thế Giới (Chỉ 3 Chiếc)",
+  "subtitle": "Kiệt Tác Xe Coachbuild Đắt Nhất Lịch Sử Thế Giới • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Siêu Xe",
+  "subCategory": "Kiệt Tác Xe Coachbuild Đắt Nhất Lịch Sử Thế Giới",
+  "fuel": "gas",
+  "price": 650000000000,
+  "priceFormatted": "650.000.000.000 VNĐ",
+  "priceShort": "650 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá trị siêu phẩm Coachbuild độc bản thế giới (~28.000.000 USD)",
+  "badge": "Coachbuild 28M USD",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 563,
+  "power": "563 HP (420 kW) @ 5.000 rpm",
+  "engine": "6.75L V12 Twin-Turbo danh tiếng của Rolls-Royce",
+  "powertrain": "Động cơ Xăng V12 6.75L Twin-Turbo, Hộp số tự động 8 cấp ZF hỗ trợ vệ tinh SAT, Cầu sau RWD",
+  "torque": "900 Nm @ 1.700 rpm",
+  "acceleration": "5.2s (Vận hành êm ái như bay trên thảm thần Magic Carpet Ride)",
+  "topSpeed": "250 km/h (Giới hạn điện tử)",
+  "transmission": "Tự động 8 cấp ZF hỗ trợ định vị vệ tinh",
+  "drive": "RWD / Cầu sau",
+  "seats": 4,
+  "dimensions": "5.800 x 2.050 x 1.550 mm",
+  "wheelbase": "3.450 mm",
+  "groundClearance": "150 mm",
+  "dimensionsDetail": {
+    "overall": "5.800 x 2.050 x 1.550 mm",
+    "lengthMm": 5800,
+    "widthMm": 2050,
+    "heightMm": 1550,
+    "wheelbase": "3.450 mm",
+    "groundClearance": "150 mm",
+    "curbWeight": "2.500 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2024,
+  "warranty": "Dịch vụ hậu mãi riêng của Hoàng gia Rolls-Royce Bespoke",
+  "warrantyDetail": {
+    "policy": "Dịch vụ hậu mãi riêng của Hoàng gia Rolls-Royce Bespoke"
+  },
+  "image": "assets/vehicles/rolls-royce-boat-tail/images/exterior/rolls-royce-boat-tail-mother-of-pearl-1.jpg",
+  "thumbnail": "assets/vehicles/rolls-royce-boat-tail/images/exterior/rolls-royce-boat-tail-mother-of-pearl-1.jpg",
+  "cover": "assets/vehicles/rolls-royce-boat-tail/images/exterior/rolls-royce-boat-tail-mother-of-pearl-1.jpg",
+  "galleryImages": [
+    "assets/vehicles/rolls-royce-boat-tail/images/exterior/rolls-royce-boat-tail-mother-of-pearl-1.jpg",
+    "assets/vehicles/rolls-royce-boat-tail/images/interior/8d8b0c92-62fd-4c53-b50d-bceba64b1360.jpeg",
+    "assets/vehicles/rolls-royce-boat-tail/images/dashboard/3-13.webp",
+    "assets/vehicles/rolls-royce-boat-tail/images/engine/img-4282-1653056286.avif",
+    "assets/vehicles/rolls-royce-boat-tail/images/gallery/images.jpg",
+    "assets/vehicles/rolls-royce-boat-tail/images/gallery/images (1).jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/rolls-royce-boat-tail/images/exterior/rolls-royce-boat-tail-mother-of-pearl-1.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/rolls-royce-boat-tail/images/interior/8d8b0c92-62fd-4c53-b50d-bceba64b1360.jpeg"
+    ],
+    "dashboard": [
+      "assets/vehicles/rolls-royce-boat-tail/images/dashboard/3-13.webp"
+    ],
+    "engine": [
+      "assets/vehicles/rolls-royce-boat-tail/images/engine/img-4282-1653056286.avif"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/rolls-royce-boat-tail/images/gallery/images.jpg",
+      "assets/vehicles/rolls-royce-boat-tail/images/gallery/images (1).jpg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Xanh Đại Dương Ocean Blue Metallic",
+      "hex": "#1E3A8A",
+      "img": "assets/vehicles/rolls-royce-boat-tail/images/exterior/rolls-royce-boat-tail-mother-of-pearl-1.jpg"
+    },
+    {
+      "name": "Gỗ Cung Đình Caleidolegno Wood & Pearl",
+      "hex": "#451A03",
+      "img": "assets/vehicles/rolls-royce-boat-tail/images/interior/8d8b0c92-62fd-4c53-b50d-bceba64b1360.jpeg"
+    }
+  ],
+  "colorsSummary": "Xanh Đại Dương Ocean Blue Metallic, Gỗ Cung Đình Caleidolegno Wood & Pearl",
+  "evSpecs": null,
+  "features": [
+    "Siêu phẩm chế tác thủ công Coachbuild đắt nhất hành tinh với mức giá lên tới 28 triệu USD",
+    "Đuôi xe ốp gỗ Caleidolegno tự nhiên mở cánh bướm cơ điện chứa bộ tiện nghi dã ngoại xa xỉ",
+    "Tủ lạnh kép đựng rượu Champagne Armand de Brignac giữ nhiệt độ chính xác 6 độ C",
+    "Cặp đồng hồ cơ học Thụy Sĩ Bovet 1822 độc bản có thể tháo rời đeo trên tay",
+    "Cây dù che nắng tự động bung mở cùng cặp ghế sợi carbon thiết kế riêng của Promemoria"
+  ],
+  "description": "Kiệt tác nghệ thuật đương đại đắt nhất lịch sử ô tô thế giới (~28 triệu USD) chế tác thủ công bằng nhôm nguyên khối, đuôi thuyền mở cánh bướm và động cơ V12 6.75L êm ái.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/rolls_royce_boat_tail.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Rolls-Royce Boat Tail Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Kiệt Tác Xe Coachbuild Đắt Nhất Lịch Sử Thế Giới tối ưu lực ép không khí và khí chất thể thao đặc trưng Rolls-Royce."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng V12 6.75L Twin-Turbo, Hộp số tự động 8 cấp ZF hỗ trợ vệ tinh SAT, Cầu sau RWD sản sinh công suất 563 HP (420 kW) @ 5.000 rpm cùng gia tốc 5.2s (Vận hành êm ái như bay trên thảm thần Magic Carpet Ride)."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/rolls-royce-boat-tail/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/rolls-royce-boat-tail/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

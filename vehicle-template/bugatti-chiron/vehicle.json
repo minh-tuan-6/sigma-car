@@ -1,0 +1,145 @@
+{
+  "id": "bugatti-chiron",
+  "productCode": "BUG-CH-01",
+  "name": "Bugatti Chiron",
+  "brand": "Bugatti",
+  "version": "W16 Quad-Turbo 1500 HP",
+  "subtitle": "Hypercar Độc Bản Xa Xỉ Nhất Thế Giới • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Siêu Xe",
+  "subCategory": "Hypercar Độc Bản Xa Xỉ Nhất Thế Giới",
+  "fuel": "gas",
+  "price": 68000000000,
+  "priceFormatted": "68.000.000.000 VNĐ",
+  "priceShort": "68 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá ước tính lăn bánh nhập khẩu tư nhân tại Việt Nam (~3.000.000 USD)",
+  "badge": "Hypercar 1500HP",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 1500,
+  "power": "1.500 HP (1.103 kW) @ 6.700 rpm",
+  "engine": "8.0L W16 Quad-Turbo (4 bộ tăng áp 2 giai đoạn)",
+  "powertrain": "Động cơ Xăng W16 8.0L 4 Turbo, Hộp số ly hợp kép 7 cấp DSG, Dẫn động 4 bánh toàn thời gian AWD",
+  "torque": "1.600 Nm @ 2.000 - 6.000 rpm",
+  "acceleration": "2.4s",
+  "topSpeed": "420 km/h (Giới hạn điện tử) / 490 km/h",
+  "transmission": "Ly hợp kép 7 cấp (7-Speed Dual-Clutch Ricardo)",
+  "drive": "AWD / Dẫn động 4 bánh toàn thời gian thông minh",
+  "seats": 2,
+  "dimensions": "4.544 x 2.038 x 1.212 mm",
+  "wheelbase": "2.711 mm",
+  "groundClearance": "115 mm (Hạ thấp 80 mm ở chế độ Top Speed)",
+  "dimensionsDetail": {
+    "overall": "4.544 x 2.038 x 1.212 mm",
+    "lengthMm": 4544,
+    "widthMm": 2038,
+    "heightMm": 1212,
+    "wheelbase": "2.711 mm",
+    "groundClearance": "115 mm",
+    "curbWeight": "1.995 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2024,
+  "warranty": "Bảo hành toàn cầu không giới hạn của Bugatti Flying Doctor Service",
+  "warrantyDetail": {
+    "policy": "Bảo hành toàn cầu không giới hạn của Bugatti Flying Doctor Service"
+  },
+  "image": "assets/vehicles/bugatti-chiron/images/exterior/li3117904front_2c_merged_r.jpg",
+  "thumbnail": "assets/vehicles/bugatti-chiron/images/exterior/li3117904front_2c_merged_r.jpg",
+  "cover": "assets/vehicles/bugatti-chiron/images/exterior/li3117904front_2c_merged_r.jpg",
+  "galleryImages": [
+    "assets/vehicles/bugatti-chiron/images/exterior/li3117904front_2c_merged_r.jpg",
+    "assets/vehicles/bugatti-chiron/images/interior/5.jpg",
+    "assets/vehicles/bugatti-chiron/images/dashboard/4.jpg",
+    "assets/vehicles/bugatti-chiron/images/engine/3.jpg",
+    "assets/vehicles/bugatti-chiron/images/gallery/1.jpg",
+    "assets/vehicles/bugatti-chiron/images/gallery/2.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/bugatti-chiron/images/exterior/li3117904front_2c_merged_r.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/bugatti-chiron/images/interior/5.jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/bugatti-chiron/images/dashboard/4.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/bugatti-chiron/images/engine/3.jpg"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/bugatti-chiron/images/gallery/1.jpg",
+      "assets/vehicles/bugatti-chiron/images/gallery/2.jpg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Xanh Bugatti Atlantic Blue",
+      "hex": "#1E3A8A",
+      "img": "assets/vehicles/bugatti-chiron/images/exterior/li3117904front_2c_merged_r.jpg"
+    },
+    {
+      "name": "Đen Carbon Dạ Kim",
+      "hex": "#0B0F19",
+      "img": "assets/vehicles/bugatti-chiron/images/interior/5.jpg"
+    },
+    {
+      "name": "Bạc Pháp French Racing Blue & Chrome",
+      "hex": "#38BDF8",
+      "img": "assets/vehicles/bugatti-chiron/images/dashboard/4.jpg"
+    }
+  ],
+  "colorsSummary": "Xanh Bugatti Atlantic Blue, Đen Carbon Dạ Kim, Bạc Pháp French Racing Blue & Chrome",
+  "evSpecs": null,
+  "features": [
+    "Động cơ W16 8.0 lít 4 tăng áp đạt công suất không tưởng 1.500 mã lực",
+    "Khung gầm nguyên khối bằng sợi carbon đạt độ cứng vặn xoắn 50.000 Nm/độ (ngang xe đua LMP1)",
+    "Hệ thống cánh gió chủ động Airbrake hỗ trợ phanh từ 400 km/h về 0 chỉ trong 9.3 giây",
+    "Đèn pha LED 4 bóng vuông biểu tượng kết hợp dải đèn hậu LED liền mạch 1.6m dài nhất thế giới",
+    "Khoang lái bọc da thủ công cao cấp nhất nước Pháp, không có bất kỳ màn hình kỹ thuật số nào lỗi thời"
+  ],
+  "description": "Tuyệt tác cơ khí xa xỉ bậc nhất hành tinh với động cơ W16 8.0L Quad-Turbo 1.500 mã lực, tăng tốc 0-100 km/h trong 2.4 giây, tốc độ tối đa vượt 420 km/h.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/bugatti_chiron.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Bugatti Chiron Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Hypercar Độc Bản Xa Xỉ Nhất Thế Giới tối ưu lực ép không khí và khí chất thể thao đặc trưng Bugatti."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng W16 8.0L 4 Turbo, Hộp số ly hợp kép 7 cấp DSG, Dẫn động 4 bánh toàn thời gian AWD sản sinh công suất 1.500 HP (1.103 kW) @ 6.700 rpm cùng gia tốc 2.4s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/bugatti-chiron/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/bugatti-chiron/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

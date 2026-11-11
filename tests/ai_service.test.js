@@ -85,36 +85,36 @@ test('PHẦN A: Hội thoại đa năng & Nhận diện ý định linh hoạt',
 
 test('PHẦN B: Live Vehicle RAG & Grounding Dữ liệu Xe Thật', async (t) => {
   await t.test('1. Hỏi giá xe niêm yết trong Database: Trả về chính xác VNĐ', async () => {
-    const modelE = await VehicleRepository.findById('model-e');
-    assert.ok(modelE, 'Model E phải tồn tại trong DB');
+    const cyber = await VehicleRepository.findById('tesla-cybertruck');
+    assert.ok(cyber, 'Tesla Cybertruck phải tồn tại trong DB');
 
-    const res = await AIService.chat({ message: 'Giá xe Model E hiện tại bao nhiêu?' });
+    const res = await AIService.chat({ message: 'Giá xe Tesla Cybertruck hiện tại bao nhiêu?' });
     assert.ok(res && res.text);
-    assert.match(res.text, /(1\.290\.000\.000|1,29|1\.29|tỷ)/i, 'Phải đúng giá Model E trong database');
+    assert.match(res.text, /(7\.500\.000\.000|7,5|7\.5|tỷ)/i, 'Phải đúng giá Tesla Cybertruck trong database');
   });
 
   await t.test('2. So sánh hai mẫu xe thật: Chỉ dùng dữ liệu đã xác minh', async () => {
-    const comparison = await AITools.compareVehicles('model-e', 'vision-s');
+    const comparison = await AITools.compareVehicles('tesla-cybertruck', 'toyota-camry');
     assert.ok(comparison && comparison.found, 'Phải tìm thấy cả 2 xe');
-    assert.equal(comparison.car1.name, 'SIGMA Model E');
-    assert.equal(comparison.car2.name, 'SIGMA Vision S');
+    assert.equal(comparison.car1.name, 'Tesla Cybertruck');
+    assert.equal(comparison.car2.name, 'Toyota Camry 2.5Q');
 
-    const res = await AIService.chat({ message: 'So sánh Model E và Vision S' });
+    const res = await AIService.chat({ message: 'So sánh Tesla Cybertruck và Toyota Camry' });
     assert.ok(res && res.text);
-    assert.match(res.text, /Model E/i);
-    assert.match(res.text, /Vision S/i);
+    assert.match(res.text, /Cybertruck/i);
+    assert.match(res.text, /Camry/i);
     assert.match(res.text, /(quãng đường|công suất|giá|chỗ)/i);
   });
 
   await t.test('3. Ngữ cảnh nhiều lượt: "So sánh hai chiếc trên"', async () => {
     const history = [
-      { role: 'user', text: 'Tư vấn giúp tôi Model E và Grand 7' },
-      { role: 'assistant', text: 'Model E là SUV 5 chỗ giá 1.29 tỷ, còn Grand 7 là SUV 7 chỗ giá 1.79 tỷ.' }
+      { role: 'user', text: 'Tư vấn giúp tôi Tesla Cybertruck và Toyota Camry' },
+      { role: 'assistant', text: 'Tesla Cybertruck là xe bán tải điện giá 7.5 tỷ, còn Toyota Camry là sedan giá 1.405 tỷ.' }
     ];
     const res = await AIService.chat({ message: 'So sánh hai chiếc trên giúp tôi', history });
     assert.ok(res && res.text);
-    assert.match(res.text, /Model E/i);
-    assert.match(res.text, /Grand 7/i);
+    assert.match(res.text, /Cybertruck/i);
+    assert.match(res.text, /Camry/i);
   });
 
   await t.test('4. Tự cập nhật kiến thức xe (Auto-Learn on Add, Update, Delete)', async () => {

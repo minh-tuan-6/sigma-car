@@ -1,0 +1,140 @@
+{
+  "id": "honda-prelude-bp1",
+  "productCode": "HND-PRL-26",
+  "name": "Honda Prelude Concept (BP1)",
+  "brand": "Honda",
+  "version": "e:HEV Hybrid Sports Coupe",
+  "subtitle": "Xe Thể Thao 2 Cửa Thế Hệ Mới e:HEV • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Coupe",
+  "subCategory": "Xe Thể Thao 2 Cửa Thế Hệ Mới e:HEV",
+  "fuel": "hybrid",
+  "price": 1350000000,
+  "priceFormatted": "1.350.000.000 VNĐ",
+  "priceShort": "1.35 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết dự kiến tại thị trường quốc tế và Việt Nam",
+  "badge": "e:HEV Sports Coupe",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 212,
+  "power": "212 HP (156 kW), Hệ thống e:HEV 2 Mô-tơ điện",
+  "engine": "2.0L Atkinson Cycle 4 xi-lanh kết hợp 2 Mô-tơ điện e:HEV",
+  "powertrain": "Hệ truyền động Hybrid e:HEV 2.0L, Hộp số điện tử e-CVT, Cầu trước FWD thể thao",
+  "torque": "315 Nm @ 0 - 2.000 rpm",
+  "acceleration": "6.4s",
+  "topSpeed": "220 km/h",
+  "transmission": "Hộp số thể thao e-CVT giả lập cấp số với lẫy chuyển số",
+  "drive": "FWD / Cầu trước",
+  "seats": 4,
+  "dimensions": "4.300 x 1.790 x 1.300 mm",
+  "wheelbase": "2.575 mm",
+  "groundClearance": "130 mm",
+  "dimensionsDetail": {
+    "overall": "4.300 x 1.790 x 1.300 mm",
+    "lengthMm": 4300,
+    "widthMm": 1790,
+    "heightMm": 1300,
+    "wheelbase": "2.575 mm",
+    "groundClearance": "130 mm",
+    "curbWeight": "1.420 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2026,
+  "warranty": "5 năm hoặc 150.000 km cho toàn bộ hệ thống Pin & Hybrid e:HEV",
+  "warrantyDetail": {
+    "policy": "5 năm hoặc 150.000 km cho toàn bộ hệ thống Pin & Hybrid e:HEV"
+  },
+  "image": "assets/vehicles/honda-prelude-bp1/images/exterior/https_www.carscoops.com_wp-content_uploads_2023_10_honda-prelude-concept-1024x576.webp",
+  "thumbnail": "assets/vehicles/honda-prelude-bp1/images/exterior/https_www.carscoops.com_wp-content_uploads_2023_10_honda-prelude-concept-1024x576.webp",
+  "cover": "assets/vehicles/honda-prelude-bp1/images/exterior/https_www.carscoops.com_wp-content_uploads_2023_10_honda-prelude-concept-1024x576.webp",
+  "galleryImages": [
+    "assets/vehicles/honda-prelude-bp1/images/exterior/https_www.carscoops.com_wp-content_uploads_2023_10_honda-prelude-concept-1024x576.webp",
+    "assets/vehicles/honda-prelude-bp1/images/interior/2026-klims-honda-prelude-colours-9-1260x841-1781253371633-17812533726271282717447.jpg",
+    "assets/vehicles/honda-prelude-bp1/images/dashboard/1.jpg",
+    "assets/vehicles/honda-prelude-bp1/images/engine/2.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/honda-prelude-bp1/images/exterior/https_www.carscoops.com_wp-content_uploads_2023_10_honda-prelude-concept-1024x576.webp"
+    ],
+    "interior": [
+      "assets/vehicles/honda-prelude-bp1/images/interior/2026-klims-honda-prelude-colours-9-1260x841-1781253371633-17812533726271282717447.jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/honda-prelude-bp1/images/dashboard/1.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/honda-prelude-bp1/images/engine/2.jpg"
+    ],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Trắng Băng Bắc Cực Glacier White",
+      "hex": "#F1F5F9",
+      "img": "assets/vehicles/honda-prelude-bp1/images/exterior/https_www.carscoops.com_wp-content_uploads_2023_10_honda-prelude-concept-1024x576.webp"
+    },
+    {
+      "name": "Đỏ Thể Thao Cherry Red Pearl",
+      "hex": "#B91C1C",
+      "img": "assets/vehicles/honda-prelude-bp1/images/interior/2026-klims-honda-prelude-colours-9-1260x841-1781253371633-17812533726271282717447.jpg"
+    },
+    {
+      "name": "Xanh Navy Dạ Quang Deep Pearl Blue",
+      "hex": "#1E293B",
+      "img": "assets/vehicles/honda-prelude-bp1/images/dashboard/1.jpg"
+    }
+  ],
+  "colorsSummary": "Trắng Băng Bắc Cực Glacier White, Đỏ Thể Thao Cherry Red Pearl, Xanh Navy Dạ Quang Deep Pearl Blue",
+  "evSpecs": null,
+  "features": [
+    "Sự hồi sinh của huyền thoại Prelude với ngôn ngữ thiết kế vị lai khí động học",
+    "Động cơ Hybrid thể thao e:HEV tăng tốc tức thì nhờ mô-men xoắn điện 315 Nm",
+    "Mui xe vuốt dốc fastback bằng sợi carbon giảm trọng tâm tối đa",
+    "Cụm đèn pha LED mắt híp ma mị trải dài toàn bộ đầu xe",
+    "Hệ thống đánh lái 4 bánh 4WS điện tử thế hệ mới nhất của Honda"
+  ],
+  "description": "Sự trở lại của biểu tượng thể thao 2 cửa Prelude với hệ truyền động Hybrid e:HEV tiên tiến, kiểu dáng khí động học coupe và khả năng phản hồi chân ga tức thì.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/honda_prelude_bp1.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Honda Prelude Concept (BP1) Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Xe Thể Thao 2 Cửa Thế Hệ Mới e:HEV tối ưu lực ép không khí và khí chất thể thao đặc trưng Honda."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Hệ truyền động Hybrid e:HEV 2.0L, Hộp số điện tử e-CVT, Cầu trước FWD thể thao sản sinh công suất 212 HP (156 kW), Hệ thống e:HEV 2 Mô-tơ điện cùng gia tốc 6.4s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/honda-prelude-bp1/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/honda-prelude-bp1/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

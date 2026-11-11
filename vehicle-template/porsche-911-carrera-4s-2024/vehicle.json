@@ -1,0 +1,149 @@
+{
+  "id": "porsche-911-carrera-4s-2024",
+  "productCode": "POR-992-4S",
+  "name": "Porsche 911 Carrera 4S (992)",
+  "brand": "Porsche",
+  "version": "992 Carrera 4S Twin-Turbo AWD",
+  "subtitle": "Xe Thể Thao Biểu Tượng Nước Đức • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Siêu Xe",
+  "subCategory": "Xe Thể Thao Biểu Tượng Nước Đức",
+  "fuel": "gas",
+  "price": 8850000000,
+  "priceFormatted": "8.850.000.000 VNĐ",
+  "priceShort": "8.85 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá tiêu chuẩn chính hãng Porsche Việt Nam (chưa bao gồm trang bị cá nhân hóa)",
+  "badge": "Iconic 911 Flat-6",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 450,
+  "power": "450 HP (331 kW) @ 6.500 rpm",
+  "engine": "3.0L Boxer 6 xi-lanh nằm ngang (Flat-6) Twin-Turbo",
+  "powertrain": "Động cơ Xăng Boxer 6 xi-lanh Twin-Turbo, Hộp số ly hợp kép 8 cấp Porsche Doppelkupplung (PDK), Dẫn động 4 bánh toàn thời gian PTM AWD",
+  "torque": "530 Nm @ 2.300 - 5.000 rpm",
+  "acceleration": "3.4s (với gói Sport Chrono Package)",
+  "topSpeed": "306 km/h",
+  "transmission": "Ly hợp kép 8 cấp PDK lừng danh",
+  "drive": "AWD / Dẫn động 4 bánh chủ động Porsche Traction Management (PTM)",
+  "seats": 4,
+  "dimensions": "4.519 x 1.852 x 1.300 mm",
+  "wheelbase": "2.450 mm",
+  "groundClearance": "120 mm (Nâng hạ trục trước Front Axle Lift)",
+  "dimensionsDetail": {
+    "overall": "4.519 x 1.852 x 1.300 mm",
+    "lengthMm": 4519,
+    "widthMm": 1852,
+    "heightMm": 1300,
+    "wheelbase": "2.450 mm",
+    "groundClearance": "120 mm",
+    "curbWeight": "1.565 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2024,
+  "warranty": "4 năm chính hãng Porsche Việt Nam không giới hạn số km",
+  "warrantyDetail": {
+    "policy": "4 năm chính hãng Porsche Việt Nam không giới hạn số km"
+  },
+  "image": "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/dang_truoc.jpg",
+  "thumbnail": "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/dang_truoc.jpg",
+  "cover": "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/dang_truoc.jpg",
+  "galleryImages": [
+    "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/dang_truoc.jpg",
+    "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/ben_phai.png",
+    "assets/vehicles/porsche-911-carrera-4s-2024/images/dashboard/ben_tren.jpg",
+    "assets/vehicles/porsche-911-carrera-4s-2024/images/engine/ben_trai.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/dang_truoc.jpg",
+      "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/ben_phai.png"
+    ],
+    "interior": [],
+    "dashboard": [
+      "assets/vehicles/porsche-911-carrera-4s-2024/images/dashboard/ben_tren.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/porsche-911-carrera-4s-2024/images/engine/ben_trai.jpg"
+    ],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Xám Phấn Crayon / Chalk",
+      "hex": "#E2E8F0",
+      "img": "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/dang_truoc.jpg"
+    },
+    {
+      "name": "Đỏ Thể Thao Guards Red",
+      "hex": "#DC2626",
+      "img": "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/ben_phai.png"
+    },
+    {
+      "name": "Vàng Racing Yellow",
+      "hex": "#FACC15",
+      "img": "assets/vehicles/porsche-911-carrera-4s-2024/images/dashboard/ben_tren.jpg"
+    },
+    {
+      "name": "Xanh Biển Shark Blue",
+      "hex": "#0284C7",
+      "img": "assets/vehicles/porsche-911-carrera-4s-2024/images/engine/ben_trai.jpg"
+    },
+    {
+      "name": "Đen Ánh Kim Jet Black Metallic",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/porsche-911-carrera-4s-2024/images/exterior/dang_truoc.jpg"
+    }
+  ],
+  "colorsSummary": "Xám Phấn Crayon / Chalk, Đỏ Thể Thao Guards Red, Vàng Racing Yellow, Xanh Biển Shark Blue, Đen Ánh Kim Jet Black Metallic",
+  "evSpecs": null,
+  "features": [
+    "Động cơ Boxer 6 xi-lanh đặt sau biểu tượng mang lại trọng tâm siêu thấp và lực bám đường vô đối",
+    "Hộp số ly hợp kép PDK 8 cấp sang số chớp nhoáng không hề ngắt quãng mô-men xoắn",
+    "Gói kích hoạt thể thao Sport Chrono Package với đồng hồ cơ học danh giá trên mặt táp-lô",
+    "Hệ thống đánh lái trục sau (Rear-Axle Steering) tăng độ linh hoạt tuyệt đối",
+    "Hệ thống quản lý lực kéo Porsche Torque Vectoring Plus (PTV Plus) và phanh gốm PCCB"
+  ],
+  "description": "Chuẩn mực xe thể thao toàn cầu thế hệ 992 với động cơ Boxer 6 Twin-Turbo 450 mã lực, hộp số PDK 8 cấp, dẫn động 4 bánh PTM và tăng tốc 0-100 km/h trong 3.4 giây.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/porsche_911_carrera_4s_2024.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Porsche 911 Carrera 4S (992) Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Xe Thể Thao Biểu Tượng Nước Đức tối ưu lực ép không khí và khí chất thể thao đặc trưng Porsche."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng Boxer 6 xi-lanh Twin-Turbo, Hộp số ly hợp kép 8 cấp Porsche Doppelkupplung (PDK), Dẫn động 4 bánh toàn thời gian PTM AWD sản sinh công suất 450 HP (331 kW) @ 6.500 rpm cùng gia tốc 3.4s (với gói Sport Chrono Package)."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/porsche-911-carrera-4s-2024/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/porsche-911-carrera-4s-2024/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

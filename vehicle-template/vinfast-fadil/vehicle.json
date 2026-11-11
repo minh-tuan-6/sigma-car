@@ -1,0 +1,142 @@
+{
+  "id": "vinfast-fadil",
+  "productCode": "VNF-FDL-22",
+  "name": "VinFast Fadil",
+  "brand": "VinFast",
+  "version": "1.4L Cao Cấp (Premium)",
+  "subtitle": "Xe Đô Thị Cỡ Nhỏ Hatchback Bán Chạy Nhất • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Hatchback",
+  "subCategory": "Xe Đô Thị Cỡ Nhỏ Hatchback Bán Chạy Nhất",
+  "fuel": "gas",
+  "price": 382000000,
+  "priceFormatted": "382.000.000 VNĐ",
+  "priceShort": "382 triệu",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá tham khảo xe đã qua sử dụng đạt chuẩn kiểm định 176 điểm SIGMACAR",
+  "badge": "Vua Doanh Số Hạng A",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 98,
+  "power": "98 HP (72 kW) @ 6.200 rpm",
+  "engine": "1.4L 4 xi-lanh thẳng hàng DOHC",
+  "powertrain": "Động cơ Xăng 1.4L 4 xi-lanh, Hộp số tự động vô cấp CVT, Cầu trước FWD",
+  "torque": "128 Nm @ 4.400 rpm",
+  "acceleration": "10.5s",
+  "topSpeed": "170 km/h",
+  "transmission": "Tự động vô cấp CVT êm ái",
+  "drive": "FWD / Cầu trước",
+  "seats": 5,
+  "dimensions": "3.676 x 1.632 x 1.530 mm",
+  "wheelbase": "2.385 mm",
+  "groundClearance": "150 mm",
+  "dimensionsDetail": {
+    "overall": "3.676 x 1.632 x 1.530 mm",
+    "lengthMm": 3676,
+    "widthMm": 1632,
+    "heightMm": 1530,
+    "wheelbase": "2.385 mm",
+    "groundClearance": "150 mm",
+    "curbWeight": "992 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2022,
+  "warranty": "Bảo hành chính hãng 10 năm hoặc 200.000 km của VinFast",
+  "warrantyDetail": {
+    "policy": "Bảo hành chính hãng 10 năm hoặc 200.000 km của VinFast"
+  },
+  "image": "assets/vehicles/vinfast-fadil/images/exterior/vinfast-fadil-may-cho-mau-trang_1651222888.jpeg",
+  "thumbnail": "assets/vehicles/vinfast-fadil/images/exterior/vinfast-fadil-may-cho-mau-trang_1651222888.jpeg",
+  "cover": "assets/vehicles/vinfast-fadil/images/exterior/vinfast-fadil-may-cho-mau-trang_1651222888.jpeg",
+  "galleryImages": [
+    "assets/vehicles/vinfast-fadil/images/exterior/vinfast-fadil-may-cho-mau-trang_1651222888.jpeg",
+    "assets/vehicles/vinfast-fadil/images/interior/images (13).jpg",
+    "assets/vehicles/vinfast-fadil/images/dashboard/images (12).jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/vinfast-fadil/images/exterior/vinfast-fadil-may-cho-mau-trang_1651222888.jpeg"
+    ],
+    "interior": [
+      "assets/vehicles/vinfast-fadil/images/interior/images (13).jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/vinfast-fadil/images/dashboard/images (12).jpg"
+    ],
+    "engine": [],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Trắng Brahminy White",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/vinfast-fadil/images/exterior/vinfast-fadil-may-cho-mau-trang_1651222888.jpeg"
+    },
+    {
+      "name": "Đỏ Mystique Red",
+      "hex": "#DC2626",
+      "img": "assets/vehicles/vinfast-fadil/images/interior/images (13).jpg"
+    },
+    {
+      "name": "Xám Neptune Grey",
+      "hex": "#64748B",
+      "img": "assets/vehicles/vinfast-fadil/images/dashboard/images (12).jpg"
+    },
+    {
+      "name": "Cam Action Orange",
+      "hex": "#EA580C",
+      "img": "assets/vehicles/vinfast-fadil/images/exterior/vinfast-fadil-may-cho-mau-trang_1651222888.jpeg"
+    }
+  ],
+  "colorsSummary": "Trắng Brahminy White, Đỏ Mystique Red, Xám Neptune Grey, Cam Action Orange",
+  "evSpecs": null,
+  "features": [
+    "Động cơ 1.4L mạnh mẽ nhất trong toàn bộ phân khúc xe đô thị cỡ A tại Việt Nam",
+    "Đầy đủ tính năng an toàn vượt cấp: Cân bằng điện tử ESC, Kiểm soát lực kéo TCS, Hỗ trợ khởi hành ngang dốc HSA",
+    "Hệ thống chống lật xe ROM độc quyền trong phân khúc xe hạng A",
+    "Màn hình giải trí cảm ứng 7 inch tích hợp Apple CarPlay và camera lùi",
+    "Khung gầm châu Âu chắc nịch cách âm vượt trội khi đi cao tốc"
+  ],
+  "description": "Vua doanh số xe đô thị cỡ nhỏ tại Việt Nam với động cơ 1.4L 98 mã lực mạnh nhất phân khúc A, trang bị an toàn chuẩn 4 sao ASEAN NCAP và khung gầm chuẩn châu Âu.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/vinfast_fadil.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "VinFast Fadil Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Xe Đô Thị Cỡ Nhỏ Hatchback Bán Chạy Nhất tối ưu lực ép không khí và khí chất thể thao đặc trưng VinFast."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 1.4L 4 xi-lanh, Hộp số tự động vô cấp CVT, Cầu trước FWD sản sinh công suất 98 HP (72 kW) @ 6.200 rpm cùng gia tốc 10.5s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/vinfast-fadil/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/vinfast-fadil/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

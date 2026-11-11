@@ -1,0 +1,142 @@
+{
+  "id": "honda-civic-type-r-2018",
+  "productCode": "HND-FK8-18",
+  "name": "Honda Civic Type R (FK8)",
+  "brand": "Honda",
+  "version": "FK8 Turbocharged Hot Hatch",
+  "subtitle": "Hatchback Hiệu Năng Cao Cỡ Nhỏ • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Hatchback",
+  "subCategory": "Hatchback Hiệu Năng Cao Cỡ Nhỏ",
+  "fuel": "gas",
+  "price": 2399000000,
+  "priceFormatted": "2.399.000.000 VNĐ",
+  "priceShort": "2.399 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết phân phối chính hãng tại Việt Nam",
+  "badge": "Chúa tể FWD",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 310,
+  "power": "310 HP (228 kW) @ 6.500 rpm",
+  "engine": "2.0L VTEC Turbo K20C1 (Tăng áp cuộn đôi Single-Scroll)",
+  "powertrain": "Động cơ Xăng 2.0L VTEC Turbo, Hộp số sàn 6 cấp tích hợp Rev-Match, Cầu trước FWD có vi sai xoắn LSD",
+  "torque": "400 Nm @ 2.500 - 4.500 rpm",
+  "acceleration": "5.7s",
+  "topSpeed": "272 km/h",
+  "transmission": "Số sàn 6 cấp (6-Speed Manual với tính năng tự vù ga Rev-Matching)",
+  "drive": "FWD / Cầu trước + Vi sai chống trượt Helical LSD",
+  "seats": 4,
+  "dimensions": "4.557 x 1.877 x 1.434 mm",
+  "wheelbase": "2.699 mm",
+  "groundClearance": "132 mm",
+  "dimensionsDetail": {
+    "overall": "4.557 x 1.877 x 1.434 mm",
+    "lengthMm": 4557,
+    "widthMm": 1877,
+    "heightMm": 1434,
+    "wheelbase": "2.699 mm",
+    "groundClearance": "132 mm",
+    "curbWeight": "1.390 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2018,
+  "warranty": "3 năm hoặc 100.000 km chính hãng Honda Việt Nam",
+  "warrantyDetail": {
+    "policy": "3 năm hoặc 100.000 km chính hãng Honda Việt Nam"
+  },
+  "image": "assets/vehicles/honda-civic-type-r-2018/images/exterior/images (4).jpg",
+  "thumbnail": "assets/vehicles/honda-civic-type-r-2018/images/exterior/images (4).jpg",
+  "cover": "assets/vehicles/honda-civic-type-r-2018/images/exterior/images (4).jpg",
+  "galleryImages": [
+    "assets/vehicles/honda-civic-type-r-2018/images/exterior/images (4).jpg",
+    "assets/vehicles/honda-civic-type-r-2018/images/interior/images (3).jpg",
+    "assets/vehicles/honda-civic-type-r-2018/images/dashboard/images (5).jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/honda-civic-type-r-2018/images/exterior/images (4).jpg"
+    ],
+    "interior": [
+      "assets/vehicles/honda-civic-type-r-2018/images/interior/images (3).jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/honda-civic-type-r-2018/images/dashboard/images (5).jpg"
+    ],
+    "engine": [],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Trắng Championship White",
+      "hex": "#F1F5F9",
+      "img": "assets/vehicles/honda-civic-type-r-2018/images/exterior/images (4).jpg"
+    },
+    {
+      "name": "Đỏ Rallye Red",
+      "hex": "#EF4444",
+      "img": "assets/vehicles/honda-civic-type-r-2018/images/interior/images (3).jpg"
+    },
+    {
+      "name": "Xanh Boost Blue Pearl",
+      "hex": "#0284C7",
+      "img": "assets/vehicles/honda-civic-type-r-2018/images/dashboard/images (5).jpg"
+    },
+    {
+      "name": "Đen Crystal Black Pearl",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/honda-civic-type-r-2018/images/exterior/images (4).jpg"
+    }
+  ],
+  "colorsSummary": "Trắng Championship White, Đỏ Rallye Red, Xanh Boost Blue Pearl, Đen Crystal Black Pearl",
+  "evSpecs": null,
+  "features": [
+    "Kỷ lục xe cầu trước (FWD) nhanh nhất đường đua Nürburgring Nordschleife thời điểm ra mắt",
+    "Hệ thống phanh hiệu năng cao Brembo 4 piston đĩa thông gió 350 mm",
+    "Hệ thống treo thích ứng Adaptive Damper System (ADS) 3 chế độ (Comfort, Sport, +R)",
+    "Ghế thể thao Type R bọc da lộn Alcantara đỏ rực ôm lưng cực chắc",
+    "Cánh lướt gió sợi carbon cỡ lớn tăng lực ép xuống mặt đường (Downforce) ở tốc độ cao"
+  ],
+  "description": "Vua đường đua FWD thế hệ FK8 sở hữu động cơ 2.0L VTEC Turbo 310 mã lực, hộp số sàn 6 cấp chuẩn xác, hệ thống treo thích ứng ADS và cánh gió khí động học tối ưu.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/honda_civic_type_r_2018.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Honda Civic Type R (FK8) Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Hatchback Hiệu Năng Cao Cỡ Nhỏ tối ưu lực ép không khí và khí chất thể thao đặc trưng Honda."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 2.0L VTEC Turbo, Hộp số sàn 6 cấp tích hợp Rev-Match, Cầu trước FWD có vi sai xoắn LSD sản sinh công suất 310 HP (228 kW) @ 6.500 rpm cùng gia tốc 5.7s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/honda-civic-type-r-2018/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/honda-civic-type-r-2018/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

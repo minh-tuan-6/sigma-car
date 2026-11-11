@@ -62,6 +62,9 @@ const VehicleRepository = {
           const pt = (v.powertrain || '').toLowerCase();
           vFuel = (pt.includes('điện') || pt.includes('electric') || v.id.startsWith('model-') || v.id.startsWith('vision-') || v.id.startsWith('city-') || v.id.startsWith('grand-') || v.id.startsWith('x-series') || v.id.startsWith('aero-') || v.id.startsWith('horizon-') || v.id.startsWith('vinfast-')) ? 'ev' : 'gas';
         }
+        if (fLower === 'gas') {
+          return vFuel === 'gas' || vFuel === 'diesel' || vFuel === 'hybrid';
+        }
         return vFuel === fLower;
       });
     }

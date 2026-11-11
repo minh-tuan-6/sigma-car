@@ -18,6 +18,9 @@ cloudflared.exe
 *.mov
 *.mp4
 Fix website/
+Xe/
+Xe_unpacked/
+tmp_*/
 
 # System files & IDE
 .DS_Store

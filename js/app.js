@@ -2224,6 +2224,18 @@ const AppState = {
       window._activeDetail3DViewer = null;
     }
 
+    if (!car) {
+      viewsContainer.innerHTML = `
+        <div class="container" style="padding: 80px 20px; text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🚗</div>
+          <h2 style="font-size: 24px; font-weight: 800; color: var(--text-dark);">Không tìm thấy thông tin xe</h2>
+          <p style="color: var(--text-muted); margin-top: 8px;">Hiện tại danh mục xe đang trống hoặc mẫu xe không tồn tại.</p>
+          <button class="btn-primary" onclick="window.location.hash='home'" style="margin-top: 20px;">Về trang chủ</button>
+        </div>
+      `;
+      return;
+    }
+
     const isElectric = !!(car.battery || (car.range && car.range > 0) || getVehicleFuel(car) === 'ev');
     const spec1Title = isElectric ? "Quãng đường (WLTP/EPA)" : "Động cơ / Dung tích";
     const spec1Val = isElectric ? `${car.range || 500} km` : (car.engine || car.power?.split(',')[0] || 'Xăng / DOHC');
@@ -2315,7 +2327,7 @@ const AppState = {
 
     const model3dPath = (car.model3d && car.model3d.glbPath)
       ? car.model3d.glbPath
-      : (car.id === 'tesla-cybertruck' ? 'assets/models/tesla_cybertruck.glb' : 'assets/models/sigma-car-3d.glb');
+      : 'assets/models/tesla_cybertruck.glb';
 
     const trimsHTML = (Array.isArray(car.trims) && car.trims.length > 0) ? `
       <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-xl); padding:32px; margin-top:32px;">
@@ -3705,11 +3717,22 @@ const AppState = {
     }
 
     const car = getVehicleById(AppState.currentDetailCar) || AppState.vehiclesList[0];
+    if (!car) {
+      viewsContainer.innerHTML = `
+        <div class="container" style="padding: 80px 20px; text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🥽</div>
+          <h2 style="font-size: 24px; font-weight: 800; color: var(--text-dark);">Chưa có mẫu xe nào trong Showroom 360°</h2>
+          <p style="color: var(--text-muted); margin-top: 8px;">Hiện tại danh mục xe đang trống.</p>
+          <button class="btn-primary" onclick="window.location.hash='home'" style="margin-top: 20px;">Về trang chủ</button>
+        </div>
+      `;
+      return;
+    }
 
     const isElectric = !!(car.battery || (car.range && car.range > 0) || getVehicleFuel(car) === 'ev');
     const modelUrl = (car.model3d && car.model3d.glbPath)
       ? car.model3d.glbPath
-      : (car.id === 'tesla-cybertruck' ? 'assets/models/tesla_cybertruck.glb' : 'assets/models/sigma-car-3d.glb');
+      : 'assets/models/tesla_cybertruck.glb';
 
     const wheelsList = SIGMA_DATA.wheels || [
       { id: 'wheel-21-sport', name: '21" Sport Wheels', label: '21" Sport', price: 0, tag: 'Tiêu chuẩn', desc: 'Mâm đúc hợp kim đa chấu thể thao khí động học' },
@@ -4321,6 +4344,17 @@ const AppState = {
 
     // 2. Resolve target vehicle & pre-selected configuration
     const car = getVehicleById(AppState.currentDetailCar) || AppState.vehiclesList[0];
+    if (!car) {
+      viewsContainer.innerHTML = `
+        <div class="container" style="padding: 80px 20px; text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 16px;">🥽</div>
+          <h2 style="font-size: 24px; font-weight: 800; color: var(--text-dark);">Chưa có mẫu xe nào trong Showroom 360°</h2>
+          <p style="color: var(--text-muted); margin-top: 8px;">Hiện tại danh mục xe đang trống.</p>
+          <button class="btn-primary" onclick="window.location.hash='home'" style="margin-top: 20px;">Về trang chủ</button>
+        </div>
+      `;
+      return;
+    }
     const cfg = getVehicleConfig(car.id);
 
     const carColors = (car.colors && car.colors.length > 0) ? car.colors : [
@@ -4926,6 +4960,17 @@ const AppState = {
   // =================================================================
   function renderArAtHomePage() {
     const car = AppState.vehiclesList.find(c => c.id === AppState.currentDetailCar) || AppState.vehiclesList[0];
+    if (!car) {
+      viewsContainer.innerHTML = `
+        <div class="container" style="padding: 80px 20px; text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 16px;">📦</div>
+          <h2 style="font-size: 24px; font-weight: 800; color: var(--text-dark);">Chưa có mẫu xe nào để trải nghiệm AR AI</h2>
+          <p style="color: var(--text-muted); margin-top: 8px;">Hiện tại danh mục xe đang trống.</p>
+          <button class="btn-primary" onclick="window.location.hash='home'" style="margin-top: 20px;">Về trang chủ</button>
+        </div>
+      `;
+      return;
+    }
 
     const carColors = (car.colors && car.colors.length > 0) ? car.colors : [
       { name: 'Xanh Cyan Ánh Kim', hex: '#0284C7', img: car.image },

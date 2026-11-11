@@ -1,0 +1,151 @@
+{
+  "id": "ferrari-f50-1995",
+  "productCode": "FER-F50-95",
+  "name": "Ferrari F50",
+  "brand": "Ferrari",
+  "version": "Kỷ Niệm 50 Năm Ferrari (1995)",
+  "subtitle": "Siêu Xe F1 Cho Đường Phố (Chỉ 349 Chiếc Toàn Cầu) • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Siêu Xe",
+  "subCategory": "Siêu Xe F1 Cho Đường Phố (Chỉ 349 Chiếc Toàn Cầu)",
+  "fuel": "gas",
+  "price": 85000000000,
+  "priceFormatted": "85.000.000.000 VNĐ",
+  "priceShort": "85 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá đấu giá sưu tầm quốc tế quy đổi VNĐ (~3.5 - 4.5 triệu USD)",
+  "badge": "Ferrari F1 Heritage",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 520,
+  "power": "520 HP (382 kW) @ 8.500 rpm",
+  "engine": "4.7L V12 DOHC 60 van (Phát triển trực tiếp từ động cơ Ferrari F1 Tipo 036)",
+  "powertrain": "Động cơ V12 4.7L Hút khí tự nhiên đặt giữa, Hộp số sàn 6 cấp, Cầu sau RWD",
+  "torque": "471 Nm @ 6.500 rpm",
+  "acceleration": "3.87s",
+  "topSpeed": "325 km/h",
+  "transmission": "Số sàn 6 cấp có rãnh chuyển số kim loại (6-Speed Gated Manual)",
+  "drive": "RWD / Cầu sau",
+  "seats": 2,
+  "dimensions": "4.480 x 1.986 x 1.120 mm",
+  "wheelbase": "2.580 mm",
+  "groundClearance": "110 mm",
+  "dimensionsDetail": {
+    "overall": "4.480 x 1.986 x 1.120 mm",
+    "lengthMm": 4480,
+    "widthMm": 1986,
+    "heightMm": 1120,
+    "wheelbase": "2.580 mm",
+    "groundClearance": "110 mm",
+    "curbWeight": "1.230 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 1995,
+  "warranty": "Chứng chỉ Ferrari Classiche xác thực nguyên bản 100%",
+  "warrantyDetail": {
+    "policy": "Chứng chỉ Ferrari Classiche xác thực nguyên bản 100%"
+  },
+  "image": "assets/vehicles/ferrari-f50-1995/images/exterior/5.jpg",
+  "thumbnail": "assets/vehicles/ferrari-f50-1995/images/exterior/5.jpg",
+  "cover": "assets/vehicles/ferrari-f50-1995/images/exterior/5.jpg",
+  "galleryImages": [
+    "assets/vehicles/ferrari-f50-1995/images/exterior/5.jpg",
+    "assets/vehicles/ferrari-f50-1995/images/interior/7.jpg",
+    "assets/vehicles/ferrari-f50-1995/images/dashboard/9.jpg",
+    "assets/vehicles/ferrari-f50-1995/images/engine/8.jpg",
+    "assets/vehicles/ferrari-f50-1995/images/gallery/3.webp",
+    "assets/vehicles/ferrari-f50-1995/images/gallery/4.jpg",
+    "assets/vehicles/ferrari-f50-1995/images/gallery/1.webp",
+    "assets/vehicles/ferrari-f50-1995/images/gallery/2.png",
+    "assets/vehicles/ferrari-f50-1995/images/gallery/6.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/ferrari-f50-1995/images/exterior/5.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/ferrari-f50-1995/images/interior/7.jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/ferrari-f50-1995/images/dashboard/9.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/ferrari-f50-1995/images/engine/8.jpg"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/ferrari-f50-1995/images/gallery/3.webp",
+      "assets/vehicles/ferrari-f50-1995/images/gallery/4.jpg",
+      "assets/vehicles/ferrari-f50-1995/images/gallery/1.webp",
+      "assets/vehicles/ferrari-f50-1995/images/gallery/2.png",
+      "assets/vehicles/ferrari-f50-1995/images/gallery/6.jpg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Đỏ Truyền Thống Rosso Corsa",
+      "hex": "#DC2626",
+      "img": "assets/vehicles/ferrari-f50-1995/images/exterior/5.jpg"
+    },
+    {
+      "name": "Vàng Giallo Modena",
+      "hex": "#FACC15",
+      "img": "assets/vehicles/ferrari-f50-1995/images/interior/7.jpg"
+    },
+    {
+      "name": "Đen Nero",
+      "hex": "#0B0F19",
+      "img": "assets/vehicles/ferrari-f50-1995/images/dashboard/9.jpg"
+    }
+  ],
+  "colorsSummary": "Đỏ Truyền Thống Rosso Corsa, Vàng Giallo Modena, Đen Nero",
+  "evSpecs": null,
+  "features": [
+    "Động cơ F1 V12 được bắt ốc trực tiếp vào khung gầm carbon đóng vai trò cấu trúc chịu lực",
+    "Thân vỏ hoàn toàn bằng sợi Carbon và Kevlar siêu nhẹ mang lại trọng lượng chỉ 1.230 kg",
+    "Hộp số sàn 6 cấp rãnh lộ thiên với cần số kim loại tiếng gõ cơ khí đặc trưng Ferrari",
+    "Mui trần tháo rời Barchetta độc đáo chuyển đổi giữa Coupe và Roadster",
+    "Không trang bị trợ lực lái, không ABS, không phanh trợ lực — cảm giác lái thuần chất F1"
+  ],
+  "description": "Cỗ máy Formula 1 hợp pháp trên đường phố kỷ niệm 50 năm thành lập Ferrari với khối động cơ V12 4.7L 520 mã lực, hộp số sàn rãnh số kim loại và chỉ 349 chiếc toàn cầu.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/ferrari_f50_1995.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Ferrari F50 Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Siêu Xe F1 Cho Đường Phố (Chỉ 349 Chiếc Toàn Cầu) tối ưu lực ép không khí và khí chất thể thao đặc trưng Ferrari."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ V12 4.7L Hút khí tự nhiên đặt giữa, Hộp số sàn 6 cấp, Cầu sau RWD sản sinh công suất 520 HP (382 kW) @ 8.500 rpm cùng gia tốc 3.87s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/ferrari-f50-1995/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/ferrari-f50-1995/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

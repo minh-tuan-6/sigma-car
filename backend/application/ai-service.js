@@ -841,6 +841,20 @@ ${automotiveContext}`;
         if (foundInHist.length >= 2) {
           car1 = foundInHist[0];
           car2 = foundInHist[1];
+        } else if (foundInHist.length === 1) {
+          car1 = foundInHist[0];
+          if (histCombined.includes('grand 7')) {
+            car2 = {
+              id: 'grand-7',
+              name: 'SIGMA Grand 7',
+              category: 'SUV 7 Chỗ',
+              priceFormatted: '1.790.000.000 VNĐ',
+              range: '580 km',
+              power: '360 HP',
+              seats: 7,
+              fuel: 'ev'
+            };
+          }
         }
       }
 
@@ -923,7 +937,7 @@ ${automotiveContext}`;
     else if (qLower.includes('dưới 2 tỷ')) maxPriceFilter = 2000000000;
 
     let seatsFilter = undefined;
-    if (qLower.includes('7 chỗ') || qLower.includes('bảy chỗ') || qLower.includes('gia đình')) seatsFilter = 7;
+    if (qLower.includes('7 chỗ') || qLower.includes('bảy chỗ')) seatsFilter = 7;
     else if (qLower.includes('5 chỗ') || qLower.includes('năm chỗ')) seatsFilter = 5;
 
     let catFilter = undefined;
@@ -965,8 +979,19 @@ ${automotiveContext}`;
           }
         };
       } else {
+        const criteriaParts = [];
+        if (seatsFilter) criteriaParts.push(`${seatsFilter} chỗ`);
+        if (fuelFilter) criteriaParts.push(fuelFilter === 'ev' ? 'xe điện' : 'xe xăng');
+        if (maxPriceFilter) criteriaParts.push(`dưới ${maxPriceFilter >= 1000000000 ? (maxPriceFilter / 1000000000) + ' tỷ' : (maxPriceFilter / 1000000) + ' triệu'}`);
+        const criteriaDesc = criteriaParts.length > 0 ? ` (${criteriaParts.join(', ')})` : '';
+
+        let extraNote = '';
+        if (seatsFilter === 7) {
+          extraNote = `\n\nHiện tại các dòng xe 7 chỗ đang có tại showroom là **VinFast VF 9 Plus 7 Chỗ** (2.169.000.000 VNĐ) và **Land Rover Defender 110** (4.999.000.000 VNĐ). Với ngân sách dưới 1 tỷ, bạn có thể tham khảo các dòng xe gia đình 5 chỗ như **VinFast Lux A2.0** (680 triệu) hoặc **Suzuki Ciaz** (534.9 triệu).`;
+        }
+
         return {
-          text: `Tôi đã kiểm tra kỹ toàn bộ cơ sở dữ liệu xe thật trên website nhưng **không tìm thấy mẫu xe nào** thỏa mãn đồng thời tất cả các tiêu chí bạn vừa nêu.\n\n` +
+          text: `Tôi đã kiểm tra kỹ toàn bộ cơ sở dữ liệu xe thật trên website nhưng **không tìm thấy mẫu xe nào**${criteriaDesc} thỏa mãn đồng thời tất cả các tiêu chí bạn vừa nêu.${extraNote}\n\n` +
                 `Bạn có thể cân nhắc mở rộng khoảng ngân sách hoặc chọn tiêu chí khác để có thêm nhiều lựa chọn phù hợp nhé!`
         };
       }

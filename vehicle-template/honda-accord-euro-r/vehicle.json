@@ -1,0 +1,143 @@
+{
+  "id": "honda-accord-euro-r",
+  "productCode": "HND-CL7-ER",
+  "name": "Honda Accord Euro-R (CL7)",
+  "brand": "Honda",
+  "version": "CL7 Euro-R JDM Spec",
+  "subtitle": "Sedan Thể Thao Hiệu Năng Cao JDM • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Sedan",
+  "subCategory": "Sedan Thể Thao Hiệu Năng Cao JDM",
+  "fuel": "gas",
+  "price": 950000000,
+  "priceFormatted": "950.000.000 VNĐ",
+  "priceShort": "950 triệu",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá xe sưu tầm nhập khẩu JDM tham khảo",
+  "badge": "JDM Legend VTEC",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 220,
+  "power": "220 HP (162 kW) @ 8.000 rpm",
+  "engine": "2.0L K20A DOHC i-VTEC Hút khí tự nhiên (Nắp máy đỏ Red Top)",
+  "powertrain": "Động cơ Xăng 2.0L K20A DOHC i-VTEC, Hộp số sàn 6 cấp tỷ số truyền ngắn, Vi sai xoắn Helical LSD, Cầu trước FWD",
+  "torque": "206 Nm @ 6.000 rpm",
+  "acceleration": "6.7s",
+  "topSpeed": "235 km/h",
+  "transmission": "Số sàn 6 cấp (6-Speed Manual với cần số nhôm tiện nguyên khối)",
+  "drive": "FWD / Cầu trước + Helical Limited Slip Differential (LSD)",
+  "seats": 5,
+  "dimensions": "4.665 x 1.760 x 1.445 mm",
+  "wheelbase": "2.670 mm",
+  "groundClearance": "140 mm",
+  "dimensionsDetail": {
+    "overall": "4.665 x 1.760 x 1.445 mm",
+    "lengthMm": 4665,
+    "widthMm": 1760,
+    "heightMm": 1445,
+    "wheelbase": "2.670 mm",
+    "groundClearance": "140 mm",
+    "curbWeight": "1.390 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2006,
+  "warranty": "Kiểm định 176 điểm chính hãng SIGMACAR Certified",
+  "warrantyDetail": {
+    "policy": "Kiểm định 176 điểm chính hãng SIGMACAR Certified"
+  },
+  "image": "assets/vehicles/honda-accord-euro-r/images/exterior/4.jpg",
+  "thumbnail": "assets/vehicles/honda-accord-euro-r/images/exterior/4.jpg",
+  "cover": "assets/vehicles/honda-accord-euro-r/images/exterior/4.jpg",
+  "galleryImages": [
+    "assets/vehicles/honda-accord-euro-r/images/exterior/4.jpg",
+    "assets/vehicles/honda-accord-euro-r/images/interior/3.webp",
+    "assets/vehicles/honda-accord-euro-r/images/dashboard/7.jpg",
+    "assets/vehicles/honda-accord-euro-r/images/engine/2.webp",
+    "assets/vehicles/honda-accord-euro-r/images/gallery/1.webp"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/honda-accord-euro-r/images/exterior/4.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/honda-accord-euro-r/images/interior/3.webp"
+    ],
+    "dashboard": [
+      "assets/vehicles/honda-accord-euro-r/images/dashboard/7.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/honda-accord-euro-r/images/engine/2.webp"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/honda-accord-euro-r/images/gallery/1.webp"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Trắng Ngọc Arctic White Pearl",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/honda-accord-euro-r/images/exterior/4.jpg"
+    },
+    {
+      "name": "Xanh Ánh Kim Nighthawk Blue Pearl",
+      "hex": "#1E3A8A",
+      "img": "assets/vehicles/honda-accord-euro-r/images/interior/3.webp"
+    },
+    {
+      "name": "Bạc Satin Silver Metallic",
+      "hex": "#94A3B8",
+      "img": "assets/vehicles/honda-accord-euro-r/images/dashboard/7.jpg"
+    }
+  ],
+  "colorsSummary": "Trắng Ngọc Arctic White Pearl, Xanh Ánh Kim Nighthawk Blue Pearl, Bạc Satin Silver Metallic",
+  "evSpecs": null,
+  "features": [
+    "Khối động cơ K20A Red Top danh tiếng xoay vòng tua lên tới 8.300 rpm",
+    "Ghế thể thao bọc da lộn Recaro chính hãng tiêu chuẩn ôm sát cơ thể",
+    "Vô lăng thể thao 3 chấu bọc da Momo tích hợp logo Honda đỏ JDM",
+    "Bộ vi sai xoắn Helical LSD dập tắt hiện tượng trượt bánh khi bo cua tốc độ cao",
+    "Hệ thống treo tay đòn kép trước Double Wishbone và đa liên kết thể thao sau"
+  ],
+  "description": "Biểu tượng sedan thể thao JDM của Honda với động cơ K20A 220 mã lực vòng tua 8.000 rpm, ghế Recaro, vô lăng Momo và hộp số sàn 6 cấp tỉ số truyền ngắn.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/honda_accord_euro_r.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Honda Accord Euro-R (CL7) Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Sedan Thể Thao Hiệu Năng Cao JDM tối ưu lực ép không khí và khí chất thể thao đặc trưng Honda."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 2.0L K20A DOHC i-VTEC, Hộp số sàn 6 cấp tỷ số truyền ngắn, Vi sai xoắn Helical LSD, Cầu trước FWD sản sinh công suất 220 HP (162 kW) @ 8.000 rpm cùng gia tốc 6.7s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/honda-accord-euro-r/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/honda-accord-euro-r/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

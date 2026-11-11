@@ -1,0 +1,129 @@
+{
+  "id": "maybach-exelero-2005",
+  "productCode": "MAY-EXE-05",
+  "name": "Maybach Exelero",
+  "brand": "Maybach",
+  "version": "Coupe Độc Bản V12 Twin-Turbo (1 of 1)",
+  "subtitle": "Siêu Coupe Độc Bản Đắt Giá Nhất Lịch Sử Maybach • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Coupe",
+  "subCategory": "Siêu Coupe Độc Bản Đắt Giá Nhất Lịch Sử Maybach",
+  "fuel": "gas",
+  "price": 190000000000,
+  "priceFormatted": "190.000.000.000 VNĐ",
+  "priceShort": "190 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá trị sưu tầm độc bản thế giới (~8 - 10 triệu USD)",
+  "badge": "Độc Bản 1 of 1",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 700,
+  "power": "700 HP (515 kW) @ 5.000 rpm",
+  "engine": "5.9L V12 Twin-Turbo (3 van mỗi xi-lanh)",
+  "powertrain": "Động cơ Xăng 5.9L V12 Twin-Turbo, Hộp số tự động 5 cấp 5G-Tronic gia cường, Cầu sau RWD",
+  "torque": "1.020 Nm @ 2.500 rpm",
+  "acceleration": "4.4s",
+  "topSpeed": "351.4 km/h (Kỷ lục thế giới trên đường đua Nardò)",
+  "transmission": "Tự động 5 cấp thể thao 5G-Tronic",
+  "drive": "RWD / Cầu sau",
+  "seats": 2,
+  "dimensions": "5.890 x 2.140 x 1.390 mm",
+  "wheelbase": "3.390 mm",
+  "groundClearance": "130 mm",
+  "dimensionsDetail": {
+    "overall": "5.890 x 2.140 x 1.390 mm",
+    "lengthMm": 5890,
+    "widthMm": 2140,
+    "heightMm": 1390,
+    "wheelbase": "3.390 mm",
+    "groundClearance": "130 mm",
+    "curbWeight": "2.660 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2005,
+  "warranty": "Bảo dưỡng và xác thực độc bản bảo tàng Maybach Đức",
+  "warrantyDetail": {
+    "policy": "Bảo dưỡng và xác thực độc bản bảo tàng Maybach Đức"
+  },
+  "image": "assets/vehicles/maybach-exelero-2005/images/exterior/dang_truoc.jpeg",
+  "thumbnail": "assets/vehicles/maybach-exelero-2005/images/exterior/dang_truoc.jpeg",
+  "cover": "assets/vehicles/maybach-exelero-2005/images/exterior/dang_truoc.jpeg",
+  "galleryImages": [
+    "assets/vehicles/maybach-exelero-2005/images/exterior/dang_truoc.jpeg",
+    "assets/vehicles/maybach-exelero-2005/images/exterior/dang_sau.jpg",
+    "assets/vehicles/maybach-exelero-2005/images/dashboard/ben_trai.jpeg",
+    "assets/vehicles/maybach-exelero-2005/images/engine/ben_phai.webp"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/maybach-exelero-2005/images/exterior/dang_truoc.jpeg",
+      "assets/vehicles/maybach-exelero-2005/images/exterior/dang_sau.jpg"
+    ],
+    "interior": [],
+    "dashboard": [
+      "assets/vehicles/maybach-exelero-2005/images/dashboard/ben_trai.jpeg"
+    ],
+    "engine": [
+      "assets/vehicles/maybach-exelero-2005/images/engine/ben_phai.webp"
+    ],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Đen Quý Tộc Piano Black Gloss",
+      "hex": "#0B0F19",
+      "img": "assets/vehicles/maybach-exelero-2005/images/exterior/dang_truoc.jpeg"
+    }
+  ],
+  "colorsSummary": "Đen Quý Tộc Piano Black Gloss",
+  "evSpecs": null,
+  "features": [
+    "Siêu coupe độc nhất vô nhị chỉ có đúng 1 chiếc duy nhất tồn tại trên toàn cầu",
+    "Được hãng lốp Fulda đặt hàng phát triển riêng để thử nghiệm lốp siêu tốc độ cao vượt 350 km/h",
+    "Chiều dài khổng lồ gần 5.9 mét kết hợp mui vuốt dài khí động học phong cách thập niên 1930",
+    "Bộ mâm bánh xe đặc chế kích thước 23 inch bọc lốp Fulda 315/25 ZR23 khổng lồ",
+    "Nội thất bọc da thuộc cao cấp đan xen sợi carbon đen bóng và nhôm nguyên khối phay xước"
+  ],
+  "description": "Tuyệt tác độc bản 1 chiếc duy nhất trên thế giới của Maybach với động cơ V12 Twin-Turbo 700 mã lực, dài gần 5.9m và tốc độ kỷ lục 351.4 km/h tại đường đua Nardò.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/maybach_exelero_2005.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Maybach Exelero Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Siêu Coupe Độc Bản Đắt Giá Nhất Lịch Sử Maybach tối ưu lực ép không khí và khí chất thể thao đặc trưng Maybach."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 5.9L V12 Twin-Turbo, Hộp số tự động 5 cấp 5G-Tronic gia cường, Cầu sau RWD sản sinh công suất 700 HP (515 kW) @ 5.000 rpm cùng gia tốc 4.4s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/maybach-exelero-2005/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/maybach-exelero-2005/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

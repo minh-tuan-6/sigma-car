@@ -11,11 +11,11 @@ describe('End-to-End Workflow: Complete EV Commerce Customer & Dealer Journey', 
   let createdAppointmentId = null;
 
   it('Step 1: Buyer browses catalog and queries vehicle specifications', async () => {
-    const res = await fetch(`${BASE_URL}/vehicles/model-e`);
+    const res = await fetch(`${BASE_URL}/vehicles/tesla-cybertruck`);
     const data = await res.json();
     assert.strictEqual(res.status, 200);
-    assert.strictEqual(data.data.name, 'SIGMA Model E');
-    assert.strictEqual(data.data.price, 1290000000);
+    assert.strictEqual(data.data.name, 'Tesla Cybertruck');
+    assert.strictEqual(data.data.price, 7500000000);
   });
 
   it('Step 2: Buyer registers account (Server forces BUYER role)', async () => {
@@ -86,7 +86,7 @@ describe('End-to-End Workflow: Complete EV Commerce Customer & Dealer Journey', 
         'Authorization': `Bearer ${buyerToken}`
       },
       body: JSON.stringify({
-        vehicleId: 'model-e',
+        vehicleId: 'tesla-cybertruck',
         branchId: 'hn-caugiay',
         buyerName: buyerUser.fullName,
         buyerPhone: buyerUser.phone,

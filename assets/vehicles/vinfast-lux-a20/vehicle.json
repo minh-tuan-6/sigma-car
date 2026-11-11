@@ -1,0 +1,142 @@
+{
+  "id": "vinfast-lux-a20",
+  "productCode": "VNF-LUXA-22",
+  "name": "VinFast Lux A2.0",
+  "brand": "VinFast",
+  "version": "2.0L Turbo Cao Cấp (Premium 228 HP)",
+  "subtitle": "Sedan Hạng E Khung Gầm BMW & Pininfarina • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Sedan",
+  "subCategory": "Sedan Hạng E Khung Gầm BMW & Pininfarina",
+  "fuel": "gas",
+  "price": 680000000,
+  "priceFormatted": "680.000.000 VNĐ",
+  "priceShort": "680 triệu",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá tham khảo xe kiểm định chính hãng SIGMACAR Certified 176 điểm",
+  "badge": "Chất Đức - Thiết Kế Ý",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 228,
+  "power": "228 HP (168 kW) @ 5.000 - 6.000 rpm",
+  "engine": "2.0L DOHC Turbo 4 xi-lanh thẳng hàng (Nền tảng động cơ BMW N20)",
+  "powertrain": "Động cơ Xăng 2.0L Turbo BMW, Hộp số tự động 8 cấp ZF danh tiếng, Cầu sau RWD",
+  "torque": "350 Nm @ 1.750 - 4.500 rpm",
+  "acceleration": "7.1s",
+  "topSpeed": "240 km/h",
+  "transmission": "Tự động 8 cấp ZF (Đức)",
+  "drive": "RWD / Cầu sau (Dẫn động cầu sau thể thao)",
+  "seats": 5,
+  "dimensions": "4.973 x 1.900 x 1.500 mm",
+  "wheelbase": "2.968 mm (Chuẩn sedan hạng E)",
+  "groundClearance": "150 mm",
+  "dimensionsDetail": {
+    "overall": "4.973 x 1.900 x 1.500 mm",
+    "lengthMm": 4973,
+    "widthMm": 1900,
+    "heightMm": 1500,
+    "wheelbase": "2.968 mm",
+    "groundClearance": "150 mm",
+    "curbWeight": "1.795 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2022,
+  "warranty": "Bảo hành chính hãng 10 năm hoặc 200.000 km của VinFast",
+  "warrantyDetail": {
+    "policy": "Bảo hành chính hãng 10 năm hoặc 200.000 km của VinFast"
+  },
+  "image": "assets/vehicles/vinfast-lux-a20/images/exterior/Xe-Vinfast-Lux-A-6.jpg",
+  "thumbnail": "assets/vehicles/vinfast-lux-a20/images/exterior/Xe-Vinfast-Lux-A-6.jpg",
+  "cover": "assets/vehicles/vinfast-lux-a20/images/exterior/Xe-Vinfast-Lux-A-6.jpg",
+  "galleryImages": [
+    "assets/vehicles/vinfast-lux-a20/images/exterior/Xe-Vinfast-Lux-A-6.jpg",
+    "assets/vehicles/vinfast-lux-a20/images/interior/images (14).jpg",
+    "assets/vehicles/vinfast-lux-a20/images/dashboard/images (15).jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/vinfast-lux-a20/images/exterior/Xe-Vinfast-Lux-A-6.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/vinfast-lux-a20/images/interior/images (14).jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/vinfast-lux-a20/images/dashboard/images (15).jpg"
+    ],
+    "engine": [],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Trắng Brahminy White",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/vinfast-lux-a20/images/exterior/Xe-Vinfast-Lux-A-6.jpg"
+    },
+    {
+      "name": "Đen Jet Black",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/vinfast-lux-a20/images/interior/images (14).jpg"
+    },
+    {
+      "name": "Đỏ Mystique Red",
+      "hex": "#B91C1C",
+      "img": "assets/vehicles/vinfast-lux-a20/images/dashboard/images (15).jpg"
+    },
+    {
+      "name": "Xanh Cormorant Brown",
+      "hex": "#1E3A8A",
+      "img": "assets/vehicles/vinfast-lux-a20/images/exterior/Xe-Vinfast-Lux-A-6.jpg"
+    }
+  ],
+  "colorsSummary": "Trắng Brahminy White, Đen Jet Black, Đỏ Mystique Red, Xanh Cormorant Brown",
+  "evSpecs": null,
+  "features": [
+    "Nền tảng khung gầm và hệ thống treo nhôm độc quyền chia sẻ từ BMW 5-Series (F10)",
+    "Thiết kế ngoại thất quý phái chắp bút bởi studio lừng danh Pininfarina (Ý)",
+    "Dẫn động cầu sau RWD kết hợp hộp số 8 cấp ZF mang lại cảm giác lái đầm chắc tuyệt hảo",
+    "Nội thất da Nappa thượng hạng kèm ốp gỗ hoặc nhôm phay cao cấp",
+    "Hệ thống âm thanh 13 loa có âm-ly rời, sạc không dây và điều hòa độc lập 2 vùng"
+  ],
+  "description": "Sedan hạng E cao cấp mang tinh hoa thiết kế Ý Pininfarina và cơ khí Đức với khung gầm BMW, động cơ 2.0L Turbo 228 mã lực, dẫn động cầu sau RWD và hộp số 8 cấp ZF.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/vinfast_lux_a20.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "VinFast Lux A2.0 Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Sedan Hạng E Khung Gầm BMW & Pininfarina tối ưu lực ép không khí và khí chất thể thao đặc trưng VinFast."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 2.0L Turbo BMW, Hộp số tự động 8 cấp ZF danh tiếng, Cầu sau RWD sản sinh công suất 228 HP (168 kW) @ 5.000 - 6.000 rpm cùng gia tốc 7.1s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/vinfast-lux-a20/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/vinfast-lux-a20/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

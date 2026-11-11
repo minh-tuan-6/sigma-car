@@ -978,7 +978,9 @@ const EcommerceService = {
     const validatedMedia = validateAttachments(media);
 
     return runInTransaction(async (state) => {
-      const vehicle = state.vehicles.find(v => v.id === vehicleId) || state.certifiedVehicles.find(v => v.id === vehicleId);
+      const vehicle = state.vehicles.find(v => v.id === vehicleId) ||
+        (Array.isArray(state.certifiedVehicles) && state.certifiedVehicles.find(v => v.id === vehicleId)) ||
+        (Array.isArray(state.orders) && state.orders.find(o => o.vehicleId === vehicleId));
       if (!vehicle) throw new Error('Không tìm thấy mẫu xe cần đánh giá.');
 
       // Anti-duplicate spam check
@@ -1163,7 +1165,9 @@ const EcommerceService = {
     }
 
     return runInTransaction(async (state) => {
-      const vehicle = state.vehicles.find(v => v.id === vehicleId) || state.certifiedVehicles.find(v => v.id === vehicleId);
+      const vehicle = state.vehicles.find(v => v.id === vehicleId) ||
+        (Array.isArray(state.certifiedVehicles) && state.certifiedVehicles.find(v => v.id === vehicleId)) ||
+        (Array.isArray(state.orders) && state.orders.find(o => o.vehicleId === vehicleId));
       const qObj = {
         id: `QNA-${Date.now()}`,
         vehicleId,

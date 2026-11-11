@@ -1,0 +1,150 @@
+{
+  "id": "honda-civic-rs",
+  "productCode": "HND-CVRS-25",
+  "name": "Honda Civic RS",
+  "brand": "Honda",
+  "version": "RS 1.5L VTEC Turbo (Thế hệ mới 2025)",
+  "subtitle": "Sedan Thể Thao Hạng C Phổ Biến Nhất • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Sedan",
+  "subCategory": "Sedan Thể Thao Hạng C Phổ Biến Nhất",
+  "fuel": "gas",
+  "price": 889000000,
+  "priceFormatted": "889.000.000 VNĐ",
+  "priceShort": "889 triệu",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết chính hãng Honda Việt Nam",
+  "badge": "Sedan C Best-Seller",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 178,
+  "power": "178 HP (131 kW) @ 6.000 rpm",
+  "engine": "1.5L DOHC VTEC Turbo 4 xi-lanh thẳng hàng",
+  "powertrain": "Động cơ Xăng 1.5L VTEC Turbo, Hộp số tự động vô cấp CVT với lẫy chuyển số 7 cấp giả lập, Cầu trước FWD",
+  "torque": "240 Nm @ 1.700 - 4.500 rpm",
+  "acceleration": "7.8s",
+  "topSpeed": "210 km/h",
+  "transmission": "Vô cấp CVT thể thao tích hợp lẫy chuyển số",
+  "drive": "FWD / Cầu trước",
+  "seats": 5,
+  "dimensions": "4.678 x 1.802 x 1.415 mm",
+  "wheelbase": "2.735 mm",
+  "groundClearance": "134 mm",
+  "dimensionsDetail": {
+    "overall": "4.678 x 1.802 x 1.415 mm",
+    "lengthMm": 4678,
+    "widthMm": 1802,
+    "heightMm": 1415,
+    "wheelbase": "2.735 mm",
+    "groundClearance": "134 mm",
+    "curbWeight": "1.340 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2025,
+  "warranty": "3 năm hoặc 100.000 km chính hãng Honda",
+  "warrantyDetail": {
+    "policy": "3 năm hoặc 100.000 km chính hãng Honda"
+  },
+  "image": "assets/vehicles/honda-civic-rs/images/exterior/hondacivic2_BLJY.jpg",
+  "thumbnail": "assets/vehicles/honda-civic-rs/images/exterior/hondacivic2_BLJY.jpg",
+  "cover": "assets/vehicles/honda-civic-rs/images/exterior/hondacivic2_BLJY.jpg",
+  "galleryImages": [
+    "assets/vehicles/honda-civic-rs/images/exterior/hondacivic2_BLJY.jpg",
+    "assets/vehicles/honda-civic-rs/images/interior/rr0xxmw-2726561j33001.webp",
+    "assets/vehicles/honda-civic-rs/images/dashboard/9q57xms-2726324j29010.webp",
+    "assets/vehicles/honda-civic-rs/images/engine/2727309-2727415j32854.webp",
+    "assets/vehicles/honda-civic-rs/images/gallery/honda-civic-2025-1.webp",
+    "assets/vehicles/honda-civic-rs/images/gallery/images.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/honda-civic-rs/images/exterior/hondacivic2_BLJY.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/honda-civic-rs/images/interior/rr0xxmw-2726561j33001.webp"
+    ],
+    "dashboard": [
+      "assets/vehicles/honda-civic-rs/images/dashboard/9q57xms-2726324j29010.webp"
+    ],
+    "engine": [
+      "assets/vehicles/honda-civic-rs/images/engine/2727309-2727415j32854.webp"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/honda-civic-rs/images/gallery/honda-civic-2025-1.webp",
+      "assets/vehicles/honda-civic-rs/images/gallery/images.jpg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Đỏ Thể Thao Ignite Red Metallic",
+      "hex": "#DC2626",
+      "img": "assets/vehicles/honda-civic-rs/images/exterior/hondacivic2_BLJY.jpg"
+    },
+    {
+      "name": "Trắng Ngọc Trai Platinum White Pearl",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/honda-civic-rs/images/interior/rr0xxmw-2726561j33001.webp"
+    },
+    {
+      "name": "Đen Ánh Độc Tôn Crystal Black Pearl",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/honda-civic-rs/images/dashboard/9q57xms-2726324j29010.webp"
+    },
+    {
+      "name": "Xám Xi Măng Meteoroid Gray",
+      "hex": "#64748B",
+      "img": "assets/vehicles/honda-civic-rs/images/engine/2727309-2727415j32854.webp"
+    }
+  ],
+  "colorsSummary": "Đỏ Thể Thao Ignite Red Metallic, Trắng Ngọc Trai Platinum White Pearl, Đen Ánh Độc Tôn Crystal Black Pearl, Xám Xi Măng Meteoroid Gray",
+  "evSpecs": null,
+  "features": [
+    "Gói công nghệ an toàn chủ động Honda SENSING thế hệ mới với Camera góc rộng",
+    "Hệ thống âm thanh 12 loa Bose cao cấp với công nghệ Centerpoint và SurroundStage",
+    "Bảng đồng hồ kỹ thuật số 10.2 inch kết hợp màn hình giải trí 9 inch Apple CarPlay không dây",
+    "Ghế bọc da lộn thể thao thêu chỉ đỏ tương phản phong cách Type R",
+    "Ứng dụng kết nối thông minh Honda CONNECT quản lý xe từ điện thoại 24/7"
+  ],
+  "description": "Mẫu sedan thể thao dẫn đầu phân khúc C với động cơ 1.5L VTEC Turbo 178 mã lực, gói an toàn Honda SENSING, dàn âm thanh 12 loa Bose và thiết kế lịch lãm pha chất đua.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/honda_civic_rs.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Honda Civic RS Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Sedan Thể Thao Hạng C Phổ Biến Nhất tối ưu lực ép không khí và khí chất thể thao đặc trưng Honda."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 1.5L VTEC Turbo, Hộp số tự động vô cấp CVT với lẫy chuyển số 7 cấp giả lập, Cầu trước FWD sản sinh công suất 178 HP (131 kW) @ 6.000 rpm cùng gia tốc 7.8s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/honda-civic-rs/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/honda-civic-rs/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

@@ -1,0 +1,150 @@
+{
+  "id": "tesla-roadster-2",
+  "productCode": "TSL-RD2-26",
+  "name": "Tesla Roadster 2.0",
+  "brand": "Tesla",
+  "version": "SpaceX Package Tri-Motor 10000 Nm",
+  "subtitle": "Siêu Xe Điện Nhanh Nhất Thế Giới • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Siêu Xe",
+  "subCategory": "Siêu Xe Điện Nhanh Nhất Thế Giới",
+  "fuel": "ev",
+  "price": 5900000000,
+  "priceFormatted": "5.900.000.000 VNĐ",
+  "priceShort": "5.9 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá đặt cọc quy đổi tại Mỹ (~250.000 USD Founder Series)",
+  "badge": "0-100km/h 1.1s SpaceX",
+  "range": 1000,
+  "rangeExtendedKm": null,
+  "hp": 1000,
+  "power": "Hơn 1.000 HP, 3 Mô-tơ điện (1 trước, 2 sau)",
+  "engine": "Tri-Motor Plaid Electric Powertrain",
+  "powertrain": "Hệ thống 3 Mô-tơ điện Tri-Motor AWD, Pin 200 kWh, Tùy chọn van đẩy khí nén lạnh SpaceX thrusters",
+  "torque": "10.000 Nm (Mô-men xoắn tại bánh xe)",
+  "acceleration": "1.1s (với gói tên lửa SpaceX Package) / 1.9s tiêu chuẩn",
+  "topSpeed": "Hơn 400 km/h",
+  "transmission": "Hộp số truyền động trực tiếp 1 cấp",
+  "drive": "AWD / Dẫn động 4 bánh toàn thời gian với điều hướng lực kéo",
+  "seats": 4,
+  "dimensions": "4.450 x 1.950 x 1.200 mm",
+  "wheelbase": "2.650 mm",
+  "groundClearance": "120 mm",
+  "dimensionsDetail": {
+    "overall": "4.450 x 1.950 x 1.200 mm",
+    "lengthMm": 4450,
+    "widthMm": 1950,
+    "heightMm": 1200,
+    "wheelbase": "2.650 mm",
+    "groundClearance": "120 mm",
+    "curbWeight": "1.950 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2026,
+  "warranty": "4 năm hoặc 80.000 km xe & 8 năm bảo hành Pin 200 kWh",
+  "warrantyDetail": {
+    "policy": "4 năm hoặc 80.000 km xe & 8 năm bảo hành Pin 200 kWh"
+  },
+  "image": "assets/vehicles/tesla-roadster-2/images/exterior/93b022b7-1b9f-4d2c-9344-fc8f6d84db48-1792213074253-17922130753241014805587.webp",
+  "thumbnail": "assets/vehicles/tesla-roadster-2/images/exterior/93b022b7-1b9f-4d2c-9344-fc8f6d84db48-1792213074253-17922130753241014805587.webp",
+  "cover": "assets/vehicles/tesla-roadster-2/images/exterior/93b022b7-1b9f-4d2c-9344-fc8f6d84db48-1792213074253-17922130753241014805587.webp",
+  "galleryImages": [
+    "assets/vehicles/tesla-roadster-2/images/exterior/93b022b7-1b9f-4d2c-9344-fc8f6d84db48-1792213074253-17922130753241014805587.webp",
+    "assets/vehicles/tesla-roadster-2/images/interior/64282afb-3874-4640-9e9d-e79567532297-1792213064649-17922130652291396392324.webp",
+    "assets/vehicles/tesla-roadster-2/images/dashboard/Tesla-Roadster-1-1792392934-6883-1792392963.webp",
+    "assets/vehicles/tesla-roadster-2/images/engine/tesla-roadster-1-1792657971177665111099-225-0-1565-2560-crop-17926581504471619471522.webp",
+    "assets/vehicles/tesla-roadster-2/images/gallery/ojdpwmjszryfjwtcrubdfo-0804.webp",
+    "assets/vehicles/tesla-roadster-2/images/gallery/teslaaa-13164900.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/tesla-roadster-2/images/exterior/93b022b7-1b9f-4d2c-9344-fc8f6d84db48-1792213074253-17922130753241014805587.webp"
+    ],
+    "interior": [
+      "assets/vehicles/tesla-roadster-2/images/interior/64282afb-3874-4640-9e9d-e79567532297-1792213064649-17922130652291396392324.webp"
+    ],
+    "dashboard": [
+      "assets/vehicles/tesla-roadster-2/images/dashboard/Tesla-Roadster-1-1792392934-6883-1792392963.webp"
+    ],
+    "engine": [
+      "assets/vehicles/tesla-roadster-2/images/engine/tesla-roadster-1-1792657971177665111099-225-0-1565-2560-crop-17926581504471619471522.webp"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/tesla-roadster-2/images/gallery/ojdpwmjszryfjwtcrubdfo-0804.webp",
+      "assets/vehicles/tesla-roadster-2/images/gallery/teslaaa-13164900.jpg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Đỏ Thể Thao Tesla Red Multi-Coat",
+      "hex": "#DC2626",
+      "img": "assets/vehicles/tesla-roadster-2/images/exterior/93b022b7-1b9f-4d2c-9344-fc8f6d84db48-1792213074253-17922130753241014805587.webp"
+    },
+    {
+      "name": "Bạc Midnight Silver Metallic",
+      "hex": "#94A3B8",
+      "img": "assets/vehicles/tesla-roadster-2/images/interior/64282afb-3874-4640-9e9d-e79567532297-1792213064649-17922130652291396392324.webp"
+    },
+    {
+      "name": "Trắng Ngọc Pearl White",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/tesla-roadster-2/images/dashboard/Tesla-Roadster-1-1792392934-6883-1792392963.webp"
+    }
+  ],
+  "colorsSummary": "Đỏ Thể Thao Tesla Red Multi-Coat, Bạc Midnight Silver Metallic, Trắng Ngọc Pearl White",
+  "evSpecs": {
+    "batteryCapacity": "200 kWh Siêu Khủng",
+    "rangeKm": 1000,
+    "fastCharge": "Supercharger V4 tốc độ 350 kW+",
+    "architecture": "Kiến trúc điện cao áp Plaid"
+  },
+  "features": [
+    "Gói nâng cấp SpaceX Package tích hợp bình khí nén lạnh tăng tốc 0-100 km/h trong 1.1 giây",
+    "Pin dung lượng 200 kWh cung cấp phạm vi hoạt động kỷ lục gần 1.000 km sau một lần sạc",
+    "Mui kính thủy tinh tháo rời nhẹ nhàng cất gọn trong cốp xe chuyển thành mui trần Targa",
+    "Mô-men xoắn cực đại 10.000 Nm tại bánh xe xé toạc mọi giới hạn vật lý",
+    "Vô lăng kiểu phi thuyền Yoke lái điện tử và màn hình cong trung tâm siêu nét"
+  ],
+  "description": "Siêu xe điện phá vỡ mọi kỷ lục tốc độ với gia tốc 0-100 km/h trong 1.1s (gói SpaceX), mô-men xoắn 10.000 Nm, pin 200 kWh đi 1.000 km và mui trần kính tháo rời.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/tesla_roadster_2.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Tesla Roadster 2.0 Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Siêu Xe Điện Nhanh Nhất Thế Giới tối ưu lực ép không khí và khí chất thể thao đặc trưng Tesla."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Hệ thống 3 Mô-tơ điện Tri-Motor AWD, Pin 200 kWh, Tùy chọn van đẩy khí nén lạnh SpaceX thrusters sản sinh công suất Hơn 1.000 HP, 3 Mô-tơ điện (1 trước, 2 sau) cùng gia tốc 1.1s (với gói tên lửa SpaceX Package) / 1.9s tiêu chuẩn."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/tesla-roadster-2/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/tesla-roadster-2/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

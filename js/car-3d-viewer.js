@@ -58,140 +58,6 @@
     return new THREE.CanvasTexture(canvas);
   }
 
-  // Fallback Procedural 3D Sports EV Model in case GLB is unavailable
-  function createProceduralCar(initialColor) {
-    const carGroup = new THREE.Group();
-    carGroup.name = 'ProceduralCarGroup';
-
-    const pbrPaint = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(initialColor || '#0284C7'),
-      metalness: 0.85,
-      roughness: 0.35,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.04
-    });
-
-    const darkTrim = new THREE.MeshStandardMaterial({
-      color: 0x18181B,
-      roughness: 0.65,
-      metalness: 0.2
-    });
-
-    const chromeTrim = new THREE.MeshStandardMaterial({
-      color: 0xE2E8F0,
-      roughness: 0.15,
-      metalness: 0.95
-    });
-
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0x111827,
-      metalness: 0.1,
-      roughness: 0.05,
-      transmission: 0.85,
-      transparent: true,
-      opacity: 0.75
-    });
-
-    const ledGlow = new THREE.MeshStandardMaterial({
-      color: 0xE0F2FE,
-      emissive: 0x38BDF8,
-      emissiveIntensity: 1.5,
-      roughness: 0.2
-    });
-
-    const redLedGlow = new THREE.MeshStandardMaterial({
-      color: 0xEF4444,
-      emissive: 0xDC2626,
-      emissiveIntensity: 1.8,
-      roughness: 0.2
-    });
-
-    // 1. Lower Chassis
-    const chassisGeo = new THREE.BoxGeometry(4.3, 0.45, 1.85);
-    const chassis = new THREE.Mesh(chassisGeo, pbrPaint);
-    chassis.position.y = 0.5;
-    chassis.castShadow = true;
-    chassis.receiveShadow = true;
-    carGroup.add(chassis);
-
-    // 2. Cabin / Greenhouse
-    const cabinGeo = new THREE.BoxGeometry(2.3, 0.55, 1.55);
-    const cabin = new THREE.Mesh(cabinGeo, glassMat);
-    cabin.position.set(-0.2, 0.95, 0);
-    cabin.castShadow = true;
-    carGroup.add(cabin);
-
-    // 3. Roof Panel
-    const roofGeo = new THREE.BoxGeometry(2.1, 0.08, 1.48);
-    const roof = new THREE.Mesh(roofGeo, pbrPaint);
-    roof.position.set(-0.2, 1.25, 0);
-    roof.castShadow = true;
-    carGroup.add(roof);
-
-    // 4. Front Hood Slope
-    const hoodGeo = new THREE.BoxGeometry(1.2, 0.25, 1.8);
-    const hood = new THREE.Mesh(hoodGeo, pbrPaint);
-    hood.position.set(1.4, 0.65, 0);
-    hood.rotation.z = -0.12;
-    hood.castShadow = true;
-    carGroup.add(hood);
-
-    // 5. Headlights
-    const hlGeo = new THREE.BoxGeometry(0.12, 0.1, 0.45);
-    const hlLeft = new THREE.Mesh(hlGeo, ledGlow);
-    hlLeft.position.set(2.15, 0.56, 0.65);
-    const hlRight = new THREE.Mesh(hlGeo, ledGlow);
-    hlRight.position.set(2.15, 0.56, -0.65);
-    carGroup.add(hlLeft, hlRight);
-
-    // 6. Rear Light Bar
-    const tlGeo = new THREE.BoxGeometry(0.08, 0.08, 1.7);
-    const tlBar = new THREE.Mesh(tlGeo, redLedGlow);
-    tlBar.position.set(-2.15, 0.65, 0);
-    carGroup.add(tlBar);
-
-    // 7. Wheels & Brake Calipers
-    const wheelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.28, 28);
-    wheelGeo.rotateX(Math.PI / 2);
-    const tireMat = new THREE.MeshStandardMaterial({ color: 0x18181B, roughness: 0.9, metalness: 0.05 });
-
-    const wheelPositions = [
-      [1.35, 0.38, 0.94],
-      [1.35, 0.38, -0.94],
-      [-1.35, 0.38, 0.94],
-      [-1.35, 0.38, -0.94]
-    ];
-
-    wheelPositions.forEach((pos, idx) => {
-      const wheelHub = new THREE.Group();
-      wheelHub.position.set(...pos);
-
-      const tire = new THREE.Mesh(wheelGeo, tireMat);
-      tire.castShadow = true;
-      wheelHub.add(tire);
-
-      const rimGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.29, 16);
-      rimGeo.rotateX(Math.PI / 2);
-      const rim = new THREE.Mesh(rimGeo, chromeTrim);
-      rim.name = `rim_${idx}`;
-      wheelHub.add(rim);
-
-      const brakeGeo = new THREE.BoxGeometry(0.15, 0.12, 0.08);
-      const brakeMat = new THREE.MeshStandardMaterial({ color: 0xEF4444, roughness: 0.3, metalness: 0.5 });
-      const brake = new THREE.Mesh(brakeGeo, brakeMat);
-      brake.position.set(0.08, 0.12, 0);
-      wheelHub.add(brake);
-
-      carGroup.add(wheelHub);
-    });
-
-    // Tag body parts for dynamic updates
-    carGroup.userData.bodyMaterial = pbrPaint;
-    carGroup.userData.rimMaterial = chromeTrim;
-
-    return carGroup;
-  }
-
   // Main 3D Viewer Class
   class ViewerInstance {
     constructor(container, options = {}) {
@@ -583,8 +449,14 @@
       const loader = typeof THREE.GLTFLoader !== 'undefined' ? new THREE.GLTFLoader() : null;
 
       if (!loader || !this.options.modelUrl) {
-        this.useProceduralFallback();
+        if (this.options.onError) this.options.onError(new Error('GLTFLoader or modelUrl not available'));
         return;
+      }
+
+      if (typeof THREE.DRACOLoader !== 'undefined') {
+        const dracoLoader = new THREE.DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+        loader.setDRACOLoader(dracoLoader);
       }
 
       loader.load(
@@ -600,8 +472,8 @@
           }
         },
         (err) => {
-          console.warn('[Car3DViewer] Could not load GLB file, transitioning to high-detail procedural 3D model:', err);
-          this.useProceduralFallback();
+          console.error('[Car3DViewer] Could not load real GLB file:', err);
+          if (this.options.onError) this.options.onError(err);
         }
       );
     }
@@ -729,27 +601,6 @@
       });
 
       this.scene.add(this.carGroup);
-
-      if (this.options.onReady) this.options.onReady();
-      this.syncRotationAngleFromCamera();
-    }
-
-    useProceduralFallback() {
-      this.carGroup = createProceduralCar(this.options.initialColor);
-      this.scene.add(this.carGroup);
-
-      if (this.carGroup.userData.bodyMaterial) {
-        this.bodyMaterials = [this.carGroup.userData.bodyMaterial];
-      }
-      if (this.carGroup.userData.rimMaterial) {
-        this.rimMaterials = [this.carGroup.userData.rimMaterial];
-      }
-
-      this.camera.position.set(4.6, 1.8, 4.4);
-      if (this.controls) {
-        this.controls.target.set(0, 0.6, 0);
-        this.controls.update();
-      }
 
       if (this.options.onReady) this.options.onReady();
       this.syncRotationAngleFromCamera();

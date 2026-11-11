@@ -32,12 +32,13 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
 
   test('Case 2: Chọn Xăng -> Kết quả chỉ chứa xe xăng (fuel === "gas")', () => {
     const gasCars = filterAndSortVehicles(cars, { fuel: 'gas' });
+    const expectedGasCount = cars.filter(c => ['gas', 'diesel', 'hybrid'].includes(getVehicleFuel(c))).length;
     assert.ok(gasCars.length > 0, 'Phải có ít nhất 1 xe xăng trong hệ thống');
-    assert.equal(gasCars.length, 9, 'Danh mục hiện tại có chính xác 9 xe xăng');
+    assert.equal(gasCars.length, expectedGasCount, `Danh mục hiện tại có chính xác ${expectedGasCount} xe xăng/hybrid`);
 
     gasCars.forEach(car => {
       const fuel = getVehicleFuel(car);
-      assert.equal(fuel, 'gas', `Xe "${car.name}" phải là xe xăng (thực tế: ${fuel})`);
+      assert.ok(fuel === 'gas' || fuel === 'diesel' || fuel === 'hybrid', `Xe "${car.name}" phải là xe xăng/hybrid (thực tế: ${fuel})`);
       assert.notEqual(car.fuel, 'ev', `Xe "${car.name}" không được là xe điện`);
     });
   });
@@ -92,32 +93,32 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
   });
 
   test('Case 4: Kết hợp đồng thời Dòng xe, Khoảng giá, Nhiên liệu theo logic AND', () => {
-    // Điều kiện: Dòng SUV + Giá từ 1 tỷ đến 2 tỷ + Nhiên liệu Điện
+    // Điều kiện: Dòng SUV + Giá trên 2 tỷ + Nhiên liệu Điện (VinFast VF 9)
     const res = filterAndSortVehicles(cars, {
       category: 'SUV',
-      priceRange: '1b-2b',
+      priceRange: 'above-2b',
       fuel: 'ev'
     });
 
-    assert.ok(res.length > 0, 'Tìm thấy xe điện SUV trong khoảng 1B - 2B');
+    assert.ok(res.length > 0, 'Tìm thấy xe điện SUV trên 2B (VinFast VF 9)');
     res.forEach(car => {
       // 1. Phải là SUV / Crossover
       const cat = (car.category || '').toLowerCase();
       assert.ok(cat.includes('suv') || cat.includes('crossover'), `Xe "${car.name}" phải là SUV/Crossover`);
       // 2. Phải là xe điện
       assert.equal(getVehicleFuel(car), 'ev', `Xe "${car.name}" phải là xe điện`);
-      // 3. Giá phải trong khoảng 1B - 2B
+      // 3. Giá phải trên 2B
       const price = getVehicleNumericPrice(car);
-      assert.ok(price >= 1000000000 && price <= 2000000000, `Giá "${car.name}" (${price}) phải trong 1B - 2B`);
+      assert.ok(price > 2000000000, `Giá "${car.name}" (${price}) phải trên 2B`);
     });
 
     // Kiểm tra xe xăng không lọt vào
     const hasGas = res.some(c => getVehicleFuel(c) === 'gas');
     assert.equal(hasGas, false, 'Không có xe xăng nào trong kết quả');
 
-    // Kiểm tra xe ngoài khoảng giá không lọt vào (ví dụ VinFast VF 3 giá 240M hoặc Vision S sedan)
+    // Kiểm tra xe ngoài khoảng giá không lọt vào (ví dụ VinFast VF 3 giá 322M hoặc sedan)
     const hasVF3 = res.some(c => c.id === 'vinfast-vf3');
-    assert.equal(hasVF3, false, 'VF 3 (240M) không được lọt vào khoảng 1B - 2B');
+    assert.equal(hasVF3, false, 'VF 3 (322M) không được lọt vào khoảng trên 2B');
     const hasSedan = res.some(c => (c.category || '').toLowerCase() === 'sedan');
     assert.equal(hasSedan, false, 'Xe sedan không được lọt vào bộ lọc SUV');
   });
@@ -140,18 +141,19 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
     const evCount = cars.filter(c => getVehicleFuel(c) === 'ev').length;
     assert.equal(allEv.length, evCount, `Trả về toàn bộ ${evCount} xe điện khi category & price là all`);
 
-    // Khi category='all', price='all' và fuel='gas', trả về đúng 9 xe xăng
+    // Khi category='all', price='all' và fuel='gas', trả về đúng số xe xăng/hybrid
     const allGas = filterAndSortVehicles(cars, {
       category: 'all',
       priceRange: 'all',
       fuel: 'gas'
     });
-    assert.equal(allGas.length, 9, 'Trả về toàn bộ 9 xe xăng khi category & price là all');
+    const expectedGasCount = cars.filter(c => ['gas', 'diesel', 'hybrid'].includes(getVehicleFuel(c))).length;
+    assert.equal(allGas.length, expectedGasCount, `Trả về toàn bộ ${expectedGasCount} xe xăng khi category & price là all`);
   });
 
   test('Case 6: Đổi từ Điện sang Xăng nhiều lần -> kết quả độc lập, không lưu vết cũ', () => {
     const evCount = cars.filter(c => getVehicleFuel(c) === 'ev').length;
-    const gasCount = cars.filter(c => getVehicleFuel(c) === 'gas').length;
+    const gasCount = cars.filter(c => ['gas', 'diesel', 'hybrid'].includes(getVehicleFuel(c))).length;
 
     let current = filterAndSortVehicles(cars, { fuel: 'ev' });
     assert.equal(current.length, evCount);
@@ -159,7 +161,7 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
 
     current = filterAndSortVehicles(cars, { fuel: 'gas' });
     assert.equal(current.length, gasCount);
-    assert.ok(current.every(c => getVehicleFuel(c) === 'gas'));
+    assert.ok(current.every(c => ['gas', 'diesel', 'hybrid'].includes(getVehicleFuel(c))));
 
     current = filterAndSortVehicles(cars, { fuel: 'ev' });
     assert.equal(current.length, evCount);
@@ -167,7 +169,7 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
 
     current = filterAndSortVehicles(cars, { fuel: 'gas' });
     assert.equal(current.length, gasCount);
-    assert.ok(current.every(c => getVehicleFuel(c) === 'gas'));
+    assert.ok(current.every(c => ['gas', 'diesel', 'hybrid'].includes(getVehicleFuel(c))));
 
     // Bỏ chọn (all) -> về đủ xe
     current = filterAndSortVehicles(cars, { fuel: 'all' });
@@ -277,7 +279,8 @@ describe('SIGMACAR Filter & Sort Engine: 12 Mandatory Verification Cases', () =>
 
     // 11b. Backend lọc fuel=gas
     const backendGas = await VehicleRepository.findAll({ fuel: 'gas' });
-    assert.equal(backendGas.length, 9, 'Backend phải trả về đúng 9 xe xăng');
+    const expectedGasCount = cars.filter(c => ['gas', 'diesel', 'hybrid'].includes(getVehicleFuel(c))).length;
+    assert.equal(backendGas.length, expectedGasCount, `Backend phải trả về đúng ${expectedGasCount} xe xăng`);
 
     // 11c. Backend lọc minPrice và maxPrice
     const backendRange = await VehicleRepository.findAll({

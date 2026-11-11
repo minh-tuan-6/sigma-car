@@ -1,0 +1,148 @@
+{
+  "id": "tesla-cybertruck",
+  "productCode": "TSL-CT-01",
+  "name": "Tesla Cybertruck",
+  "brand": "Tesla",
+  "version": "Dual-Motor AWD / Cyberbeast Tri-Motor",
+  "subtitle": "Bán Tải Thuần Điện Khung Thép 30X • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Pickup",
+  "subCategory": "Bán Tải Thuần Điện Khung Thép 30X",
+  "fuel": "ev",
+  "price": 7500000000,
+  "priceFormatted": "7.500.000.000 VNĐ",
+  "priceShort": "7.5 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá đại lý tư nhân nhập khẩu tham khảo tại VN (Bản AWD: 7.5 tỷ | Cyberbeast: 9.5 tỷ)",
+  "badge": "Exoskeleton 800V",
+  "range": 547,
+  "rangeExtendedKm": 755,
+  "hp": 845,
+  "power": "600 HP (Dual-Motor) / 845 HP (Cyberbeast Tri-Motor)",
+  "engine": "Dual-Motor AWD (600 HP) / Tri-Motor Cyberbeast (845 HP)",
+  "powertrain": "Động cơ Điện Đa Mô-tơ AWD, Kiến trúc Điện 800V & 48V",
+  "torque": "10.296 lb-ft (Cyberbeast) / 7.435 lb-ft (Dual-Motor AWD)",
+  "acceleration": "2.6s (Beast Mode)",
+  "topSpeed": "209 km/h",
+  "transmission": "Hộp số điện tử 1 cấp (Single-Speed Direct Drive)",
+  "drive": "AWD / Dẫn động 4 bánh & Đánh lái 4 bánh Steer-by-Wire",
+  "seats": 5,
+  "dimensions": "5.682 x 2.200 x 1.791 mm",
+  "wheelbase": "3.635 mm",
+  "groundClearance": "443 mm (Extract Mode)",
+  "dimensionsDetail": {
+    "overall": "5.682 x 2.200 x 1.791 mm",
+    "lengthMm": 5682,
+    "widthMm": 2200,
+    "heightMm": 1791,
+    "wheelbase": "3.635 mm",
+    "groundClearance": "443 mm",
+    "curbWeight": "3.100 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2025,
+  "warranty": "4 năm hoặc 80.000 km (Pin & Động cơ: 8 năm hoặc 240.000 km)",
+  "warrantyDetail": {
+    "policy": "4 năm hoặc 80.000 km (Pin & Động cơ: 8 năm hoặc 240.000 km)"
+  },
+  "image": "assets/vehicles/tesla-cybertruck/images/exterior/b6aa80f8-cc61-4a87-bc63-df76743451ed.jpg",
+  "thumbnail": "assets/vehicles/tesla-cybertruck/images/exterior/b6aa80f8-cc61-4a87-bc63-df76743451ed.jpg",
+  "cover": "assets/vehicles/tesla-cybertruck/images/exterior/b6aa80f8-cc61-4a87-bc63-df76743451ed.jpg",
+  "galleryImages": [
+    "assets/vehicles/tesla-cybertruck/images/exterior/b6aa80f8-cc61-4a87-bc63-df76743451ed.jpg",
+    "assets/vehicles/tesla-cybertruck/images/interior/cfe60097-2d4b-405f-9082-97822f3b806a.jpg",
+    "assets/vehicles/tesla-cybertruck/images/dashboard/d13d4525-2034-47b5-88e1-45e703965d2f.jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/tesla-cybertruck/images/exterior/b6aa80f8-cc61-4a87-bc63-df76743451ed.jpg"
+    ],
+    "interior": [
+      "assets/vehicles/tesla-cybertruck/images/interior/cfe60097-2d4b-405f-9082-97822f3b806a.jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/tesla-cybertruck/images/dashboard/d13d4525-2034-47b5-88e1-45e703965d2f.jpg"
+    ],
+    "engine": [],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Thép Không Gỉ 30X Nguyên Bản (Stainless Steel)",
+      "hex": "#94A3B8",
+      "img": "assets/vehicles/tesla-cybertruck/images/exterior/b6aa80f8-cc61-4a87-bc63-df76743451ed.jpg"
+    },
+    {
+      "name": "Đen Satin Chiến Thuật (Satin Stealth Black)",
+      "hex": "#1E293B",
+      "img": "assets/vehicles/tesla-cybertruck/images/interior/cfe60097-2d4b-405f-9082-97822f3b806a.jpg"
+    },
+    {
+      "name": "Trắng Satin Bắc Cực (Satin Ceramic White)",
+      "hex": "#F1F5F9",
+      "img": "assets/vehicles/tesla-cybertruck/images/dashboard/d13d4525-2034-47b5-88e1-45e703965d2f.jpg"
+    },
+    {
+      "name": "Xanh Rêu Quân Đội (Tactical Green Wrap)",
+      "hex": "#3F6212",
+      "img": "assets/vehicles/tesla-cybertruck/images/exterior/b6aa80f8-cc61-4a87-bc63-df76743451ed.jpg"
+    }
+  ],
+  "colorsSummary": "Thép Không Gỉ 30X Nguyên Bản (Stainless Steel), Đen Satin Chiến Thuật (Satin Stealth Black), Trắng Satin Bắc Cực (Satin Ceramic White), Xanh Rêu Quân Đội (Tactical Green Wrap)",
+  "evSpecs": {
+    "batteryCapacity": "123 kWh (Kiến trúc Điện Áp Siêu Cao 800V)",
+    "rangeKm": 547,
+    "rangeExtendedKm": 755,
+    "fastCharge": "Supercharger V4 (15 phút sạc đi được 218 km)",
+    "architecture": "800V High-Voltage Architecture"
+  },
+  "features": [
+    "Khung vỏ Exoskeleton thép không gỉ cán nguội 30X chống móp méo, rỉ sét và chống đạn",
+    "Hệ thống lái điện tử Steer-by-Wire biến thiên kết hợp đánh lái 4 bánh 4WS",
+    "Trạm phát điện di động PowerShare 11.5 kW cấp điện cho ngôi nhà khi mất điện",
+    "Kính cường lực Armor Glass cách âm, chịu va đập cực mạnh từ đá dăm",
+    "Thùng xe Vault 1.897 lít tích hợp nắp che Tonneau Cover cơ điện chịu lực 100 kg"
+  ],
+  "description": "Siêu bán tải thuần điện với khung thép chống đạn 30X, kính Armor Glass, Steer-by-Wire, kiến trúc 800V, đánh lái 4 bánh và trạm phát điện PowerShare.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/tesla_cybertruck.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Tesla Cybertruck Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Bán Tải Thuần Điện Khung Thép 30X tối ưu lực ép không khí và khí chất thể thao đặc trưng Tesla."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Điện Đa Mô-tơ AWD, Kiến trúc Điện 800V & 48V sản sinh công suất 600 HP (Dual-Motor) / 845 HP (Cyberbeast Tri-Motor) cùng gia tốc 2.6s (Beast Mode)."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/tesla-cybertruck/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/tesla-cybertruck/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

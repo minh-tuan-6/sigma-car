@@ -1,0 +1,147 @@
+{
+  "id": "subaru-impreza-2024",
+  "productCode": "SUB-IMP-24",
+  "name": "Subaru Impreza RS (2024)",
+  "brand": "Subaru",
+  "version": "RS 2.5L Symmetrical AWD (Thế hệ thứ 6)",
+  "subtitle": "Hatchback Dẫn Động 4 Bánh Toàn Thời Gian • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Hatchback",
+  "subCategory": "Hatchback Dẫn Động 4 Bánh Toàn Thời Gian",
+  "fuel": "gas",
+  "price": 990000000,
+  "priceFormatted": "990.000.000 VNĐ",
+  "priceShort": "990 triệu",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết dự kiến chính hãng tại Việt Nam",
+  "badge": "Symmetrical AWD",
+  "range": null,
+  "rangeExtendedKm": null,
+  "hp": 182,
+  "power": "182 HP (136 kW) @ 5.800 rpm",
+  "engine": "2.5L Boxer 4 xi-lanh nằm ngang Hút khí tự nhiên",
+  "powertrain": "Động cơ Xăng 2.5L Boxer 4 xi-lanh, Hộp số tự động Lineartronic CVT 8 cấp giả lập, Dẫn động 4 bánh toàn thời gian đối xứng Symmetrical AWD",
+  "torque": "241 Nm @ 3.700 rpm",
+  "acceleration": "7.6s",
+  "topSpeed": "215 km/h",
+  "transmission": "Hộp số tự động vô cấp Lineartronic CVT với lẫy chuyển số 8 cấp",
+  "drive": "AWD / Dẫn động 4 bánh toàn thời gian đối xứng Symmetrical AWD độc quyền",
+  "seats": 5,
+  "dimensions": "4.480 x 1.780 x 1.480 mm",
+  "wheelbase": "2.670 mm",
+  "groundClearance": "135 mm",
+  "dimensionsDetail": {
+    "overall": "4.480 x 1.780 x 1.480 mm",
+    "lengthMm": 4480,
+    "widthMm": 1780,
+    "heightMm": 1480,
+    "wheelbase": "2.670 mm",
+    "groundClearance": "135 mm",
+    "curbWeight": "1.425 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2024,
+  "warranty": "5 năm hoặc 100.000 km chính hãng Subaru",
+  "warrantyDetail": {
+    "policy": "5 năm hoặc 100.000 km chính hãng Subaru"
+  },
+  "image": "assets/vehicles/subaru-impreza-2024/images/exterior/dang_truoc.jpg",
+  "thumbnail": "assets/vehicles/subaru-impreza-2024/images/exterior/dang_truoc.jpg",
+  "cover": "assets/vehicles/subaru-impreza-2024/images/exterior/dang_truoc.jpg",
+  "galleryImages": [
+    "assets/vehicles/subaru-impreza-2024/images/exterior/dang_truoc.jpg",
+    "assets/vehicles/subaru-impreza-2024/images/exterior/ben_trai.webp",
+    "assets/vehicles/subaru-impreza-2024/images/dashboard/ben_tren.jpg",
+    "assets/vehicles/subaru-impreza-2024/images/engine/dang_sau.jpg",
+    "assets/vehicles/subaru-impreza-2024/images/gallery/ben_trai.jpeg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/subaru-impreza-2024/images/exterior/dang_truoc.jpg",
+      "assets/vehicles/subaru-impreza-2024/images/exterior/ben_trai.webp"
+    ],
+    "interior": [],
+    "dashboard": [
+      "assets/vehicles/subaru-impreza-2024/images/dashboard/ben_tren.jpg"
+    ],
+    "engine": [
+      "assets/vehicles/subaru-impreza-2024/images/engine/dang_sau.jpg"
+    ],
+    "specifications": [],
+    "gallery": [
+      "assets/vehicles/subaru-impreza-2024/images/gallery/ben_trai.jpeg"
+    ]
+  },
+  "colors": [
+    {
+      "name": "Xanh Đua Subaru Oasis Blue",
+      "hex": "#0284C7",
+      "img": "assets/vehicles/subaru-impreza-2024/images/exterior/dang_truoc.jpg"
+    },
+    {
+      "name": "Đỏ Thể Thao Pure Red",
+      "hex": "#DC2626",
+      "img": "assets/vehicles/subaru-impreza-2024/images/exterior/ben_trai.webp"
+    },
+    {
+      "name": "Xám Magnetite Gray Metallic",
+      "hex": "#475569",
+      "img": "assets/vehicles/subaru-impreza-2024/images/dashboard/ben_tren.jpg"
+    },
+    {
+      "name": "Trắng Crystal White Pearl",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/subaru-impreza-2024/images/engine/dang_sau.jpg"
+    }
+  ],
+  "colorsSummary": "Xanh Đua Subaru Oasis Blue, Đỏ Thể Thao Pure Red, Xám Magnetite Gray Metallic, Trắng Crystal White Pearl",
+  "evSpecs": null,
+  "features": [
+    "Hệ dẫn động 4 bánh đối xứng toàn thời gian Symmetrical AWD bám đường siêu đẳng trên tuyết, mưa trơn",
+    "Hệ thống an toàn hỗ trợ người lái EyeSight thế hệ thứ 4 với 3 camera quan sát góc rộng",
+    "Màn hình cảm ứng đặt dọc cỡ lớn 11.6 inch hỗ trợ Apple CarPlay và Android Auto không dây",
+    "Khung gầm toàn cầu Subaru Global Platform (SGP) tăng 10% độ cứng chống xoắn",
+    "Hệ thống điều hướng lực kéo chủ động Active Torque Vectoring giúp vào cua tự tin"
+  ],
+  "description": "Hatchback thể thao thế hệ mới với động cơ Boxer 2.5L 182 mã lực, hệ dẫn động 4 bánh Symmetrical AWD huyền thoại và gói an toàn EyeSight 4.0 tối tân.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/subaru_impreza_2024.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Subaru Impreza RS (2024) Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Hatchback Dẫn Động 4 Bánh Toàn Thời Gian tối ưu lực ép không khí và khí chất thể thao đặc trưng Subaru."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Xăng 2.5L Boxer 4 xi-lanh, Hộp số tự động Lineartronic CVT 8 cấp giả lập, Dẫn động 4 bánh toàn thời gian đối xứng Symmetrical AWD sản sinh công suất 182 HP (136 kW) @ 5.800 rpm cùng gia tốc 7.6s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/subaru-impreza-2024/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/subaru-impreza-2024/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

@@ -159,8 +159,8 @@ describe('Integration Test: SIGMACAR REST API v1', () => {
     assert.strictEqual(regRes.status, 201);
     const freshToken = regData.data.token;
 
-    // Check initial stock for Model E
-    const vResBefore = await fetch(`${BASE_URL}/vehicles/model-e`);
+    // Check initial stock for Cybertruck
+    const vResBefore = await fetch(`${BASE_URL}/vehicles/tesla-cybertruck`);
     const vDataBefore = await vResBefore.json();
     const initialStock = vDataBefore.data.stockQuantity;
 
@@ -172,7 +172,7 @@ describe('Integration Test: SIGMACAR REST API v1', () => {
         'Authorization': `Bearer ${freshToken}`
       },
       body: JSON.stringify({
-        vehicleId: 'model-e',
+        vehicleId: 'tesla-cybertruck',
         branchId: 'hn-caugiay',
         buyerName: 'Test Deposit Buyer',
         buyerPhone: '+84 981 122 334',
@@ -186,7 +186,7 @@ describe('Integration Test: SIGMACAR REST API v1', () => {
     assert.strictEqual(orderData.data.depositAmount, 50000000); // Server enforced 50M VND
 
     // Check stock was decremented by 1
-    const vResAfter = await fetch(`${BASE_URL}/vehicles/model-e`);
+    const vResAfter = await fetch(`${BASE_URL}/vehicles/tesla-cybertruck`);
     const vDataAfter = await vResAfter.json();
     assert.strictEqual(vDataAfter.data.stockQuantity, initialStock - 1);
   });

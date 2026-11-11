@@ -1,0 +1,137 @@
+{
+  "id": "lucid-air-sapphire",
+  "productCode": "LCD-SAP-01",
+  "name": "Lucid Air Sapphire",
+  "brand": "Lucid",
+  "version": "Tri-Motor AWD 1234 HP",
+  "subtitle": "Siêu Sedan Thuần Điện Xa Xỉ Nhất Thế Giới • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "Sedan",
+  "subCategory": "Siêu Sedan Thuần Điện Xa Xỉ Nhất Thế Giới",
+  "fuel": "ev",
+  "price": 6500000000,
+  "priceFormatted": "6.500.000.000 VNĐ",
+  "priceShort": "6.5 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá tham khảo nhập khẩu tư nhân tại Việt Nam (~250.000 USD tại Mỹ)",
+  "badge": "1234 HP Super-Sedan",
+  "range": 687,
+  "rangeExtendedKm": null,
+  "hp": 1234,
+  "power": "1.234 HP (920 kW), 3 Mô-tơ điện độc quyền",
+  "engine": "3 Động cơ điện Lucid Tri-Motor (1 trước, 2 sau tích hợp bộ biến tần SiC)",
+  "powertrain": "Hệ thống 3 Mô-tơ điện Tri-Motor AWD, Kiến trúc điện áp 900V+ Wunderbox, Pin 118 kWh",
+  "torque": "1.939 Nm tức thì",
+  "acceleration": "1.89s (0-96 km/h không trừ 1-foot rollout)",
+  "topSpeed": "330 km/h",
+  "transmission": "Hộp số hành tinh đơn cấp tỉ số truyền thể thao",
+  "drive": "AWD / Dẫn động 4 bánh với hệ thống điều hướng mô-men xoắn chủ động độc lập 2 bánh sau",
+  "seats": 5,
+  "dimensions": "4.975 x 1.939 x 1.410 mm",
+  "wheelbase": "2.960 mm",
+  "groundClearance": "135 mm",
+  "dimensionsDetail": {
+    "overall": "4.975 x 1.939 x 1.410 mm",
+    "lengthMm": 4975,
+    "widthMm": 1939,
+    "heightMm": 1410,
+    "wheelbase": "2.960 mm",
+    "groundClearance": "135 mm",
+    "curbWeight": "2.420 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2025,
+  "warranty": "4 năm hoặc 80.000 km xe & 8 năm hoặc 160.000 km pin",
+  "warrantyDetail": {
+    "policy": "4 năm hoặc 80.000 km xe & 8 năm hoặc 160.000 km pin"
+  },
+  "image": "assets/vehicles/lucid-air-sapphire/images/exterior/images (7).jpg",
+  "thumbnail": "assets/vehicles/lucid-air-sapphire/images/exterior/images (7).jpg",
+  "cover": "assets/vehicles/lucid-air-sapphire/images/exterior/images (7).jpg",
+  "galleryImages": [
+    "assets/vehicles/lucid-air-sapphire/images/exterior/images (7).jpg",
+    "assets/vehicles/lucid-air-sapphire/images/interior/images (6).jpg",
+    "assets/vehicles/lucid-air-sapphire/images/dashboard/images (8).jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/lucid-air-sapphire/images/exterior/images (7).jpg"
+    ],
+    "interior": [
+      "assets/vehicles/lucid-air-sapphire/images/interior/images (6).jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/lucid-air-sapphire/images/dashboard/images (8).jpg"
+    ],
+    "engine": [],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Xanh Sapphire Lam Bảo Sapphire Blue",
+      "hex": "#1D4ED8",
+      "img": "assets/vehicles/lucid-air-sapphire/images/exterior/images (7).jpg"
+    },
+    {
+      "name": "Đen Stealth Black Onyx",
+      "hex": "#0B0F19",
+      "img": "assets/vehicles/lucid-air-sapphire/images/interior/images (6).jpg"
+    }
+  ],
+  "colorsSummary": "Xanh Sapphire Lam Bảo Sapphire Blue, Đen Stealth Black Onyx",
+  "evSpecs": {
+    "batteryCapacity": "118 kWh (Kiến trúc Siêu Điện Áp 900V+)",
+    "rangeKm": 687,
+    "fastCharge": "Sạc siêu nhanh 300 kW DC: 15 phút nạp được 320 km quãng đường",
+    "architecture": "900V+ SiC High-Voltage Architecture"
+  },
+  "features": [
+    "Siêu sedan điện tăng tốc nhanh nhất hành tinh: 0-100 km/h dưới 1.9 giây",
+    "Đĩa phanh gốm Carbon Ceramic 420 mm tiêu chuẩn với cùm phanh 10 piston phía trước",
+    "Màn hình cong vòm 34 inch Glass Cockpit độ phân giải 5K nổi bồng bềnh",
+    "Hệ thống âm thanh Surreal Sound Pro 21 loa hỗ trợ âm thanh vòm Dolby Atmos",
+    "Kiến trúc điện áp 900V+ dẫn đầu ngành cho phép sạc nhanh nhất thế giới"
+  ],
+  "description": "Vua siêu sedan thuần điện thế giới với công suất 1.234 mã lực, tăng tốc 0-100 km/h trong 1.89 giây, pin 118 kWh tầm hoạt động 687 km và khoang lái 5K thượng lưu.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/lucid_air_sapphire.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "Lucid Air Sapphire Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Siêu Sedan Thuần Điện Xa Xỉ Nhất Thế Giới tối ưu lực ép không khí và khí chất thể thao đặc trưng Lucid."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Hệ thống 3 Mô-tơ điện Tri-Motor AWD, Kiến trúc điện áp 900V+ Wunderbox, Pin 118 kWh sản sinh công suất 1.234 HP (920 kW), 3 Mô-tơ điện độc quyền cùng gia tốc 1.89s (0-96 km/h không trừ 1-foot rollout)."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/lucid-air-sapphire/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/lucid-air-sapphire/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}

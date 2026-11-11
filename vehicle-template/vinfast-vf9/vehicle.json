@@ -1,0 +1,147 @@
+{
+  "id": "vinfast-vf9",
+  "productCode": "VNF-VF9-PL",
+  "name": "VinFast VF 9 Plus 7 Chỗ",
+  "brand": "VinFast",
+  "version": "Plus Dual-Motor AWD (Bản Kèm Pin)",
+  "subtitle": "Full-Size SUV Thuần Điện Hạng Sang • Phân phối chính hãng SIGMACAR",
+  "type": "new",
+  "category": "SUV",
+  "subCategory": "Full-Size SUV Thuần Điện Hạng Sang",
+  "fuel": "ev",
+  "price": 2169000000,
+  "priceFormatted": "2.169.000.000 VNĐ",
+  "priceShort": "2.169 tỷ",
+  "salePrice": null,
+  "salePriceFormatted": null,
+  "priceNote": "Giá niêm yết chính hãng VinFast (Kèm pin: 2.169 tỷ | Thuê pin: 1.689 tỷ)",
+  "badge": "Flagship SUV 7 Chỗ",
+  "range": 626,
+  "rangeExtendedKm": null,
+  "hp": 402,
+  "power": "402 HP (300 kW), 2 Mô-tơ điện kép AWD",
+  "engine": "Dual-Motor Permanent Magnet Synchronous (Trước & Sau)",
+  "powertrain": "Động cơ Điện kép 2 Mô-tơ AWD, Pin CATL 123 kWh thế hệ mới, Sạc nhanh DC 10-70% trong 26 phút",
+  "torque": "620 Nm tức thì",
+  "acceleration": "6.5s",
+  "topSpeed": "200 km/h",
+  "transmission": "Hộp số điện tử 1 cấp",
+  "drive": "AWD / Dẫn động 4 bánh toàn thời gian thông minh",
+  "seats": 7,
+  "dimensions": "5.118 x 2.254 x 1.696 mm",
+  "wheelbase": "3.150 mm (Dài nhất trong phân khúc E-SUV)",
+  "groundClearance": "189 mm (Treo khí nén nâng hạ chủ động)",
+  "dimensionsDetail": {
+    "overall": "5.118 x 2.254 x 1.696 mm",
+    "lengthMm": 5118,
+    "widthMm": 2254,
+    "heightMm": 1696,
+    "wheelbase": "3.150 mm",
+    "groundClearance": "189 mm",
+    "curbWeight": "2.830 kg"
+  },
+  "stock": 5,
+  "excelStock": 5,
+  "year": 2025,
+  "warranty": "10 năm hoặc 200.000 km cho xe & 10 năm không giới hạn km cho pin",
+  "warrantyDetail": {
+    "policy": "10 năm hoặc 200.000 km cho xe & 10 năm không giới hạn km cho pin"
+  },
+  "image": "assets/vehicles/vinfast-vf9/images/exterior/images (9).jpg",
+  "thumbnail": "assets/vehicles/vinfast-vf9/images/exterior/images (9).jpg",
+  "cover": "assets/vehicles/vinfast-vf9/images/exterior/images (9).jpg",
+  "galleryImages": [
+    "assets/vehicles/vinfast-vf9/images/exterior/images (9).jpg",
+    "assets/vehicles/vinfast-vf9/images/interior/images (11).jpg",
+    "assets/vehicles/vinfast-vf9/images/dashboard/images (10).jpg"
+  ],
+  "categorizedImages": {
+    "exterior": [
+      "assets/vehicles/vinfast-vf9/images/exterior/images (9).jpg"
+    ],
+    "interior": [
+      "assets/vehicles/vinfast-vf9/images/interior/images (11).jpg"
+    ],
+    "dashboard": [
+      "assets/vehicles/vinfast-vf9/images/dashboard/images (10).jpg"
+    ],
+    "engine": [],
+    "specifications": [],
+    "gallery": []
+  },
+  "colors": [
+    {
+      "name": "Xanh Thẫm VinFast Blue",
+      "hex": "#1E3A8A",
+      "img": "assets/vehicles/vinfast-vf9/images/exterior/images (9).jpg"
+    },
+    {
+      "name": "Trắng Brahminy White",
+      "hex": "#F8FAFC",
+      "img": "assets/vehicles/vinfast-vf9/images/interior/images (11).jpg"
+    },
+    {
+      "name": "Đen Jet Black",
+      "hex": "#0F172A",
+      "img": "assets/vehicles/vinfast-vf9/images/dashboard/images (10).jpg"
+    },
+    {
+      "name": "Xám Xi Măng Desat Silver",
+      "hex": "#94A3B8",
+      "img": "assets/vehicles/vinfast-vf9/images/exterior/images (9).jpg"
+    }
+  ],
+  "colorsSummary": "Xanh Thẫm VinFast Blue, Trắng Brahminy White, Đen Jet Black, Xám Xi Măng Desat Silver",
+  "evSpecs": {
+    "batteryCapacity": "123 kWh (Pin CATL Ternary Lithium thế hệ mới)",
+    "rangeKm": 626,
+    "fastCharge": "Sạc siêu nhanh DC 10% - 70% chỉ trong 26 phút",
+    "architecture": "Kiến trúc điện áp cao Dual-Motor"
+  },
+  "features": [
+    "Gói công nghệ hỗ trợ lái nâng cao ADAS Level 2 với tính năng tự hành trên cao tốc",
+    "Hàng ghế trước và hàng ghế cơ trưởng tích hợp sưởi, thông gió và massage đa điểm",
+    "Màn hình cảm ứng giải trí 15.6 inch trung tâm cùng trợ lý ảo thông minh Vivi AI",
+    "Cửa sổ trời toàn cảnh Panoramic tráng lớp chắn tia UV & cách nhiệt cao cấp",
+    "Hệ thống treo khí nén điện tử chủ động nâng hạ gầm êm ái như bay"
+  ],
+  "description": "Mẫu SUV điện cỡ lớn đầu bảng của VinFast với thiết kế Pininfarina, 402 mã lực AWD, pin CATL 123 kWh tầm hoạt động 626 km, ghế massage và trợ lý ảo Vivi thông minh.",
+  "model3d": {
+    "enabled": true,
+    "glbPath": "assets/models/vinfast_vf9.glb",
+    "arSupported": true,
+    "vrSupported": true,
+    "scale": 1,
+    "initialAngle": 137,
+    "hotspots": [
+      {
+        "id": "hotspot-body",
+        "name": "VinFast VF 9 Plus 7 Chỗ Thiết kế Ngoại thất",
+        "category": "Thiết kế & Khí động học",
+        "pos": [
+          1.2,
+          0.6,
+          0.7
+        ],
+        "desc": "Kiểu dáng Full-Size SUV Thuần Điện Hạng Sang tối ưu lực ép không khí và khí chất thể thao đặc trưng VinFast."
+      },
+      {
+        "id": "hotspot-powertrain",
+        "name": "Hệ truyền động & Động cơ",
+        "category": "Động lực học",
+        "pos": [
+          0,
+          0.5,
+          0
+        ],
+        "desc": "Động cơ Điện kép 2 Mô-tơ AWD, Pin CATL 123 kWh thế hệ mới, Sạc nhanh DC 10-70% trong 26 phút sản sinh công suất 402 HP (300 kW), 2 Mô-tơ điện kép AWD cùng gia tốc 6.5s."
+      }
+    ]
+  },
+  "documents": {
+    "specificationsPdf": "assets/vehicles/vinfast-vf9/documents/specifications.pdf",
+    "warrantyPdf": "assets/vehicles/vinfast-vf9/documents/warranty.pdf"
+  },
+  "isAvailable": true,
+  "statusText": "Đang kinh doanh"
+}
