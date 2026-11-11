@@ -4426,8 +4426,8 @@ const AppState = {
                 </div>
               </div>
 
-              <!-- Mount container for Real AR Video + <model-viewer> -->
-              <div id="ar-model-viewer-mount" style="position:absolute; inset:0; z-index:5;"></div>
+              <!-- Mount container for Real AR Video + Three.js 3D Canvas -->
+              <div id="ar-model-viewer-mount" style="position:absolute; inset:0; width:100%; height:100%; z-index:5;"></div>
 
               <!-- Permission / Security Guidance Overlay Banner -->
               <div id="ar-permission-overlay" class="ar-permission-banner" style="display:none;"></div>

@@ -123,14 +123,22 @@
         return;
       }
 
-      const width = this.container.clientWidth || 800;
-      const height = this.container.clientHeight || 520;
+      const parentEl = this.container.parentElement;
+      const width = this.container.clientWidth || (parentEl && parentEl.clientWidth) || 800;
+      const height = this.container.clientHeight || (parentEl && parentEl.clientHeight) || 520;
 
       const isTransparent = !!(this.options.transparent || this.options.arMode);
 
       // 0. LAYER 1: Dedicated Video Element for Camera Feed
       this.container.innerHTML = '';
-      this.container.style.position = 'relative';
+      const inlinePos = this.container.style ? this.container.style.position : '';
+      let computedPos = inlinePos;
+      if (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && typeof Element !== 'undefined' && this.container instanceof Element) {
+        try { computedPos = window.getComputedStyle(this.container).position || inlinePos; } catch (e) {}
+      }
+      if (inlinePos !== 'absolute' && inlinePos !== 'fixed' && computedPos !== 'absolute' && computedPos !== 'fixed') {
+        this.container.style.position = 'relative';
+      }
       this.container.style.overflow = 'hidden';
 
       let video = this.container.querySelector('video.ar-live-video-layer');
@@ -479,128 +487,121 @@
     }
 
     setupLoadedModel(model) {
-      this.carGroup = model;
+      // 1. Normalize Scale & Center inside a wrapper Group so all 24 GLB models (mm, cm, or m) render at 4.4m studio scale
+      model.updateMatrixWorld(true);
+      const rawBox = new THREE.Box3().setFromObject(model);
+      const rawSize = rawBox.getSize(new THREE.Vector3());
+      const rawMaxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
+      const targetMaxDim = 4.4;
+      const normScale = (rawMaxDim > 0.0001 && isFinite(rawMaxDim)) ? (targetMaxDim / rawMaxDim) : 1.0;
+      model.scale.multiplyScalar(normScale);
+      model.updateMatrixWorld(true);
 
-      // 1. Calculate Exact Bounding Box & Normalize Center
-      const box = new THREE.Box3().setFromObject(this.carGroup);
+      const box = new THREE.Box3().setFromObject(model);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
 
-      // Center model at origin
-      this.carGroup.position.x = -center.x;
-      this.carGroup.position.z = -center.z;
-      // Set bottom of tires flush on studio floor (y = 0)
-      this.carGroup.position.y = -box.min.y;
+      // Center model horizontally at origin and place bottom of tires flush on floor (y = 0)
+      model.position.x += -center.x;
+      model.position.z += -center.z;
+      model.position.y += -box.min.y;
+      model.updateMatrixWorld(true);
 
-      // 2. Adjust Camera to Frame the Vehicle at 70-75% of visual area
-      const maxDim = Math.max(size.x, size.y, size.z);
+      const wrapper = new THREE.Group();
+      wrapper.add(model);
+      this.carGroup = wrapper;
+
+      // 2. Adjust Camera to Frame the Normalized Vehicle at 70-75% of visual area
+      const maxDim = Math.max(size.x, size.y, size.z) || targetMaxDim;
       const fovRad = this.camera.fov * (Math.PI / 180);
       const idealDist = (maxDim / 2) / Math.tan(fovRad / 2) * 1.35;
 
+      this.camera.near = 0.05;
+      this.camera.far = Math.max(500, idealDist * 20);
+      this.camera.updateProjectionMatrix();
+
       this.camera.position.set(
         idealDist * 0.75,
-        maxDim * 0.38,
+        maxDim * 0.36,
         idealDist * 0.75
       );
       if (this.controls) {
-        this.controls.minDistance = maxDim * 0.65;
-        this.controls.maxDistance = maxDim * 2.8;
-        this.controls.target.set(0, size.y * 0.38, 0);
+        this.controls.minDistance = maxDim * 0.55;
+        this.controls.maxDistance = maxDim * 3.0;
+        this.controls.target.set(0, size.y * 0.36, 0);
         this.controls.update();
       }
 
-      // 3. Apply Premium PBR Materials to Meshes
+      // 3. Preserve Original GLTF PBR Materials & Textures while registering paintable Body & Rim materials
       this.bodyMaterials = [];
       this.rimMaterials = [];
-
-      const initialColor = new THREE.Color(this.options.initialColor || '#0284C7');
-
-      // PBR Car Paint Material
-      const bodyMat = new THREE.MeshPhysicalMaterial({
-        color: initialColor,
-        metalness: 0.88,
-        roughness: 0.38,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.03
-      });
-      this.bodyMaterials.push(bodyMat);
-
-      // PBR Tinted Glass Material
-      const glassMat = new THREE.MeshPhysicalMaterial({
-        color: 0xFFFFFF,
-        metalness: 0.1,
-        roughness: 0.02,
-        transmission: 0.9,
-        transparent: true,
-        opacity: 0.85,
-        depthWrite: false
-      });
-
-      // Default Sport Rim Material
-      const rimMat = new THREE.MeshStandardMaterial({
-        color: 0xD0D5DD,
-        metalness: 0.92,
-        roughness: 0.25
-      });
-      this.rimMaterials.push(rimMat);
-
-      // Brake Caliper Brembo Material
-      const brakeMat = new THREE.MeshStandardMaterial({
-        color: 0xEF4444,
-        roughness: 0.28,
-        metalness: 0.55
-      });
-
-      // Rubber Tire Material
-      const tireMat = new THREE.MeshStandardMaterial({
-        color: 0x18181B,
-        roughness: 0.88,
-        metalness: 0.08
-      });
+      const fallbackBodyCandidates = [];
 
       this.carGroup.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
 
-          const name = (child.name || '').toLowerCase();
-          const matName = (child.material && child.material.name ? child.material.name : '').toLowerCase();
+          const mats = Array.isArray(child.material) ? child.material : (child.material ? [child.material] : []);
+          const meshName = (child.name || '').toLowerCase();
 
-          if (name.includes('body') || name.includes('object_4') || name.includes('main') || matName === 'material' || matName.includes('paint') || matName.includes('body')) {
-            child.material = bodyMat;
-          } else if (name.includes('rim_') || name === 'object_11' || name === 'object_14' || name === 'object_17' || name === 'object_20' || matName === 'material.006') {
-            child.material = rimMat;
-          } else if (name.includes('brake')) {
-            child.material = brakeMat;
-          } else if (name.includes('glass') || name === 'object_5' || matName === 'material.001') {
-            child.material = glassMat;
-          } else if (name.includes('tire') || name === 'object_12' || name === 'object_15' || name === 'object_18' || name === 'object_21' || matName === 'material.007') {
-            child.material = tireMat;
-          } else if (name.includes('lights_red') || name.includes('taillight') || name === 'object_9' || matName === 'material.005') {
-            child.material = new THREE.MeshStandardMaterial({
-              color: 0xFF0022,
-              emissive: 0xEE0011,
-              emissiveIntensity: 1.4,
-              roughness: 0.2
-            });
-          } else if (name.includes('lights') || name.includes('led') || name === 'object_8' || matName === 'material.004') {
-            child.material = new THREE.MeshStandardMaterial({
-              color: 0xF0F9FF,
-              emissive: 0x38BDF8,
-              emissiveIntensity: 1.3,
-              roughness: 0.15
-            });
-          } else if (name.includes('chrome') || name.includes('metal') || name === 'object_6' || matName === 'material.002') {
-            child.material = new THREE.MeshStandardMaterial({
-              color: 0x64748B,
-              metalness: 0.88,
-              roughness: 0.25
-            });
-          }
+          mats.forEach((mat) => {
+            if (!mat) return;
+            const matName = (mat.name || '').toLowerCase();
+
+            const isPaint = (
+              matName.includes('paint') ||
+              matName.includes('carpaint') ||
+              matName.includes('body') ||
+              matName.includes('exterior') ||
+              matName.includes('shell') ||
+              matName.includes('carroceria') ||
+              matName.includes('coat') ||
+              matName.includes('color') ||
+              meshName.includes('paint') ||
+              meshName.includes('carpaint') ||
+              (meshName.includes('body') && !meshName.includes('under') && !meshName.includes('glass'))
+            );
+
+            if (isPaint && mat.color && !this.bodyMaterials.includes(mat)) {
+              this.bodyMaterials.push(mat);
+            } else if (
+              mat.color &&
+              !mat.transparent &&
+              !matName.includes('glass') &&
+              !matName.includes('window') &&
+              !matName.includes('tire') &&
+              !matName.includes('tyre') &&
+              !matName.includes('rubber') &&
+              !matName.includes('interior') &&
+              !matName.includes('light') &&
+              !matName.includes('chrome') &&
+              !matName.includes('black') &&
+              !fallbackBodyCandidates.includes(mat)
+            ) {
+              fallbackBodyCandidates.push(mat);
+            }
+
+            const isRim = (
+              matName.includes('rim') ||
+              matName.includes('wheel') ||
+              matName.includes('alloy') ||
+              meshName.includes('rim')
+            );
+            if (isRim && mat.color && !this.rimMaterials.includes(mat)) {
+              this.rimMaterials.push(mat);
+            }
+          });
         }
       });
 
+      if (this.bodyMaterials.length === 0 && fallbackBodyCandidates.length > 0) {
+        this.bodyMaterials = fallbackBodyCandidates;
+      }
+
       this.scene.add(this.carGroup);
+      this.handleResize();
+      this.setRotationAngle(this.currentAngle);
 
       if (this.options.onReady) this.options.onReady();
       this.syncRotationAngleFromCamera();
@@ -855,8 +856,9 @@
     handleResize() {
       if (this.isDisposed || !this.container || !this.renderer || !this.camera) return;
 
-      const width = this.container.clientWidth;
-      const height = this.container.clientHeight;
+      const parentEl = this.container.parentElement;
+      const width = this.container.clientWidth || (parentEl && parentEl.clientWidth) || 0;
+      const height = this.container.clientHeight || (parentEl && parentEl.clientHeight) || 0;
 
       if (width === 0 || height === 0) return;
 

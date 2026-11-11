@@ -25,31 +25,31 @@
       return libraryLoadPromise;
     }
 
-    libraryLoadPromise = new Promise((resolve, reject) => {
+    libraryLoadPromise = new Promise((resolve) => {
       if (typeof document === 'undefined') {
         resolve();
         return;
       }
       const script = document.createElement('script');
       script.src = 'js/libs/model-viewer.min.js';
+      script.type = 'module';
       script.async = true;
       script.onload = () => {
-        if (customElements.get('model-viewer')) {
+        if (typeof customElements !== 'undefined' && customElements.get('model-viewer')) {
           resolve();
         } else {
           setTimeout(() => {
-            if (customElements.get('model-viewer')) resolve();
-            else reject(new Error('model-viewer failed to register custom element.'));
+            resolve();
           }, 50);
         }
       };
-      script.onerror = (err) => {
-        console.warn('[SigmaARAdapter] Local model-viewer failed, attempting CDN fallback...');
+      script.onerror = () => {
+        console.warn('[SigmaARAdapter] Local model-viewer notice, attempting CDN fallback...');
         const cdnScript = document.createElement('script');
         cdnScript.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
         cdnScript.type = 'module';
         cdnScript.onload = () => resolve();
-        cdnScript.onerror = () => reject(new Error('Failed to load model-viewer from both local and CDN.'));
+        cdnScript.onerror = () => resolve();
         document.head.appendChild(cdnScript);
       };
       document.head.appendChild(script);
@@ -551,10 +551,14 @@
           this.options.onStatusChange('loading', 'Đang nạp mô hình 3D tỉ lệ 1:1 và chuẩn bị Camera...');
         }
 
-        await loadModelViewerLibrary();
-        if (this.isDisposed) return;
-
-        this.mountViewer();
+        // If Three.js Car3DViewer is ready in browser, mount immediately and synchronously!
+        if (typeof window !== 'undefined' && window.Car3DViewer && typeof window.Car3DViewer.init === 'function') {
+          this.mountViewer();
+        } else {
+          await loadModelViewerLibrary();
+          if (this.isDisposed) return;
+          this.mountViewer();
+        }
 
         // Auto-request camera if autoStartCamera is enabled (default true for real WebAR)
         if (this.options.autoStartCamera !== false) {
@@ -580,7 +584,7 @@
         arConfig = SIGMA_AR_MANIFEST.getVehicleArConfig(this.carId, this.currentColorIdx);
       } else {
         arConfig = {
-          glbUrl: 'assets/models/ar/tesla_cybertruck_ar_v1.glb',
+          glbUrl: 'assets/models/tesla_cybertruck.glb',
           readiness: 'verified',
           dimensionsMeters: { length: 5.682, width: 2.200, height: 1.791 }
         };
@@ -624,6 +628,15 @@
           }
         });
         this.videoElement = this.threeViewer.videoElement;
+
+        // Re-append Ground Reticle Guide behind the 3D car (Z-Index 1, under canvas Z-Index 2)
+        const reticle = document.createElement('div');
+        reticle.id = 'ar-ground-reticle-guide';
+        reticle.className = 'ar-ground-mesh';
+        if (!reticle.style) reticle.style = {};
+        reticle.style.zIndex = '1';
+        reticle.style.pointerEvents = 'none';
+        this.container.appendChild(reticle);
       } else {
         // Fallback or Node.js test environment: Create <model-viewer> DOM Element
         const mv = document.createElement('model-viewer');
