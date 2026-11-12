@@ -575,8 +575,8 @@ function createMockThree() {
     viewer.dispose();
   });
 
-  // Test 8: animate loop updates VideoTexture needsUpdate every frame and sets scene.background
-  await itAsync('animate loop updates VideoTexture needsUpdate and sets scene.background when video ready', async () => {
+  // Test 8: animate loop maintains transparent canvas and plays camera video for live AR
+  await itAsync('animate loop maintains transparent background (scene.background = null) and plays video in AR mode', async () => {
     const code = fs.readFileSync(path.resolve('js/car-3d-viewer.js'), 'utf8');
     const mockThree = createMockThree();
 
@@ -606,17 +606,12 @@ function createMockThree() {
     const viewer = Car3DViewer.init(mockContainer, { arMode: true });
     await viewer.startCamera();
 
-    // Simulate active video frames
-    viewer.videoElement.readyState = 4;
-    viewer.videoElement.videoWidth = 1280;
-    viewer.videoElement.videoHeight = 720;
-
-    // Trigger one animation frame
+    // Trigger animation frame
     viewer.animate();
 
-    assert.ok(viewer.videoTexture, 'Must create VideoTexture when video has frames');
-    assert.strictEqual(viewer.videoTexture.needsUpdate, true, 'Must set needsUpdate = true every frame');
-    assert.strictEqual(viewer.scene.background, viewer.videoTexture, 'Must assign videoTexture to scene.background');
+    assert.strictEqual(viewer.scene.background, null, 'Must keep scene.background = null so camera shows through');
+    assert.strictEqual(viewer.isCameraActive, true, 'Camera must be active');
+    assert.ok(viewer.videoElement, 'Video element must exist');
 
     viewer.dispose();
   });

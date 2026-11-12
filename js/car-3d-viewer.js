@@ -884,42 +884,12 @@
       if (this.videoElement) {
         this.videoElement.style.transform = this._isMirrored ? 'scaleX(-1)' : 'none';
       }
-      this._updateVideoTexture();
       return this._isMirrored;
     }
 
     isMirrored() {
       if (this._isMirrored !== undefined) return this._isMirrored;
       return this.activeFacingMode === 'user';
-    }
-
-    _updateVideoTexture() {
-      if (!this.videoTexture || !this.videoElement) return;
-      const vw = this.videoElement.videoWidth;
-      const vh = this.videoElement.videoHeight;
-      if (!vw || !vh) return;
-
-      const parentEl = this.container ? this.container.parentElement : null;
-      const cw = (this.container && this.container.clientWidth) || (parentEl && parentEl.clientWidth) || window.innerWidth || 800;
-      const ch = (this.container && this.container.clientHeight) || (parentEl && parentEl.clientHeight) || window.innerHeight || 600;
-      if (!cw || !ch) return;
-
-      const containerAspect = cw / ch;
-      const videoAspect = vw / vh;
-      let scaleX = 1;
-      let scaleY = 1;
-      if (containerAspect > videoAspect) {
-        scaleY = videoAspect / containerAspect;
-      } else {
-        scaleX = containerAspect / videoAspect;
-      }
-
-      const mirrored = this.isMirrored();
-      this.videoTexture.center.set(0.5, 0.5);
-      this.videoTexture.repeat.set(mirrored ? -scaleX : scaleX, scaleY);
-      if (typeof this.videoTexture.updateMatrix === 'function') {
-        this.videoTexture.updateMatrix();
-      }
     }
 
     animate() {
@@ -934,42 +904,16 @@
 
       this.updateHotspots();
 
-      // In Camera AR mode, ensure camera video element continues playing in background
+      // In Camera AR mode, ensure camera video element continues playing in background with transparent WebGL canvas
       if (this.isCameraActive && this.videoElement) {
         if (this.videoElement.paused) {
           this.videoElement.play().catch(() => {});
         }
-
-        // Real WebGL Camera Background rendering via THREE.VideoTexture
-        // Prevents Windows Chromium DirectComposition black screen bug when transparent WebGL canvas is layered over HTML <video>
-        if (this.videoElement.readyState >= 2 && this.videoElement.videoWidth > 0 && typeof THREE.VideoTexture !== 'undefined') {
-          if (!this.videoTexture) {
-            this.videoTexture = new THREE.VideoTexture(this.videoElement);
-            this.videoTexture.minFilter = THREE.LinearFilter;
-            this.videoTexture.magFilter = THREE.LinearFilter;
-            this.videoTexture.generateMipmaps = false;
-            this.videoTexture.wrapS = THREE.ClampToEdgeWrapping;
-            this.videoTexture.wrapT = THREE.ClampToEdgeWrapping;
-            if (typeof THREE.sRGBEncoding !== 'undefined') {
-              this.videoTexture.encoding = THREE.sRGBEncoding;
-            }
-          }
-
-          // CRITICAL: Three.js requires needsUpdate = true every frame to push HTML5 video frames to WebGL GPU
-          this.videoTexture.needsUpdate = true;
-          this._updateVideoTexture();
-
-          if (this.scene && this.scene.background !== this.videoTexture) {
-            this.scene.background = this.videoTexture;
-          }
-        } else {
-          // Fallback while awaiting first video frame: transparent clear color
-          if (this.scene && this.scene.background !== null) {
-            this.scene.background = null;
-          }
-          if (this.renderer) {
-            this.renderer.setClearColor(0x000000, 0);
-          }
+        if (this.scene && this.scene.background !== null) {
+          this.scene.background = null;
+        }
+        if (this.renderer) {
+          this.renderer.setClearColor(0x000000, 0);
         }
       } else if (this.options.arMode || this.options.transparent) {
         if (this.scene && this.scene.background !== null) {
@@ -1627,8 +1571,12 @@
       canvas.height = h;
       const ctx = canvas.getContext('2d');
 
-      // Make sure 3D scene is rendered freshly to WebGL canvas buffer before snapshot
+      // Make sure 3D scene is rendered freshly to WebGL canvas buffer before snapshot with transparent background
       if (this.renderer && this.scene && this.camera) {
+        if (this.scene.background !== null) {
+          this.scene.background = null;
+        }
+        this.renderer.setClearColor(0x000000, 0);
         this.renderer.render(this.scene, this.camera);
       }
 
