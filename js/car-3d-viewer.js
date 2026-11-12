@@ -955,6 +955,8 @@
             }
           }
 
+          // CRITICAL: Three.js requires needsUpdate = true every frame to push HTML5 video frames to WebGL GPU
+          this.videoTexture.needsUpdate = true;
           this._updateVideoTexture();
 
           if (this.scene && this.scene.background !== this.videoTexture) {
@@ -1625,6 +1627,11 @@
       canvas.height = h;
       const ctx = canvas.getContext('2d');
 
+      // Make sure 3D scene is rendered freshly to WebGL canvas buffer before snapshot
+      if (this.renderer && this.scene && this.camera) {
+        this.renderer.render(this.scene, this.camera);
+      }
+
       // 1. Draw live camera frame if active
       if (this.isCameraActive && this.videoElement && this.videoElement.videoWidth > 0) {
         const v = this.videoElement;
@@ -1642,7 +1649,14 @@
           sx = 0;
           sy = (v.videoHeight - sHeight) / 2;
         }
+
+        ctx.save();
+        if (this.isMirrored()) {
+          ctx.translate(w, 0);
+          ctx.scale(-1, 1);
+        }
         ctx.drawImage(v, sx, sy, sWidth, sHeight, 0, 0, w, h);
+        ctx.restore();
       } else {
         ctx.fillStyle = '#0B1120';
         ctx.fillRect(0, 0, w, h);

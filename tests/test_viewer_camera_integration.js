@@ -575,6 +575,52 @@ function createMockThree() {
     viewer.dispose();
   });
 
+  // Test 8: animate loop updates VideoTexture needsUpdate every frame and sets scene.background
+  await itAsync('animate loop updates VideoTexture needsUpdate and sets scene.background when video ready', async () => {
+    const code = fs.readFileSync(path.resolve('js/car-3d-viewer.js'), 'utf8');
+    const mockThree = createMockThree();
+
+    const mockContainer = {
+      clientWidth: 800,
+      clientHeight: 520,
+      innerHTML: '',
+      style: {},
+      appendChild: (node) => { node.parentNode = mockContainer; return node; },
+      querySelector: () => null
+    };
+
+    const sandbox = createMockSandbox(mockThree, mockContainer, {
+      getUserMedia: async () => ({
+        active: true,
+        getVideoTracks: () => [{ label: 'WebCam', readyState: 'live', stop: () => {} }],
+        getTracks: () => [{ label: 'WebCam', readyState: 'live', stop: () => {} }]
+      })
+    });
+    vm.createContext(sandbox);
+
+    const mockModule = { exports: {} };
+    sandbox.module = mockModule;
+    vm.runInContext(code, sandbox);
+
+    const Car3DViewer = mockModule.exports.init ? mockModule.exports : sandbox.Car3DViewer;
+    const viewer = Car3DViewer.init(mockContainer, { arMode: true });
+    await viewer.startCamera();
+
+    // Simulate active video frames
+    viewer.videoElement.readyState = 4;
+    viewer.videoElement.videoWidth = 1280;
+    viewer.videoElement.videoHeight = 720;
+
+    // Trigger one animation frame
+    viewer.animate();
+
+    assert.ok(viewer.videoTexture, 'Must create VideoTexture when video has frames');
+    assert.strictEqual(viewer.videoTexture.needsUpdate, true, 'Must set needsUpdate = true every frame');
+    assert.strictEqual(viewer.scene.background, viewer.videoTexture, 'Must assign videoTexture to scene.background');
+
+    viewer.dispose();
+  });
+
   console.log(`\n======================================================`);
   console.log(`VIEWER CAMERA INTEGRATION RESULTS: ${passed}/${total} Passed (${passed === total ? '100% SUCCESS' : 'FAILED'})`);
   console.log(`======================================================\n`);
