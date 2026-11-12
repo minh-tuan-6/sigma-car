@@ -630,13 +630,16 @@
         this.videoElement = this.threeViewer.videoElement;
 
         // Re-append Ground Reticle Guide behind the 3D car (Z-Index 1, under canvas Z-Index 2)
-        const reticle = document.createElement('div');
-        reticle.id = 'ar-ground-reticle-guide';
-        reticle.className = 'ar-ground-mesh';
-        if (!reticle.style) reticle.style = {};
-        reticle.style.zIndex = '1';
-        reticle.style.pointerEvents = 'none';
-        this.container.appendChild(reticle);
+        let reticle = this.container.querySelector('#ar-ground-reticle-guide');
+        if (!reticle) {
+          reticle = document.createElement('div');
+          reticle.id = 'ar-ground-reticle-guide';
+          reticle.className = 'ar-ground-mesh';
+          if (!reticle.style) reticle.style = {};
+          reticle.style.zIndex = '1';
+          reticle.style.pointerEvents = 'none';
+          this.container.appendChild(reticle);
+        }
       } else {
         // Fallback or Node.js test environment: Create <model-viewer> DOM Element
         const mv = document.createElement('model-viewer');

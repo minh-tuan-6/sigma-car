@@ -3747,17 +3747,20 @@ img {
 }
 .ar-live-viewport.camera-active,
 .vr-car-viewport.camera-active {
-  background: transparent !important;
+  background: #000000 !important;
 }
 .ar-live-video-layer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 1;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  z-index: 1 !important;
   pointer-events: none;
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 .ar-camera-backdrop {
   position: absolute;
@@ -3779,6 +3782,7 @@ img {
   height: 100% !important;
   z-index: 2 !important;
   background: transparent !important;
+  pointer-events: auto;
 }
 .ar-mode-switcher {
   display: inline-flex;
@@ -3892,7 +3896,7 @@ img {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, rgba(37, 99, 235, 0) 70%);
   pointer-events: none;
-  z-index: 4;
+  z-index: 1 !important;
   transition: opacity 0.3s;
 }
 .ar-vehicle-entity {

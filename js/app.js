@@ -4639,7 +4639,10 @@ const AppState = {
 
       if (state === 'active') {
         if (backdrop) backdrop.style.display = 'none';
-        if (stage) stage.classList.add('camera-active');
+        if (stage) {
+          stage.classList.add('camera-active');
+          stage.style.background = '#000000';
+        }
         if (btnModeA) btnModeA.classList.remove('active');
         if (btnModeB) btnModeB.classList.add('active');
         if (statusBadge) {
@@ -4653,7 +4656,10 @@ const AppState = {
         if (permissionOverlay) permissionOverlay.style.display = 'none';
       } else if (state === 'permission_denied') {
         if (backdrop) backdrop.style.display = 'block';
-        if (stage) stage.classList.remove('camera-active');
+        if (stage) {
+          stage.classList.remove('camera-active');
+          stage.style.background = '#0B1120';
+        }
         if (btnModeB) btnModeB.classList.remove('active');
         if (btnModeA) btnModeA.classList.add('active');
         if (statusBadge) statusBadge.textContent = '⚠️ Quyền Camera bị từ chối • Đang ở Mode A (3D Studio)';
@@ -4682,7 +4688,10 @@ const AppState = {
         }
       } else if (state === 'insecure_context') {
         if (backdrop) backdrop.style.display = 'block';
-        if (stage) stage.classList.remove('camera-active');
+        if (stage) {
+          stage.classList.remove('camera-active');
+          stage.style.background = '#0B1120';
+        }
         if (btnModeB) btnModeB.classList.remove('active');
         if (btnModeA) btnModeA.classList.add('active');
         if (statusBadge) statusBadge.textContent = '⚠️ Camera yêu cầu kết nối bảo mật HTTPS hoặc localhost';
@@ -4699,7 +4708,10 @@ const AppState = {
         }
       } else if (state === 'stopped') {
         if (backdrop) backdrop.style.display = 'block';
-        if (stage) stage.classList.remove('camera-active');
+        if (stage) {
+          stage.classList.remove('camera-active');
+          stage.style.background = '#0B1120';
+        }
         if (btnModeB) btnModeB.classList.remove('active');
         if (btnModeA) btnModeA.classList.add('active');
         if (statusBadge) statusBadge.textContent = '📷 Mode A: 3D Studio • Bấm "MODE B" hoặc "Bật Camera" để mở không gian thực';
@@ -4708,7 +4720,10 @@ const AppState = {
         if (permissionOverlay) permissionOverlay.style.display = 'none';
       } else if (state === 'camera_unavailable' || state === 'camera_in_use' || state === 'overconstrained' || state === 'security_error' || state === 'type_error') {
         if (backdrop) backdrop.style.display = 'block';
-        if (stage) stage.classList.remove('camera-active');
+        if (stage) {
+          stage.classList.remove('camera-active');
+          stage.style.background = '#0B1120';
+        }
         if (btnModeB) btnModeB.classList.remove('active');
         if (btnModeA) btnModeA.classList.add('active');
         if (statusBadge) statusBadge.textContent = `⚠️ ${detail.title || 'Không thể mở Camera'}`;
