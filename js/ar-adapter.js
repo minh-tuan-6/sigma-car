@@ -109,13 +109,22 @@
       }
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
+        const VIRTUAL_CAM_REGEX = /virtual|obs|droidcam|camo|manycam|splitcam|snap\s*cam|vcam|vmix|iriun|epoccam|ndi|hello\s*face|ir\s*camera|software\s*device/i;
+        const PHYSICAL_CAM_REGEX = /integrated|webcam|camera|facetime|hd|chicony|sunplus|realtek|logitech|usb/i;
+
         return devices
           .filter(d => d.kind === 'videoinput')
           .sort((a, b) => {
-            const isVirtA = /virtual|obs|droidcam|camo|manycam/i.test(a.label);
-            const isVirtB = /virtual|obs|droidcam|camo|manycam/i.test(b.label);
-            if (isVirtA && !isVirtB) return 1;
+            const isVirtA = VIRTUAL_CAM_REGEX.test(a.label);
+            const isVirtB = VIRTUAL_CAM_REGEX.test(b.label);
             if (!isVirtA && isVirtB) return -1;
+            if (isVirtA && !isVirtB) return 1;
+
+            const isPhysA = PHYSICAL_CAM_REGEX.test(a.label);
+            const isPhysB = PHYSICAL_CAM_REGEX.test(b.label);
+            if (isPhysA && !isPhysB) return -1;
+            if (!isPhysA && isPhysB) return 1;
+
             return 0;
           })
           .map((d, index) => {
@@ -348,9 +357,42 @@
         }
       }
 
+      const VIRTUAL_CAM_REGEX = /virtual|obs|droidcam|camo|manycam|splitcam|snap\s*cam|vcam|vmix|iriun|epoccam|ndi|hello\s*face|ir\s*camera|software\s*device/i;
+      const PHYSICAL_CAM_REGEX = /integrated|webcam|camera|facetime|hd|chicony|sunplus|realtek|logitech|usb/i;
+      let videoTrack = stream.getVideoTracks()[0];
+      const currentTrackLabel = (videoTrack && videoTrack.label) ? videoTrack.label : '';
+      const isCurrentVirtual = VIRTUAL_CAM_REGEX.test(currentTrackLabel);
+
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        try {
+          const postDevs = await navigator.mediaDevices.enumerateDevices();
+          const videoDevs = postDevs.filter(d => d.kind === 'videoinput');
+          const physicalCams = videoDevs.filter(d => d.label && !VIRTUAL_CAM_REGEX.test(d.label));
+
+          if ((isCurrentVirtual || !preferredOptions.deviceId) && physicalCams.length > 0) {
+            const bestPhysical = physicalCams.find(c => PHYSICAL_CAM_REGEX.test(c.label)) || physicalCams[0];
+            const isAlreadyOnPhysical = videoTrack && videoTrack.label === bestPhysical.label;
+            if (!isAlreadyOnPhysical && isCurrentVirtual) {
+              console.warn(`[ARCameraManager] Auto-switching from virtual "${currentTrackLabel}" to physical "${bestPhysical.label}"`);
+              stream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
+              try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: { deviceId: { exact: bestPhysical.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+              } catch (e) {
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: { deviceId: { ideal: bestPhysical.deviceId } }
+                });
+              }
+              videoTrack = stream.getVideoTracks()[0];
+              requestedDeviceId = bestPhysical.deviceId;
+            }
+          }
+        } catch (e) {}
+      }
+
       this.stream = stream;
       this.lastError = null;
-      const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         const settings = typeof videoTrack.getSettings === 'function' ? videoTrack.getSettings() : {};
         this.activeDeviceId = settings.deviceId || requestedDeviceId;
@@ -460,32 +502,40 @@
       this.stopCamera();
       await new Promise(r => setTimeout(r, 200));
 
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       let availableCameras = [];
       try {
         if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
-          const devs = await navigator.mediaDevices.enumerateDevices();
-          availableCameras = devs.filter(d => d.kind === 'videoinput');
+          availableCameras = await this.getAvailableCameras();
         }
       } catch (e) {}
 
-      if (targetDeviceIdOrFacing === 'user' || targetDeviceIdOrFacing === 'environment') {
-        this.activeFacingMode = targetDeviceIdOrFacing;
-        this.activeDeviceId = null;
-        return await this.startCamera(this.videoElement, { facingMode: targetDeviceIdOrFacing });
-      } else if (typeof targetDeviceIdOrFacing === 'string' && targetDeviceIdOrFacing) {
+      if (targetDeviceIdOrFacing && targetDeviceIdOrFacing !== 'user' && targetDeviceIdOrFacing !== 'environment') {
         this.activeDeviceId = targetDeviceIdOrFacing;
         return await this.startCamera(this.videoElement, { deviceId: targetDeviceIdOrFacing });
+      } else if (targetDeviceIdOrFacing === 'user' || targetDeviceIdOrFacing === 'environment') {
+        if (isMobile) {
+          this.activeFacingMode = targetDeviceIdOrFacing;
+          this.activeDeviceId = null;
+          return await this.startCamera(this.videoElement, { facingMode: targetDeviceIdOrFacing });
+        } else if (availableCameras.length > 1) {
+          const currentIdx = availableCameras.findIndex(d => d.deviceId === this.activeDeviceId);
+          const nextIdx = (currentIdx + 1) % availableCameras.length;
+          this.activeDeviceId = availableCameras[nextIdx].deviceId;
+          return await this.startCamera(this.videoElement, { deviceId: this.activeDeviceId });
+        }
       } else if (availableCameras.length > 1) {
         const currentIdx = availableCameras.findIndex(d => d.deviceId === this.activeDeviceId);
         const nextIdx = (currentIdx + 1) % availableCameras.length;
         this.activeDeviceId = availableCameras[nextIdx].deviceId;
         return await this.startCamera(this.videoElement, { deviceId: this.activeDeviceId });
-      } else {
+      } else if (isMobile) {
         const nextFacing = this.activeFacingMode === 'user' ? 'environment' : 'user';
         this.activeFacingMode = nextFacing;
         this.activeDeviceId = null;
         return await this.startCamera(this.videoElement, { facingMode: nextFacing });
       }
+      return await this.startCamera(this.videoElement, { deviceId: this.activeDeviceId });
     }
 
     isActive() {

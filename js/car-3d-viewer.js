@@ -959,18 +959,25 @@
         throw err;
       }
 
+      const VIRTUAL_CAM_REGEX = /virtual|obs|droidcam|camo|manycam|splitcam|snap\s*cam|vcam|vmix|iriun|epoccam|ndi|hello\s*face|ir\s*camera|software\s*device/i;
+      const PHYSICAL_CAM_REGEX = /integrated|webcam|camera|facetime|hd|chicony|sunplus|realtek|logitech|usb/i;
+
       const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       let requestedDeviceId = options.deviceId || (options.facingMode ? null : this.activeDeviceId);
+      // On desktop/laptop, never force 'environment' facing mode as it skips front webcams and falls back to virtual devices
       const requestedFacing = options.facingMode || (!requestedDeviceId && isMobile ? (this.activeFacingMode || 'environment') : undefined);
 
-      // Auto-prioritize physical camera over virtual cameras ONLY IF neither deviceId NOR facingMode was explicitly requested
+      // Auto-prioritize physical camera over virtual cameras if labels are already unmasked
       if (!requestedDeviceId && !options.facingMode && typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
         try {
           const devs = await navigator.mediaDevices.enumerateDevices();
           const cams = devs.filter(d => d.kind === 'videoinput');
-          const physicalCam = cams.find(c => c.label && !/virtual|obs|droidcam|camo|manycam/i.test(c.label));
-          if (physicalCam && physicalCam.deviceId) {
-            requestedDeviceId = physicalCam.deviceId;
+          const physicalCams = cams.filter(c => c.label && !VIRTUAL_CAM_REGEX.test(c.label));
+          if (physicalCams.length > 0) {
+            const best = physicalCams.find(c => PHYSICAL_CAM_REGEX.test(c.label)) || physicalCams[0];
+            if (best && best.deviceId) {
+              requestedDeviceId = best.deviceId;
+            }
           }
         } catch (e) {}
       }
@@ -981,7 +988,7 @@
           label: 'Specific Device with Ideal 1080p',
           constraints: {
             video: {
-              deviceId: { exact: requestedDeviceId },
+              deviceId: { ideal: requestedDeviceId },
               width: { ideal: 1920 },
               height: { ideal: 1080 }
             },
@@ -1030,6 +1037,15 @@
       }
 
       // Generic desktop / universal profiles (Crucial for desktop webcams!)
+      if (!isMobile) {
+        profiles.push({
+          label: 'Desktop User-facing 720p',
+          constraints: {
+            video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false
+          }
+        });
+      }
       profiles.push({
         label: 'Generic Camera 1080p',
         constraints: {
@@ -1052,19 +1068,14 @@
         }
       });
 
+      let stream = null;
       let lastError = null;
       for (const p of profiles) {
         try {
-          const stream = await navigator.mediaDevices.getUserMedia(p.constraints);
+          stream = await navigator.mediaDevices.getUserMedia(p.constraints);
           if (stream && stream.active) {
             console.log(`[Car3DViewer/AR] Successfully initialized camera with profile: "${p.label}"`);
-            const tracks = stream.getVideoTracks();
-            if (tracks.length > 0 && typeof tracks[0].getSettings === 'function') {
-              const settings = tracks[0].getSettings();
-              this.activeDeviceId = settings.deviceId || requestedDeviceId;
-              this.activeFacingMode = settings.facingMode || requestedFacing;
-            }
-            return stream;
+            break;
           }
         } catch (err) {
           lastError = err;
@@ -1073,7 +1084,73 @@
           }
         }
       }
-      throw lastError || new Error('All camera profiles failed');
+
+      if (!stream || !stream.active) {
+        throw lastError || new Error('All camera profiles failed');
+      }
+
+      // Post-acquisition inspection:
+      // Now that camera permission is granted, device labels are unmasked.
+      // If the current stream is a virtual camera (e.g. OBS Virtual Camera, DroidCam) and a physical webcam exists,
+      // auto-switch immediately to the physical webcam so the laptop hardware camera LED turns on and real video shows.
+      let tracks = stream.getVideoTracks();
+      const currentTrackLabel = (tracks[0] && tracks[0].label) ? tracks[0].label : '';
+      const isCurrentVirtual = VIRTUAL_CAM_REGEX.test(currentTrackLabel);
+
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        try {
+          const postDevs = await navigator.mediaDevices.enumerateDevices();
+          const videoDevs = postDevs.filter(d => d.kind === 'videoinput');
+
+          if (typeof this.options.onDevicesUpdated === 'function') {
+            this.options.onDevicesUpdated(videoDevs);
+          }
+
+          const physicalCams = videoDevs.filter(d => d.label && !VIRTUAL_CAM_REGEX.test(d.label));
+          if ((isCurrentVirtual || !options.deviceId) && physicalCams.length > 0) {
+            const bestPhysical = physicalCams.find(c => PHYSICAL_CAM_REGEX.test(c.label)) || physicalCams[0];
+            const isAlreadyOnPhysical = tracks[0] && tracks[0].label === bestPhysical.label;
+            if (!isAlreadyOnPhysical && isCurrentVirtual) {
+              console.warn(`[Car3DViewer/AR] Active stream "${currentTrackLabel}" is virtual. Auto-switching to physical webcam: "${bestPhysical.label}"`);
+              stream.getTracks().forEach(t => {
+                try { t.stop(); } catch (e) {}
+              });
+
+              try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: {
+                    deviceId: { exact: bestPhysical.deviceId },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                  },
+                  audio: false
+                });
+              } catch (fallbackErr) {
+                stream = await navigator.mediaDevices.getUserMedia({
+                  video: {
+                    deviceId: { ideal: bestPhysical.deviceId }
+                  },
+                  audio: false
+                });
+              }
+              requestedDeviceId = bestPhysical.deviceId;
+            }
+          }
+        } catch (postErr) {
+          console.warn('[Car3DViewer/AR] Post-acquisition physical camera check notice:', postErr);
+        }
+      }
+
+      tracks = stream.getVideoTracks();
+      if (tracks.length > 0 && typeof tracks[0].getSettings === 'function') {
+        const settings = tracks[0].getSettings();
+        this.activeDeviceId = settings.deviceId || requestedDeviceId || this.activeDeviceId;
+        this.activeFacingMode = settings.facingMode || requestedFacing || this.activeFacingMode;
+      } else if (requestedDeviceId) {
+        this.activeDeviceId = requestedDeviceId;
+      }
+
+      return stream;
     }
 
     _handleCameraError(err) {
@@ -1348,26 +1425,37 @@
       // Allow OS camera driver to cleanly release hardware resources
       await new Promise(r => setTimeout(r, 200));
 
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
       const availableCameras = await this.getAvailableCameras();
 
-      if (targetDeviceIdOrFacing === 'user' || targetDeviceIdOrFacing === 'environment') {
-        this.activeFacingMode = targetDeviceIdOrFacing;
-        this.activeDeviceId = null;
-      } else if (typeof targetDeviceIdOrFacing === 'string' && targetDeviceIdOrFacing) {
+      if (targetDeviceIdOrFacing && targetDeviceIdOrFacing !== 'user' && targetDeviceIdOrFacing !== 'environment') {
         this.activeDeviceId = targetDeviceIdOrFacing;
+      } else if (targetDeviceIdOrFacing === 'user' || targetDeviceIdOrFacing === 'environment') {
+        if (isMobile) {
+          this.activeFacingMode = targetDeviceIdOrFacing;
+          this.activeDeviceId = null;
+        } else {
+          // On desktop, user asked to flip or cycle: move to next camera in list
+          if (availableCameras.length > 1) {
+            const currentIdx = availableCameras.findIndex(d => d.deviceId === this.activeDeviceId);
+            const nextIdx = (currentIdx + 1) % availableCameras.length;
+            this.activeDeviceId = availableCameras[nextIdx].deviceId;
+          }
+        }
       } else if (availableCameras.length > 1) {
         // Multi-camera cycling: find current index and pick next device
         const currentIdx = availableCameras.findIndex(d => d.deviceId === this.activeDeviceId);
         const nextIdx = (currentIdx + 1) % availableCameras.length;
         this.activeDeviceId = availableCameras[nextIdx].deviceId;
-      } else {
+      } else if (isMobile) {
         // Toggle facing mode if single camera or unspecified
         this.activeFacingMode = this.activeFacingMode === 'user' ? 'environment' : 'user';
         this.activeDeviceId = null;
       }
+
       return await this.startCamera({
         deviceId: this.activeDeviceId,
-        facingMode: this.activeFacingMode
+        facingMode: isMobile ? this.activeFacingMode : undefined
       });
     }
 
@@ -1378,11 +1466,20 @@
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cams = devices.filter(d => d.kind === 'videoinput');
+        const VIRTUAL_CAM_REGEX = /virtual|obs|droidcam|camo|manycam|splitcam|snap\s*cam|vcam|vmix|iriun|epoccam|ndi|hello\s*face|ir\s*camera|software\s*device/i;
+        const PHYSICAL_CAM_REGEX = /integrated|webcam|camera|facetime|hd|chicony|sunplus|realtek|logitech|usb/i;
+
         return cams.sort((a, b) => {
-          const isVirtA = /virtual|obs|droidcam|camo|manycam/i.test(a.label);
-          const isVirtB = /virtual|obs|droidcam|camo|manycam/i.test(b.label);
-          if (isVirtA && !isVirtB) return 1;
-          if (!isVirtA && isVirtB) return -1;
+          const aVirt = VIRTUAL_CAM_REGEX.test(a.label);
+          const bVirt = VIRTUAL_CAM_REGEX.test(b.label);
+          if (!aVirt && bVirt) return -1;
+          if (aVirt && !bVirt) return 1;
+
+          const aPhys = PHYSICAL_CAM_REGEX.test(a.label);
+          const bPhys = PHYSICAL_CAM_REGEX.test(b.label);
+          if (aPhys && !bPhys) return -1;
+          if (!aPhys && bPhys) return 1;
+
           return 0;
         });
       } catch (e) {

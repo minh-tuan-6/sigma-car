@@ -4640,10 +4640,22 @@ const AppState = {
         cameraSelect.innerHTML = '<option value="">Camera Mặc định (Tự động)</option>';
         return;
       }
-      cameraSelect.innerHTML = `
-        <option value="">Tự động (Camera sau / Mặc định)</option>
-        ${devices.map((d, i) => `<option value="${d.deviceId}">${escapeHtml(d.label || ('Camera ' + (i + 1)))}</option>`).join('')}
-      `;
+      const VIRTUAL_REGEX = /virtual|obs|droidcam|camo|manycam|splitcam|snap|vcam|vmix|iriun|epoccam|ndi|hello|software|ir\s*camera/i;
+      const inst = window.SigmaARAdapter?.getInstance();
+      const currentActiveId = inst?.threeViewer?.activeDeviceId || inst?.cameraManager?.activeDeviceId || cameraSelect.value;
+
+      cameraSelect.innerHTML = devices.map((d, i) => {
+        const isVirt = VIRTUAL_REGEX.test(d.label);
+        const tag = isVirt ? ' (Camera ảo)' : '';
+        const name = d.label ? `${d.label}${tag}` : `Camera ${i + 1}`;
+        return `<option value="${d.deviceId}">${escapeHtml(name)}</option>`;
+      }).join('');
+
+      if (currentActiveId && devices.some(d => d.deviceId === currentActiveId)) {
+        cameraSelect.value = currentActiveId;
+      } else if (devices.length > 0) {
+        cameraSelect.value = devices[0].deviceId;
+      }
     };
 
     // UI State Handler for Camera Permissions & Lifecycles
@@ -4817,7 +4829,7 @@ const AppState = {
     sidebarCameraBtn?.addEventListener('click', handleCameraToggle);
 
     // Smart Flip / Switch Camera handler (Front ↔ Back & Multi-Device)
-    let currentFacing = 'environment';
+    let currentFacing = 'user';
     const handleSwitchCamera = async () => {
       if (!window.SigmaARAdapter) return;
       try {
@@ -4828,26 +4840,31 @@ const AppState = {
           return;
         }
 
-        showToast('Đang lật / chuyển đổi Camera...', '🔄');
+        showToast('Đang chuyển đổi Camera...', '🔄');
         const availableDevices = await window.SigmaARAdapter.getAvailableCameras();
 
         let target = null;
-        let toastMsg = 'Đã lật Camera!';
+        let toastMsg = 'Đã chuyển Camera!';
 
         const inst = window.SigmaARAdapter.getInstance();
-        const activeDev = inst?.threeViewer?.activeDeviceId || inst?.cameraManager?.activeDeviceId || '';
-        const currentSelected = (cameraSelect && cameraSelect.value) ? cameraSelect.value : activeDev;
+        const activeDev = inst?.threeViewer?.activeDeviceId || inst?.cameraManager?.activeDeviceId || (cameraSelect ? cameraSelect.value : '');
 
         if (availableDevices && availableDevices.length > 1) {
-          const currentIdx = availableDevices.findIndex(d => d.deviceId === currentSelected);
+          const currentIdx = availableDevices.findIndex(d => d.deviceId === activeDev);
           const nextIdx = (currentIdx + 1) % availableDevices.length;
           target = availableDevices[nextIdx].deviceId;
           if (cameraSelect) cameraSelect.value = target;
           toastMsg = `Đã đổi sang: ${availableDevices[nextIdx].label || ('Camera ' + (nextIdx + 1))}`;
         } else {
-          currentFacing = currentFacing === 'user' ? 'environment' : 'user';
-          target = currentFacing;
-          toastMsg = `Đã lật sang: ${currentFacing === 'user' ? 'Camera Trước (Selfie)' : 'Camera Sau (Môi trường)'}`;
+          const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          if (isMobile) {
+            currentFacing = currentFacing === 'user' ? 'environment' : 'user';
+            target = currentFacing;
+            toastMsg = `Đã lật sang: ${currentFacing === 'user' ? 'Camera Trước (Selfie)' : 'Camera Sau (Môi trường)'}`;
+          } else {
+            target = activeDev || null;
+            toastMsg = 'Đã làm mới kết nối Camera!';
+          }
         }
 
         await window.SigmaARAdapter.switchCamera(target);
@@ -4860,7 +4877,7 @@ const AppState = {
         }
       } catch (err) {
         console.warn('[ARLive] Switch camera error:', err);
-        showToast('Không thể lật Camera: ' + (err.message || 'Lỗi thiết bị'), '⚠️');
+        showToast('Không thể chuyển Camera: ' + (err.message || 'Lỗi thiết bị'), '⚠️');
       }
     };
 
@@ -4870,12 +4887,8 @@ const AppState = {
     // Camera Device Select Dropdown
     cameraSelect?.addEventListener('change', async (e) => {
       const selectedId = e.target.value;
-      if (window.SigmaARAdapter) {
-        if (selectedId) {
-          await window.SigmaARAdapter.switchCamera(selectedId);
-        } else {
-          await window.SigmaARAdapter.switchCamera('environment');
-        }
+      if (window.SigmaARAdapter && selectedId) {
+        await window.SigmaARAdapter.switchCamera(selectedId);
       }
     });
 

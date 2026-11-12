@@ -407,6 +407,100 @@ function createMockThree() {
     v2.dispose();
   });
 
+  // Test 6: Virtual camera detection & auto-switching to physical webcam when labels are masked initially
+  await itAsync('Auto-switches from virtual camera (OBS) to physical webcam when labels masked initially', async () => {
+    const code = fs.readFileSync(path.resolve('js/car-3d-viewer.js'), 'utf8');
+    const mockThree = createMockThree();
+
+    let obsStopped = false;
+    let acquiredDeviceId = null;
+    let callCount = 0;
+
+    const obsStream = {
+      active: true,
+      getVideoTracks: () => [{
+        label: 'OBS Virtual Camera',
+        readyState: 'live',
+        stop: () => { obsStopped = true; },
+        getSettings: () => ({ deviceId: 'dev-obs-001' })
+      }],
+      getTracks: () => [{
+        label: 'OBS Virtual Camera',
+        readyState: 'live',
+        stop: () => { obsStopped = true; },
+        getSettings: () => ({ deviceId: 'dev-obs-001' })
+      }]
+    };
+
+    const physicalStream = {
+      active: true,
+      getVideoTracks: () => [{
+        label: 'Integrated Camera (HD WebCam)',
+        readyState: 'live',
+        stop: () => {},
+        getSettings: () => ({ deviceId: 'dev-phys-webcam' })
+      }],
+      getTracks: () => [{
+        label: 'Integrated Camera (HD WebCam)',
+        readyState: 'live',
+        stop: () => {},
+        getSettings: () => ({ deviceId: 'dev-phys-webcam' })
+      }]
+    };
+
+    const mockContainer = {
+      clientWidth: 800,
+      clientHeight: 520,
+      innerHTML: '',
+      style: {},
+      appendChild: (node) => { node.parentNode = mockContainer; return node; },
+      querySelector: () => null
+    };
+
+    const sandbox = createMockSandbox(mockThree, mockContainer, {
+      getUserMedia: async (constraints) => {
+        if (constraints?.video?.deviceId?.exact === 'dev-phys-webcam' || constraints?.video?.deviceId?.ideal === 'dev-phys-webcam') {
+          acquiredDeviceId = 'dev-phys-webcam';
+          return physicalStream;
+        }
+        // Initial generic request returns OBS Virtual Camera
+        return obsStream;
+      },
+      enumerateDevices: async () => {
+        callCount++;
+        // First call: labels are masked (empty) before permission
+        if (callCount === 1) {
+          return [
+            { kind: 'videoinput', deviceId: 'dev-obs-001', label: '' },
+            { kind: 'videoinput', deviceId: 'dev-phys-webcam', label: '' }
+          ];
+        }
+        // Subsequent calls: permission granted, real labels revealed
+        return [
+          { kind: 'videoinput', deviceId: 'dev-obs-001', label: 'OBS Virtual Camera' },
+          { kind: 'videoinput', deviceId: 'dev-phys-webcam', label: 'Integrated Camera (HD WebCam)' }
+        ];
+      }
+    });
+    vm.createContext(sandbox);
+
+    const mockModule = { exports: {} };
+    sandbox.module = mockModule;
+    vm.runInContext(code, sandbox);
+
+    const Car3DViewer = mockModule.exports.init ? mockModule.exports : sandbox.Car3DViewer;
+    const viewer = Car3DViewer.init(mockContainer, { arMode: true });
+
+    await viewer.startCamera();
+
+    assert.strictEqual(obsStopped, true, 'OBS Virtual Camera track must be stopped when auto-switching');
+    assert.strictEqual(acquiredDeviceId, 'dev-phys-webcam', 'Should re-acquire physical webcam deviceId');
+    assert.strictEqual(viewer.activeDeviceId, 'dev-phys-webcam', 'Viewer activeDeviceId must be physical webcam');
+    assert.strictEqual(viewer.isCameraActive, true);
+
+    viewer.dispose();
+  });
+
   console.log(`\n======================================================`);
   console.log(`VIEWER CAMERA INTEGRATION RESULTS: ${passed}/${total} Passed (${passed === total ? '100% SUCCESS' : 'FAILED'})`);
   console.log(`======================================================\n`);
