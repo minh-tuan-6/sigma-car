@@ -887,6 +887,13 @@
       }
     }
 
+    toggleMirror() {
+      if (this.threeViewer && typeof this.threeViewer.toggleMirror === 'function') {
+        return this.threeViewer.toggleMirror();
+      }
+      return false;
+    }
+
     // Diagnostic information getter for developer & debug inspection
     async getDiagnostics() {
       if (this.threeViewer && typeof this.threeViewer.getDiagnostics === 'function') {
@@ -903,24 +910,36 @@
       else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browserName = 'Apple Safari';
       else if (/Firefox\//i.test(ua)) browserName = 'Mozilla Firefox';
 
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
-      const isIOS = /iPhone|iPad|iPod/i.test(ua);
-      const isAndroid = /Android/i.test(ua);
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(ua);
+      const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(ua);
+      const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(ua);
+
+      const v = this.videoElement;
+      const tracks = (this.cameraManager && this.cameraManager.stream) ? this.cameraManager.stream.getVideoTracks() : [];
+      const activeTrack = tracks.length > 0 ? tracks[0] : null;
 
       return {
         browser: browserName,
         platform: isMobile ? (isIOS ? 'iOS Mobile' : (isAndroid ? 'Android Mobile' : 'Mobile')) : 'Desktop',
-        isSecureContext: Boolean(typeof window !== 'undefined' && window.isSecureContext),
         protocol: typeof location !== 'undefined' ? location.protocol : 'unknown',
         hostname: typeof location !== 'undefined' ? location.hostname : 'unknown',
+        isSecureContext: Boolean(typeof window !== 'undefined' && window.isSecureContext),
         hasMediaDevices: support.hasMediaDevices,
         hasGetUserMedia: typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia,
         permissionState: permState,
         cameraCount: cameras.length,
         cameras: cameras.map(c => ({ label: c.label, facingMode: c.facingMode })),
-        activeCameraId: this.cameraManager.activeDeviceId || 'Default',
+        activeCamera: this.cameraManager.activeDeviceId || 'Default',
+        activeCameraLabel: (activeTrack && activeTrack.label) ? activeTrack.label : (this.cameraManager.activeDeviceId || 'Camera mặc định'),
         activeFacingMode: this.cameraManager.activeFacingMode,
         cameraState: this.cameraManager.cameraState,
+        isCameraActive: this.cameraManager.isActive(),
+        videoWidth: (v && v.videoWidth) || 0,
+        videoHeight: (v && v.videoHeight) || 0,
+        videoReadyState: (v && v.readyState) || 0,
+        videoPaused: v ? v.paused : true,
+        textureActive: false,
+        isMirrored: this.cameraManager.activeFacingMode === 'user',
         lastError: this.cameraManager.lastError ? {
           name: this.cameraManager.lastError.name,
           message: this.cameraManager.lastError.message
@@ -1171,6 +1190,13 @@
       if (currentInstance) {
         return await currentInstance.toggleCamera();
       }
+    },
+
+    toggleMirror: function () {
+      if (currentInstance && typeof currentInstance.toggleMirror === 'function') {
+        return currentInstance.toggleMirror();
+      }
+      return false;
     },
 
     switchCamera: async function (target) {

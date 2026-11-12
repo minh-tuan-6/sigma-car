@@ -110,6 +110,7 @@
       this.currentMode = (this.options.transparent || this.options.arMode) ? 'ar_camera' : 'studio';
       this.activeDeviceId = null;
       this.activeFacingMode = 'environment';
+      this._isMirrored = undefined;
       this.lastCameraError = null;
       this._deviceChangeHandler = null;
 
@@ -877,6 +878,50 @@
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     }
 
+    toggleMirror() {
+      const current = this.isMirrored();
+      this._isMirrored = !current;
+      if (this.videoElement) {
+        this.videoElement.style.transform = this._isMirrored ? 'scaleX(-1)' : 'none';
+      }
+      this._updateVideoTexture();
+      return this._isMirrored;
+    }
+
+    isMirrored() {
+      if (this._isMirrored !== undefined) return this._isMirrored;
+      return this.activeFacingMode === 'user';
+    }
+
+    _updateVideoTexture() {
+      if (!this.videoTexture || !this.videoElement) return;
+      const vw = this.videoElement.videoWidth;
+      const vh = this.videoElement.videoHeight;
+      if (!vw || !vh) return;
+
+      const parentEl = this.container ? this.container.parentElement : null;
+      const cw = (this.container && this.container.clientWidth) || (parentEl && parentEl.clientWidth) || window.innerWidth || 800;
+      const ch = (this.container && this.container.clientHeight) || (parentEl && parentEl.clientHeight) || window.innerHeight || 600;
+      if (!cw || !ch) return;
+
+      const containerAspect = cw / ch;
+      const videoAspect = vw / vh;
+      let scaleX = 1;
+      let scaleY = 1;
+      if (containerAspect > videoAspect) {
+        scaleY = videoAspect / containerAspect;
+      } else {
+        scaleX = containerAspect / videoAspect;
+      }
+
+      const mirrored = this.isMirrored();
+      this.videoTexture.center.set(0.5, 0.5);
+      this.videoTexture.repeat.set(mirrored ? -scaleX : scaleX, scaleY);
+      if (typeof this.videoTexture.updateMatrix === 'function') {
+        this.videoTexture.updateMatrix();
+      }
+    }
+
     animate() {
       if (this.isDisposed) return;
       this.animId = requestAnimationFrame(this.animate);
@@ -894,10 +939,37 @@
         if (this.videoElement.paused) {
           this.videoElement.play().catch(() => {});
         }
-      }
 
-      // Three.js Canvas MUST remain 100% transparent in Camera AR mode so DOM video feed shows through
-      if (this.isCameraActive || this.options.arMode || this.options.transparent) {
+        // Real WebGL Camera Background rendering via THREE.VideoTexture
+        // Prevents Windows Chromium DirectComposition black screen bug when transparent WebGL canvas is layered over HTML <video>
+        if (this.videoElement.readyState >= 2 && this.videoElement.videoWidth > 0 && typeof THREE.VideoTexture !== 'undefined') {
+          if (!this.videoTexture) {
+            this.videoTexture = new THREE.VideoTexture(this.videoElement);
+            this.videoTexture.minFilter = THREE.LinearFilter;
+            this.videoTexture.magFilter = THREE.LinearFilter;
+            this.videoTexture.generateMipmaps = false;
+            this.videoTexture.wrapS = THREE.ClampToEdgeWrapping;
+            this.videoTexture.wrapT = THREE.ClampToEdgeWrapping;
+            if (typeof THREE.sRGBEncoding !== 'undefined') {
+              this.videoTexture.encoding = THREE.sRGBEncoding;
+            }
+          }
+
+          this._updateVideoTexture();
+
+          if (this.scene && this.scene.background !== this.videoTexture) {
+            this.scene.background = this.videoTexture;
+          }
+        } else {
+          // Fallback while awaiting first video frame: transparent clear color
+          if (this.scene && this.scene.background !== null) {
+            this.scene.background = null;
+          }
+          if (this.renderer) {
+            this.renderer.setClearColor(0x000000, 0);
+          }
+        }
+      } else if (this.options.arMode || this.options.transparent) {
         if (this.scene && this.scene.background !== null) {
           this.scene.background = null;
         }
@@ -1238,7 +1310,10 @@
 
         // Mirror front camera (selfie) for natural interaction, normal for rear/desktop
         const isUserFacing = this.activeFacingMode === 'user';
-        this.videoElement.style.transform = isUserFacing ? 'scaleX(-1)' : 'none';
+        if (this._isMirrored === undefined) {
+          this._isMirrored = isUserFacing;
+        }
+        this.videoElement.style.transform = this._isMirrored ? 'scaleX(-1)' : 'none';
 
         // 2. Attach media stream & ensure video tracks are active
         this.videoElement.srcObject = this.mediaStream;
@@ -1501,15 +1576,43 @@
         } catch (e) {}
       }
       const cameras = await this.getAvailableCameras();
+
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown';
+      let browserName = 'Unknown Browser';
+      if (/Edg\//i.test(ua)) browserName = 'Microsoft Edge';
+      else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browserName = 'Google Chrome';
+      else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browserName = 'Apple Safari';
+      else if (/Firefox\//i.test(ua)) browserName = 'Mozilla Firefox';
+
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(ua);
+      const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(ua);
+      const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(ua);
+
+      const v = this.videoElement;
+      const tracks = this.mediaStream ? this.mediaStream.getVideoTracks() : [];
+      const activeTrack = tracks.length > 0 ? tracks[0] : null;
+
       return {
-        browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'Unknown',
+        browser: browserName,
+        platform: isMobile ? (isIOS ? 'iOS Mobile' : (isAndroid ? 'Android Mobile' : 'Mobile')) : 'Desktop',
+        protocol: typeof location !== 'undefined' ? location.protocol : 'unknown',
+        hostname: typeof location !== 'undefined' ? location.hostname : 'unknown',
         isSecureContext: isSecure,
         hasMediaDevices: hasMediaDevices,
         permissionState: permState,
         cameraCount: cameras.length,
         cameras: cameras.map((c, i) => ({ id: c.deviceId, label: c.label || `Camera ${i + 1}` })),
         activeCamera: this.activeDeviceId || 'Default',
+        activeCameraLabel: (activeTrack && activeTrack.label) ? activeTrack.label : (this.activeDeviceId || 'Camera mặc định'),
+        activeFacingMode: this.activeFacingMode,
+        cameraState: this.isCameraActive ? 'active' : 'idle',
         isCameraActive: this.isCameraActive,
+        videoWidth: (v && v.videoWidth) || 0,
+        videoHeight: (v && v.videoHeight) || 0,
+        videoReadyState: (v && v.readyState) || 0,
+        videoPaused: v ? v.paused : true,
+        textureActive: !!this.videoTexture,
+        isMirrored: this.isMirrored(),
         lastError: this.lastCameraError ? { name: this.lastCameraError.name, message: this.lastCameraError.message } : null
       };
     }

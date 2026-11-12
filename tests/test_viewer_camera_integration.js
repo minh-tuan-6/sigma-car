@@ -209,6 +209,23 @@ function createMockThree() {
     DirectionalLight: function() { return { position: { set: () => {} }, shadow: { mapSize: {}, camera: {} } }; },
     AmbientLight: function() { return {}; },
     CanvasTexture: function() { return { dispose: () => {} }; },
+    VideoTexture: function(video) {
+      return {
+        image: video,
+        minFilter: 1006,
+        magFilter: 1006,
+        wrapS: 1001,
+        wrapT: 1001,
+        center: { set: () => {} },
+        repeat: { set: () => {} },
+        offset: { set: () => {} },
+        updateMatrix: () => {},
+        dispose: () => {}
+      };
+    },
+    LinearFilter: 1006,
+    ClampToEdgeWrapping: 1001,
+    sRGBEncoding: 3001,
     Raycaster: function() { return { set: () => {}, intersectObjects: () => [] }; },
     ACESFilmicToneMapping: 1,
     PCFSoftShadowMap: 1,
@@ -224,6 +241,7 @@ function createMockThree() {
     assert(code.includes('startCamera'), 'ViewerInstance must implement startCamera');
     assert(code.includes('stopCamera'), 'ViewerInstance must implement stopCamera');
     assert(code.includes('toggleCamera'), 'ViewerInstance must implement toggleCamera');
+    assert(code.includes('toggleMirror'), 'ViewerInstance must implement toggleMirror');
     assert(code.includes('switchCamera'), 'ViewerInstance must implement switchCamera');
     assert(code.includes('setTransparentMode'), 'ViewerInstance must implement setTransparentMode');
     assert(code.includes('captureCompositePhoto'), 'ViewerInstance must implement captureCompositePhoto');
@@ -497,6 +515,62 @@ function createMockThree() {
     assert.strictEqual(acquiredDeviceId, 'dev-phys-webcam', 'Should re-acquire physical webcam deviceId');
     assert.strictEqual(viewer.activeDeviceId, 'dev-phys-webcam', 'Viewer activeDeviceId must be physical webcam');
     assert.strictEqual(viewer.isCameraActive, true);
+
+    viewer.dispose();
+  });
+
+  // Test 7: toggleMirror and getDiagnostics return unified hardware info
+  await itAsync('toggleMirror toggles mirror state and getDiagnostics reports video properties and label', async () => {
+    const code = fs.readFileSync(path.resolve('js/car-3d-viewer.js'), 'utf8');
+    const mockThree = createMockThree();
+
+    const mockContainer = {
+      clientWidth: 800,
+      clientHeight: 520,
+      innerHTML: '',
+      style: {},
+      appendChild: (node) => { node.parentNode = mockContainer; return node; },
+      querySelector: () => null
+    };
+
+    const sandbox = createMockSandbox(mockThree, mockContainer, {
+      getUserMedia: async () => ({
+        active: true,
+        getVideoTracks: () => [{
+          label: 'HD Laptop WebCam',
+          readyState: 'live',
+          stop: () => {},
+          getSettings: () => ({ deviceId: 'laptop-cam-01', facingMode: 'user' })
+        }],
+        getTracks: () => [{
+          label: 'HD Laptop WebCam',
+          readyState: 'live',
+          stop: () => {},
+          getSettings: () => ({ deviceId: 'laptop-cam-01', facingMode: 'user' })
+        }]
+      }),
+      enumerateDevices: async () => [{ kind: 'videoinput', deviceId: 'laptop-cam-01', label: 'HD Laptop WebCam' }]
+    });
+    vm.createContext(sandbox);
+
+    const mockModule = { exports: {} };
+    sandbox.module = mockModule;
+    vm.runInContext(code, sandbox);
+
+    const Car3DViewer = mockModule.exports.init ? mockModule.exports : sandbox.Car3DViewer;
+    const viewer = Car3DViewer.init(mockContainer, { arMode: true });
+    await viewer.startCamera();
+
+    assert.strictEqual(viewer.isMirrored(), true, 'Front/user camera defaults to mirrored');
+    const unmirrored = viewer.toggleMirror();
+    assert.strictEqual(unmirrored, false, 'Toggling mirror flips to false');
+    assert.strictEqual(viewer.videoElement.style.transform, 'none');
+
+    const diag = await viewer.getDiagnostics();
+    assert.strictEqual(diag.activeCameraLabel, 'HD Laptop WebCam', 'Must report physical webcam label');
+    assert.strictEqual(diag.cameraState, 'active', 'Must report active state');
+    assert.strictEqual(diag.platform, 'Desktop', 'Must report Desktop platform');
+    assert.strictEqual(diag.isMirrored, false, 'Must report current mirrored state');
 
     viewer.dispose();
   });

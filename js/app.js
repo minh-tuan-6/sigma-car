@@ -4855,19 +4855,21 @@ const AppState = {
           target = availableDevices[nextIdx].deviceId;
           if (cameraSelect) cameraSelect.value = target;
           toastMsg = `Đã đổi sang: ${availableDevices[nextIdx].label || ('Camera ' + (nextIdx + 1))}`;
+          await window.SigmaARAdapter.switchCamera(target);
         } else {
           const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
           if (isMobile) {
             currentFacing = currentFacing === 'user' ? 'environment' : 'user';
             target = currentFacing;
             toastMsg = `Đã lật sang: ${currentFacing === 'user' ? 'Camera Trước (Selfie)' : 'Camera Sau (Môi trường)'}`;
+            await window.SigmaARAdapter.switchCamera(target);
           } else {
-            target = activeDev || null;
-            toastMsg = 'Đã làm mới kết nối Camera!';
+            // On desktop/laptop with single webcam: toggle horizontal mirror mode
+            const isMirrored = window.SigmaARAdapter.toggleMirror();
+            toastMsg = isMirrored ? 'Đã bật chế độ lật gương (Gương selfie)!' : 'Đã tắt lật gương (Góc quay chuẩn)!';
           }
         }
 
-        await window.SigmaARAdapter.switchCamera(target);
         showToast(toastMsg, '🔄');
 
         const updatedDevs = await window.SigmaARAdapter.getAvailableCameras();
@@ -4921,16 +4923,29 @@ const AppState = {
           <div><strong>Kết nối bảo mật:</strong> ${d.isSecureContext ? '<span style="color:#4ADE80;">✓ Đạt chuẩn SecureContext (HTTPS/localhost)</span>' : '<span style="color:#F87171;">✗ Không an toàn (Yêu cầu HTTPS)</span>'}</div>
           <div><strong>Protocol / Host:</strong> ${escapeHtml(d.protocol)} // ${escapeHtml(d.hostname)}</div>
           <div><strong>API MediaDevices:</strong> ${d.hasMediaDevices ? '<span style="color:#4ADE80;">✓ Có hỗ trợ</span>' : '<span style="color:#F87171;">✗ Không hỗ trợ</span>'}</div>
-          <div><strong>Quyền truy cập (Permissions API):</strong> <code style="background:#1E293B; padding:1px 4px; border-radius:4px;">${escapeHtml(d.permissionState)}</code></div>
+          <div><strong>Quyền truy cập:</strong> <code style="background:#1E293B; padding:1px 4px; border-radius:4px;">${escapeHtml(d.permissionState)}</code></div>
           <div><strong>Số lượng Camera:</strong> ${d.cameraCount} thiết bị phát hiện</div>
-          <div><strong>Trạng thái Camera:</strong> <code style="background:#1E293B; padding:1px 4px; border-radius:4px; color:${d.cameraState === 'active' ? '#4ADE80' : '#FBBF24'};">${escapeHtml(d.cameraState)}</code></div>
-          <div><strong>Camera đang chọn:</strong> ${escapeHtml(d.activeFacingMode || 'Mặc định')}</div>
+          <div><strong>Thiết bị đang chạy:</strong> <span style="color:#38BDF8; font-weight:700;">${escapeHtml(d.activeCameraLabel || d.activeCamera || 'Mặc định')}</span></div>
+          <div><strong>Trạng thái Camera:</strong> <code style="background:#1E293B; padding:1px 4px; border-radius:4px; color:${d.cameraState === 'active' ? '#4ADE80' : '#FBBF24'};">${escapeHtml(d.cameraState)}</code> (${escapeHtml(d.activeFacingMode || 'user')})</div>
+          <div><strong>Luồng Video thực tế:</strong> <span style="color:${d.videoWidth > 0 ? '#4ADE80' : '#FBBF24'}; font-weight:700;">${d.videoWidth} × ${d.videoHeight} px</span> (ReadyState: ${d.videoReadyState}, ${d.videoPaused ? 'Tạm dừng' : 'Đang phát'})</div>
+          <div><strong>Bộ dựng nền WebGL:</strong> <span style="color:#38BDF8;">${d.textureActive ? 'THREE.VideoTexture (Trực tiếp WebGL)' : 'DOM Video Passthrough'}</span> | Lật gương: <strong>${d.isMirrored ? 'BẬT' : 'TẮT'}</strong></div>
           ${d.lastError ? `
             <div style="margin-top:6px; padding:6px; background:rgba(239,68,68,0.2); border-left:3px solid #EF4444; border-radius:4px;">
               <strong style="color:#FCA5A5;">Lỗi gần nhất:</strong> ${escapeHtml(d.lastError.name)}: ${escapeHtml(d.lastError.message)}
             </div>
           ` : '<div style="color:#4ADE80; margin-top:4px;">✓ Không phát hiện lỗi phần cứng</div>'}
+          <div style="margin-top:8px; display:flex; gap:6px;">
+            <button id="btn-diag-refresh-cam" class="btn-primary" style="padding:4px 10px; font-size:11px;">🔄 Làm mới kết nối</button>
+            <button id="btn-diag-toggle-mirror" class="btn-card-outline" style="padding:4px 10px; font-size:11px; color:#FFFFFF; border-color:#475569;">🔄 Lật gương</button>
+          </div>
         `;
+        document.getElementById('btn-diag-refresh-cam')?.addEventListener('click', async () => {
+          showToast('Đang kết nối lại camera...', '🔄');
+          await window.SigmaARAdapter?.startCamera();
+        });
+        document.getElementById('btn-diag-toggle-mirror')?.addEventListener('click', () => {
+          handleSwitchCamera();
+        });
       }
     });
 
