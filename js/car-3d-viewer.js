@@ -927,6 +927,55 @@
       if (this.renderer && this.scene && this.camera) {
         this.renderer.render(this.scene, this.camera);
       }
+      this._drawCameraLayers();
+    }
+
+    // Draw webcam frame into a 2D canvas under the WebGL canvas (avoids black <video> compositing bug)
+    // and keep a fresh composite (camera + 3D car) snapshot for photo capture.
+    _drawCameraLayers() {
+      if (!this.isCameraActive || !this.videoElement || typeof document === 'undefined') return;
+      const v = this.videoElement;
+      if (!(v.videoWidth > 0 && v.videoHeight > 0) || v.readyState < 2) return;
+      const gl = this.renderer && this.renderer.domElement;
+      if (!gl || !gl.width || !gl.height) return;
+      try {
+        if (!this.bgCanvas) {
+          const c = document.createElement('canvas');
+          if (!c || typeof c.getContext !== 'function') return;
+          c.id = 'ar-camera-bg-canvas';
+          c.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;background:#000;';
+          this.container.appendChild(c);
+          this.bgCanvas = c;
+          this.bgCtx = c.getContext('2d');
+          this.snapCanvas = document.createElement('canvas');
+          this.snapCtx = this.snapCanvas.getContext('2d');
+        }
+        const w = gl.width, h = gl.height;
+        if (this.bgCanvas.width !== w) this.bgCanvas.width = w;
+        if (this.bgCanvas.height !== h) this.bgCanvas.height = h;
+        if (this.snapCanvas.width !== w) this.snapCanvas.width = w;
+        if (this.snapCanvas.height !== h) this.snapCanvas.height = h;
+
+        const vRatio = v.videoWidth / v.videoHeight, cRatio = w / h;
+        let sw, sh, sx, sy;
+        if (vRatio > cRatio) { sh = v.videoHeight; sw = sh * cRatio; sx = (v.videoWidth - sw) / 2; sy = 0; }
+        else { sw = v.videoWidth; sh = sw / cRatio; sx = 0; sy = (v.videoHeight - sh) / 2; }
+
+        const ctx = this.bgCtx;
+        ctx.save();
+        if (this.isMirrored()) { ctx.translate(w, 0); ctx.scale(-1, 1); }
+        ctx.drawImage(v, sx, sy, sw, sh, 0, 0, w, h);
+        ctx.restore();
+
+        // Snapshot: camera + 3D car, taken right after the WebGL render in the same frame
+        const sctx = this.snapCtx;
+        sctx.clearRect(0, 0, w, h);
+        sctx.drawImage(this.bgCanvas, 0, 0, w, h);
+        sctx.drawImage(gl, 0, 0, w, h);
+        this.hasSnapshot = true;
+      } catch (e) {
+        console.warn('[Car3DViewer] camera layer draw error:', e);
+      }
     }
 
     setColor(hexColor) {
@@ -1352,6 +1401,10 @@
     }
 
     stopCamera() {
+      if (this.bgCanvas && this.bgCanvas.parentNode && typeof this.bgCanvas.parentNode.removeChild === 'function') {
+        try { this.bgCanvas.parentNode.removeChild(this.bgCanvas); } catch (e) {}
+      }
+      this.bgCanvas = null; this.bgCtx = null; this.snapCanvas = null; this.snapCtx = null; this.hasSnapshot = false;
       if (this.mediaStream) {
         this.mediaStream.getTracks().forEach(track => {
           try { track.stop(); } catch (e) {}
@@ -1564,6 +1617,18 @@
     }
 
     captureCompositePhoto(filename = 'sigmacar-ar.jpg') {
+      if (this.isCameraActive && this.hasSnapshot && this.snapCanvas) {
+        const snapUrl = this.snapCanvas.toDataURL('image/jpeg', 0.95);
+        if (typeof document !== 'undefined') {
+          const a = document.createElement('a');
+          a.download = filename;
+          a.href = snapUrl;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+        return snapUrl;
+      }
       const canvas = document.createElement('canvas');
       const w = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.width : 1280;
       const h = (this.renderer && this.renderer.domElement) ? this.renderer.domElement.height : 720;
