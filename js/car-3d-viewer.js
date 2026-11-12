@@ -746,8 +746,13 @@
       const rad = this.currentAngle * (Math.PI / 180);
 
       const target = this.controls.target;
-      const radius = this.controls.getDistance() || 5.5;
-      const polar = this.controls.getPolarAngle() || (Math.PI / 2.8);
+      // Bundled OrbitControls build has no getDistance(): compute it from camera position
+      const radius = (typeof this.controls.getDistance === 'function'
+        ? this.controls.getDistance()
+        : this.camera.position.distanceTo(target)) || 5.5;
+      const polar = (typeof this.controls.getPolarAngle === 'function'
+        ? this.controls.getPolarAngle()
+        : 0) || (Math.PI / 2.8);
 
       const x = target.x + radius * Math.sin(polar) * Math.sin(rad);
       const z = target.z + radius * Math.sin(polar) * Math.cos(rad);
@@ -944,7 +949,12 @@
           if (!c || typeof c.getContext !== 'function') return;
           c.id = 'ar-camera-bg-canvas';
           c.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none;background:#000;';
-          this.container.appendChild(c);
+          const glEl = this.renderer && this.renderer.domElement;
+          if (glEl && glEl.parentNode === this.container && typeof this.container.insertBefore === 'function') {
+            this.container.insertBefore(c, glEl); // must sit UNDER the WebGL canvas
+          } else {
+            this.container.appendChild(c);
+          }
           this.bgCanvas = c;
           this.bgCtx = c.getContext('2d');
           this.snapCanvas = document.createElement('canvas');

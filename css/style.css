@@ -4491,3 +4491,11 @@ img {
 }
 
 
+
+/* Camera background canvas must stay below the transparent WebGL car canvas */
+#ar-model-viewer-mount canvas#ar-camera-bg-canvas,
+#vr-3d-canvas-container canvas#ar-camera-bg-canvas {
+  z-index: 1 !important;
+  pointer-events: none !important;
+  background: #000 !important;
+}
