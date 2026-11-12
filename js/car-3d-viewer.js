@@ -877,48 +877,6 @@
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     }
 
-    _updateVideoTextureAspect() {
-      if (!this.videoTexture || !this.videoElement) return;
-      const vw = this.videoElement.videoWidth;
-      const vh = this.videoElement.videoHeight;
-      if (!vw || !vh) return;
-
-      const parentEl = this.container.parentElement;
-      const containerW = this.container.clientWidth || (parentEl && parentEl.clientWidth) || window.innerWidth;
-      const containerH = this.container.clientHeight || (parentEl && parentEl.clientHeight) || window.innerHeight;
-      if (!containerW || !containerH) return;
-
-      const containerAspect = containerW / containerH;
-      const videoAspect = vw / vh;
-
-      this.videoTexture.matrixAutoUpdate = false;
-      this.videoTexture.wrapS = THREE.ClampToEdgeWrapping;
-      this.videoTexture.wrapT = THREE.ClampToEdgeWrapping;
-
-      let repeatX = 1;
-      let repeatY = 1;
-      let offsetX = 0;
-      let offsetY = 0;
-
-      if (containerAspect > videoAspect) {
-        repeatY = videoAspect / containerAspect;
-        offsetY = (1 - repeatY) / 2;
-      } else {
-        repeatX = containerAspect / videoAspect;
-        offsetX = (1 - repeatX) / 2;
-      }
-
-      // If user-facing (selfie/webcam), mirror horizontally for intuitive natural interaction
-      if (this.activeFacingMode === 'user') {
-        repeatX = -repeatX;
-        offsetX = 1 - offsetX;
-      }
-
-      this.videoTexture.repeat.set(repeatX, repeatY);
-      this.videoTexture.offset.set(offsetX, offsetY);
-      this.videoTexture.updateMatrix();
-    }
-
     animate() {
       if (this.isDisposed) return;
       this.animId = requestAnimationFrame(this.animate);
@@ -931,30 +889,15 @@
 
       this.updateHotspots();
 
-      if (this.isCameraActive && this.videoElement && this.mediaStream) {
-        // Ensure camera video stream continues playing
+      // In Camera AR mode, ensure camera video element continues playing in background
+      if (this.isCameraActive && this.videoElement) {
         if (this.videoElement.paused) {
           this.videoElement.play().catch(() => {});
         }
+      }
 
-        // Render live camera video frame directly inside WebGL scene background
-        if (this.videoElement.readyState >= 2 && this.videoElement.videoWidth > 0) {
-          if (!this.videoTexture && typeof THREE.VideoTexture !== 'undefined') {
-            this.videoTexture = new THREE.VideoTexture(this.videoElement);
-            this.videoTexture.minFilter = THREE.LinearFilter;
-            this.videoTexture.magFilter = THREE.LinearFilter;
-            this.videoTexture.format = THREE.RGBAFormat;
-            if (typeof THREE.SRGBColorSpace !== 'undefined') {
-              this.videoTexture.colorSpace = THREE.SRGBColorSpace;
-            }
-          }
-
-          if (this.videoTexture) {
-            this._updateVideoTextureAspect();
-            this.scene.background = this.videoTexture;
-          }
-        }
-      } else if (this.options.arMode || this.options.transparent) {
+      // Three.js Canvas MUST remain 100% transparent in Camera AR mode so DOM video feed shows through
+      if (this.isCameraActive || this.options.arMode || this.options.transparent) {
         if (this.scene && this.scene.background !== null) {
           this.scene.background = null;
         }
@@ -1017,11 +960,11 @@
       }
 
       const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      let requestedDeviceId = options.deviceId || this.activeDeviceId;
-      const requestedFacing = options.facingMode || (isMobile ? (this.activeFacingMode || 'environment') : undefined);
+      let requestedDeviceId = options.deviceId || (options.facingMode ? null : this.activeDeviceId);
+      const requestedFacing = options.facingMode || (!requestedDeviceId && isMobile ? (this.activeFacingMode || 'environment') : undefined);
 
-      // Auto-prioritize physical camera over virtual cameras if deviceId not explicitly selected
-      if (!requestedDeviceId && typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+      // Auto-prioritize physical camera over virtual cameras ONLY IF neither deviceId NOR facingMode was explicitly requested
+      if (!requestedDeviceId && !options.facingMode && typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
         try {
           const devs = await navigator.mediaDevices.enumerateDevices();
           const cams = devs.filter(d => d.kind === 'videoinput');
@@ -1200,6 +1143,7 @@
         this.videoElement.defaultMuted = true;
         this.videoElement.muted = true;
         this.videoElement.playsInline = true;
+        this.videoElement.autoplay = true;
         this.videoElement.setAttribute('muted', '');
         this.videoElement.setAttribute('autoplay', '');
         this.videoElement.setAttribute('playsinline', '');
@@ -1227,51 +1171,42 @@
         }
 
         // 3. Play stream immediately and reliably with dual metadata / canplay handling
-        const attemptPlay = () => {
-          if (this.videoElement && this.videoElement.paused) {
-            this.videoElement.play().catch(() => {});
-          }
+        const safePlay = () => {
+          if (!this.videoElement) return;
+          try {
+            const p = this.videoElement.play();
+            if (p && typeof p.then === 'function') {
+              p.catch(() => {});
+            }
+          } catch (e) {}
         };
 
-        this.videoElement.onloadedmetadata = attemptPlay;
-        this.videoElement.oncanplay = attemptPlay;
-        this.videoElement.onloadeddata = attemptPlay;
+        this.videoElement.onloadedmetadata = safePlay;
+        this.videoElement.oncanplay = safePlay;
+        this.videoElement.onloadeddata = safePlay;
 
         try {
-          if (this.videoElement.readyState >= 1) {
-            await this.videoElement.play();
-          } else {
-            await new Promise((resolve) => {
-              const onCanPlay = () => {
-                this.videoElement.removeEventListener('loadedmetadata', onCanPlay);
-                this.videoElement.removeEventListener('canplay', onCanPlay);
-                this.videoElement.play().then(resolve).catch((pErr) => {
-                  console.warn('[Car3DViewer] Video play after canplay:', pErr);
-                  resolve();
-                });
-              };
-              this.videoElement.addEventListener('loadedmetadata', onCanPlay);
-              this.videoElement.addEventListener('canplay', onCanPlay);
-              setTimeout(() => {
-                this.videoElement.play().then(resolve).catch(resolve);
-              }, 400);
-            });
+          const playRes = this.videoElement.play();
+          if (playRes !== undefined) {
+            await playRes;
           }
         } catch (playErr) {
-          console.warn('[Car3DViewer] Video autoplay needs user gesture:', playErr);
-          const handleFirstGesture = () => {
-            attemptPlay();
-            if (typeof window !== 'undefined') {
-              window.removeEventListener('click', handleFirstGesture);
-              window.removeEventListener('touchstart', handleFirstGesture);
-              window.removeEventListener('pointerdown', handleFirstGesture);
-            }
-          };
-          if (typeof window !== 'undefined') {
-            window.addEventListener('click', handleFirstGesture, { once: true });
-            window.addEventListener('touchstart', handleFirstGesture, { once: true });
-            window.addEventListener('pointerdown', handleFirstGesture, { once: true });
-          }
+          console.warn('[Car3DViewer] Video autoplay awaiting user gesture:', playErr);
+        }
+
+        // Global gesture listener ensures video plays on the very first tap/click anywhere
+        const unlockGesture = () => {
+          safePlay();
+        };
+        if (typeof window !== 'undefined') {
+          ['click', 'touchstart', 'pointerdown', 'keydown'].forEach(evt => {
+            window.addEventListener(evt, unlockGesture, { passive: true });
+          });
+        }
+        if (this.renderer && this.renderer.domElement) {
+          ['click', 'touchstart', 'pointerdown'].forEach(evt => {
+            this.renderer.domElement.addEventListener(evt, unlockGesture, { passive: true });
+          });
         }
 
         // Enable transparent Three.js WebGL canvas above video!

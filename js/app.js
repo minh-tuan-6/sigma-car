@@ -4834,8 +4834,11 @@ const AppState = {
         let target = null;
         let toastMsg = 'Đã lật Camera!';
 
+        const inst = window.SigmaARAdapter.getInstance();
+        const activeDev = inst?.threeViewer?.activeDeviceId || inst?.cameraManager?.activeDeviceId || '';
+        const currentSelected = (cameraSelect && cameraSelect.value) ? cameraSelect.value : activeDev;
+
         if (availableDevices && availableDevices.length > 1) {
-          const currentSelected = (cameraSelect && cameraSelect.value) ? cameraSelect.value : '';
           const currentIdx = availableDevices.findIndex(d => d.deviceId === currentSelected);
           const nextIdx = (currentIdx + 1) % availableDevices.length;
           target = availableDevices[nextIdx].deviceId;
