@@ -4457,7 +4457,8 @@ const AppState = {
               <!-- Floating Bottom Dock -->
               <div class="ar-floating-dock">
                 <button class="ar-dock-btn" id="btn-ar-dock-camera" title="Bật / Tắt Camera thực tế">📹</button>
-                <button class="ar-dock-btn" id="btn-ar-dock-reset" title="Đặt lại góc nhìn xe 3D">↺</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-flip" title="Lật Camera Trước / Sau (Đổi Camera)">🔄</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-reset" title="Đặt lại góc nhìn xe 3D chuẩn">🎯</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-minus" title="Thu nhỏ 10%">−</button>
                 <button class="ar-dock-btn primary-capture" id="btn-ar-dock-shutter" title="Chụp ảnh AR (Nền Camera thật + Xe 3D)">📸</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-plus" title="Phóng to 10%">+</button>
@@ -4640,8 +4641,8 @@ const AppState = {
         return;
       }
       cameraSelect.innerHTML = `
-        <option value="">Tự động (Camera sau / Môi trường)</option>
-        ${devices.map(d => `<option value="${d.deviceId}">${escapeHtml(d.label || 'Camera')}</option>`).join('')}
+        <option value="">Tự động (Camera sau / Mặc định)</option>
+        ${devices.map((d, i) => `<option value="${d.deviceId}">${escapeHtml(d.label || ('Camera ' + (i + 1)))}</option>`).join('')}
       `;
     };
 
@@ -4668,6 +4669,14 @@ const AppState = {
         if (permissionOverlay) permissionOverlay.style.display = 'none';
         if (sidebarCameraBtn) sidebarCameraBtn.textContent = '⏹️ Tắt Camera & Về 3D Studio (Mode A)';
         if (switchCameraBtn) switchCameraBtn.style.display = 'flex';
+
+        // Re-enumerate cameras now that permission is granted so real names appear
+        window.SigmaARAdapter?.getAvailableCameras().then(devices => {
+          updateCameraDeviceOptions(devices);
+          if (detail && detail.deviceId && cameraSelect) {
+            cameraSelect.value = detail.deviceId;
+          }
+        });
       } else if (state === 'requesting') {
         if (statusBadge) statusBadge.textContent = '📷 Đang xin quyền Camera thiết bị...';
         if (permissionOverlay) permissionOverlay.style.display = 'none';
@@ -4807,13 +4816,53 @@ const AppState = {
     document.getElementById('btn-ar-dock-camera')?.addEventListener('click', handleCameraToggle);
     sidebarCameraBtn?.addEventListener('click', handleCameraToggle);
 
-    // Switch Camera button (Front <-> Back toggle)
-    switchCameraBtn?.addEventListener('click', async () => {
-      if (window.SigmaARAdapter) {
-        showToast('Đang chuyển đổi Camera...', '🔄');
-        await window.SigmaARAdapter.switchCamera();
+    // Smart Flip / Switch Camera handler (Front ↔ Back & Multi-Device)
+    let currentFacing = 'environment';
+    const handleSwitchCamera = async () => {
+      if (!window.SigmaARAdapter) return;
+      try {
+        const isCurrentlyActive = window.SigmaARAdapter.isCameraActive();
+        if (!isCurrentlyActive) {
+          showToast('Đang bật Camera thực tế...', '📹');
+          await window.SigmaARAdapter.startCamera();
+          return;
+        }
+
+        showToast('Đang lật / chuyển đổi Camera...', '🔄');
+        const availableDevices = await window.SigmaARAdapter.getAvailableCameras();
+
+        let target = null;
+        let toastMsg = 'Đã lật Camera!';
+
+        if (availableDevices && availableDevices.length > 1) {
+          const currentSelected = (cameraSelect && cameraSelect.value) ? cameraSelect.value : '';
+          const currentIdx = availableDevices.findIndex(d => d.deviceId === currentSelected);
+          const nextIdx = (currentIdx + 1) % availableDevices.length;
+          target = availableDevices[nextIdx].deviceId;
+          if (cameraSelect) cameraSelect.value = target;
+          toastMsg = `Đã đổi sang: ${availableDevices[nextIdx].label || ('Camera ' + (nextIdx + 1))}`;
+        } else {
+          currentFacing = currentFacing === 'user' ? 'environment' : 'user';
+          target = currentFacing;
+          toastMsg = `Đã lật sang: ${currentFacing === 'user' ? 'Camera Trước (Selfie)' : 'Camera Sau (Môi trường)'}`;
+        }
+
+        await window.SigmaARAdapter.switchCamera(target);
+        showToast(toastMsg, '🔄');
+
+        const updatedDevs = await window.SigmaARAdapter.getAvailableCameras();
+        updateCameraDeviceOptions(updatedDevs);
+        if (cameraSelect && target && target !== 'user' && target !== 'environment') {
+          cameraSelect.value = target;
+        }
+      } catch (err) {
+        console.warn('[ARLive] Switch camera error:', err);
+        showToast('Không thể lật Camera: ' + (err.message || 'Lỗi thiết bị'), '⚠️');
       }
-    });
+    };
+
+    document.getElementById('btn-ar-dock-flip')?.addEventListener('click', handleSwitchCamera);
+    switchCameraBtn?.addEventListener('click', handleSwitchCamera);
 
     // Camera Device Select Dropdown
     cameraSelect?.addEventListener('change', async (e) => {
@@ -4926,7 +4975,7 @@ const AppState = {
       if (scaleInput) scaleInput.value = 100;
       scaleInput?.dispatchEvent(new Event('input'));
       window.SigmaARAdapter?.getInstance()?.resetView();
-      showToast('Đã đặt lại góc nhìn xe 3D!', '↺');
+      showToast('Đã đặt lại góc nhìn xe 3D chuẩn!', '🎯');
     });
 
     document.getElementById('btn-ar-dock-fullscreen')?.addEventListener('click', () => {

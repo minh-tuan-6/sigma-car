@@ -450,15 +450,33 @@
     }
 
     async switchCamera(targetDeviceIdOrFacing) {
+      this.stopCamera();
+      await new Promise(r => setTimeout(r, 200));
+
+      let availableCameras = [];
+      try {
+        if (typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+          const devs = await navigator.mediaDevices.enumerateDevices();
+          availableCameras = devs.filter(d => d.kind === 'videoinput');
+        }
+      } catch (e) {}
+
       if (targetDeviceIdOrFacing === 'user' || targetDeviceIdOrFacing === 'environment') {
         this.activeFacingMode = targetDeviceIdOrFacing;
+        this.activeDeviceId = null;
         return await this.startCamera(this.videoElement, { facingMode: targetDeviceIdOrFacing });
-      } else if (typeof targetDeviceIdOrFacing === 'string') {
+      } else if (typeof targetDeviceIdOrFacing === 'string' && targetDeviceIdOrFacing) {
         this.activeDeviceId = targetDeviceIdOrFacing;
         return await this.startCamera(this.videoElement, { deviceId: targetDeviceIdOrFacing });
+      } else if (availableCameras.length > 1) {
+        const currentIdx = availableCameras.findIndex(d => d.deviceId === this.activeDeviceId);
+        const nextIdx = (currentIdx + 1) % availableCameras.length;
+        this.activeDeviceId = availableCameras[nextIdx].deviceId;
+        return await this.startCamera(this.videoElement, { deviceId: this.activeDeviceId });
       } else {
-        const nextFacing = this.activeFacingMode === 'environment' ? 'user' : 'environment';
+        const nextFacing = this.activeFacingMode === 'user' ? 'environment' : 'user';
         this.activeFacingMode = nextFacing;
+        this.activeDeviceId = null;
         return await this.startCamera(this.videoElement, { facingMode: nextFacing });
       }
     }

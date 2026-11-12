@@ -895,6 +895,10 @@
         if (this.renderer) {
           this.renderer.setClearColor(0x000000, 0);
         }
+        // Ensure camera video feed continues playing smoothly
+        if (this.isCameraActive && this.videoElement && this.videoElement.paused) {
+          this.videoElement.play().catch(() => {});
+        }
       }
 
       if (this.renderer && this.scene && this.camera) {
@@ -1118,7 +1122,7 @@
           throw new Error('Video element not available in ViewerInstance container');
         }
 
-        this.videoElement.srcObject = this.mediaStream;
+        // 1. Configure video element before attaching stream for reliable autoplay across Chrome, Safari, Android & Windows
         this.videoElement.defaultMuted = true;
         this.videoElement.muted = true;
         this.videoElement.playsInline = true;
@@ -1129,8 +1133,36 @@
         this.videoElement.style.display = 'block';
         this.videoElement.style.opacity = '1';
         this.videoElement.style.visibility = 'visible';
+        this.videoElement.style.zIndex = '1';
+        this.videoElement.style.position = 'absolute';
+        this.videoElement.style.top = '0';
+        this.videoElement.style.left = '0';
+        this.videoElement.style.width = '100%';
+        this.videoElement.style.height = '100%';
+        this.videoElement.style.objectFit = 'cover';
 
-        // Play stream immediately and reliably with dual metadata / canplay handling
+        // Mirror front camera (selfie) for natural interaction, normal for rear/desktop
+        const isUserFacing = this.activeFacingMode === 'user';
+        this.videoElement.style.transform = isUserFacing ? 'scaleX(-1)' : 'none';
+
+        // 2. Attach media stream & ensure video tracks are active
+        this.videoElement.srcObject = this.mediaStream;
+        const vTracks = this.mediaStream.getVideoTracks();
+        if (vTracks.length > 0) {
+          vTracks[0].enabled = true;
+        }
+
+        // 3. Play stream immediately and reliably with dual metadata / canplay handling
+        const attemptPlay = () => {
+          if (this.videoElement && this.videoElement.paused) {
+            this.videoElement.play().catch(() => {});
+          }
+        };
+
+        this.videoElement.onloadedmetadata = attemptPlay;
+        this.videoElement.oncanplay = attemptPlay;
+        this.videoElement.onloadeddata = attemptPlay;
+
         try {
           if (this.videoElement.readyState >= 1) {
             await this.videoElement.play();
@@ -1154,7 +1186,7 @@
         } catch (playErr) {
           console.warn('[Car3DViewer] Video autoplay needs user gesture:', playErr);
           const handleFirstGesture = () => {
-            if (this.videoElement) this.videoElement.play().catch(() => {});
+            attemptPlay();
             if (typeof window !== 'undefined') {
               window.removeEventListener('click', handleFirstGesture);
               window.removeEventListener('touchstart', handleFirstGesture);
@@ -1292,13 +1324,24 @@
 
     async switchCamera(targetDeviceIdOrFacing) {
       this.stopCamera();
+      // Allow OS camera driver to cleanly release hardware resources
+      await new Promise(r => setTimeout(r, 200));
+
+      const availableCameras = await this.getAvailableCameras();
+
       if (targetDeviceIdOrFacing === 'user' || targetDeviceIdOrFacing === 'environment') {
         this.activeFacingMode = targetDeviceIdOrFacing;
         this.activeDeviceId = null;
-      } else if (targetDeviceIdOrFacing) {
+      } else if (typeof targetDeviceIdOrFacing === 'string' && targetDeviceIdOrFacing) {
         this.activeDeviceId = targetDeviceIdOrFacing;
+      } else if (availableCameras.length > 1) {
+        // Multi-camera cycling: find current index and pick next device
+        const currentIdx = availableCameras.findIndex(d => d.deviceId === this.activeDeviceId);
+        const nextIdx = (currentIdx + 1) % availableCameras.length;
+        this.activeDeviceId = availableCameras[nextIdx].deviceId;
       } else {
-        this.activeFacingMode = this.activeFacingMode === 'environment' ? 'user' : 'environment';
+        // Toggle facing mode if single camera or unspecified
+        this.activeFacingMode = this.activeFacingMode === 'user' ? 'environment' : 'user';
         this.activeDeviceId = null;
       }
       return await this.startCamera({

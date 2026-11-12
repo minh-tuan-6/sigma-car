@@ -364,10 +364,11 @@ async function itAsync(desc, fn) {
   });
 
   // Test 7: UI integration in js/app.js
-  it('js/app.js renderArLiveModePage includes camera video layer, switch camera button and permission overlay', () => {
+  it('js/app.js renderArLiveModePage includes camera video layer, switch camera button, flip dock button and permission overlay', () => {
     const appCode = fs.readFileSync(path.resolve('js/app.js'), 'utf8');
     assert(appCode.includes('ar-camera-backdrop'), 'Must include ar-camera-backdrop');
     assert(appCode.includes('btn-ar-switch-camera'), 'Must include btn-ar-switch-camera');
+    assert(appCode.includes('btn-ar-dock-flip'), 'Must include btn-ar-dock-flip');
     assert(appCode.includes('ar-camera-device-select'), 'Must include ar-camera-device-select');
     assert(appCode.includes('ar-permission-overlay'), 'Must include ar-permission-overlay');
     assert(appCode.includes('SigmaARAdapter') && appCode.includes('startCamera'), 'Must hook into SigmaARAdapter startCamera');
