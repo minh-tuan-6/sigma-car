@@ -4103,6 +4103,17 @@ const AppState = {
       window.openVrArShowroom(e.target.value);
     });
 
+    const hideLoadingOverlay = () => {
+      const overlay = document.getElementById('vr-loading-overlay');
+      if (overlay) {
+        overlay.style.opacity = '0';
+        overlay.style.pointerEvents = 'none';
+        setTimeout(() => {
+          if (overlay) overlay.style.display = 'none';
+        }, 300);
+      }
+    };
+
     // Initialize Real 3D Automotive WebGL Viewer with car-specific modelUrl
     let viewer = null;
     if (window.Car3DViewer && window.Car3DViewer.isSupported() && viewerContainer) {
@@ -4121,20 +4132,26 @@ const AppState = {
           showToast(`🔍 ${h.name}: ${h.desc}`, '💡');
         },
         onProgress: (percent) => {
-          if (progressText) progressText.textContent = `Đang nạp mô hình 3D (${car.name})... ${percent}%`;
+          const pText = document.getElementById('vr-loading-progress-text');
+          if (pText) {
+            if (percent >= 99) {
+              pText.textContent = `⚡ Đang xử lý đồ họa PBR & hoàn tất...`;
+              setTimeout(hideLoadingOverlay, 800);
+            } else {
+              pText.textContent = `Đang nạp mô hình 3D (${car.name})... ${percent}%`;
+            }
+          }
         },
         onReady: () => {
-          if (loadingOverlay) {
-            loadingOverlay.style.opacity = '0';
-            setTimeout(() => { if (loadingOverlay) loadingOverlay.style.display = 'none'; }, 450);
-          }
+          hideLoadingOverlay();
         },
         onError: (err) => {
           console.warn('[Car3DViewer] Falling back:', err);
-          if (loadingOverlay) loadingOverlay.style.display = 'none';
+          hideLoadingOverlay();
         }
       });
       window._activeCar3DViewer = viewer;
+      setTimeout(hideLoadingOverlay, 5000); // Fail-safe auto dismiss
     }
 
     // Bidirectional Rotation Slider Sync

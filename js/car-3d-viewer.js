@@ -464,7 +464,7 @@
 
       if (typeof THREE.DRACOLoader !== 'undefined') {
         const dracoLoader = new THREE.DRACOLoader();
-        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+        dracoLoader.setDecoderPath('js/libs/draco/');
         loader.setDRACOLoader(dracoLoader);
       }
 
@@ -476,7 +476,7 @@
         },
         (xhr) => {
           if (xhr.lengthComputable && this.options.onProgress) {
-            const percent = Math.round((xhr.loaded / xhr.total) * 100);
+            const percent = Math.min(99, Math.round((xhr.loaded / xhr.total) * 100));
             this.options.onProgress(percent);
           }
         },
@@ -488,124 +488,130 @@
     }
 
     setupLoadedModel(model) {
-      // 1. Normalize Scale & Center inside a wrapper Group so all 24 GLB models (mm, cm, or m) render at 4.4m studio scale
-      model.updateMatrixWorld(true);
-      const rawBox = new THREE.Box3().setFromObject(model);
-      const rawSize = rawBox.getSize(new THREE.Vector3());
-      const rawMaxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
-      const targetMaxDim = 4.4;
-      const normScale = (rawMaxDim > 0.0001 && isFinite(rawMaxDim)) ? (targetMaxDim / rawMaxDim) : 1.0;
-      model.scale.multiplyScalar(normScale);
-      model.updateMatrixWorld(true);
+      try {
+        // 1. Normalize Scale & Center inside a wrapper Group so all 24 GLB models (mm, cm, or m) render at 4.4m studio scale
+        model.updateMatrixWorld(true);
+        const rawBox = new THREE.Box3().setFromObject(model);
+        const rawSize = rawBox.getSize(new THREE.Vector3());
+        const rawMaxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
+        const targetMaxDim = 4.4;
+        const normScale = (rawMaxDim > 0.0001 && isFinite(rawMaxDim)) ? (targetMaxDim / rawMaxDim) : 1.0;
+        model.scale.multiplyScalar(normScale);
+        model.updateMatrixWorld(true);
 
-      const box = new THREE.Box3().setFromObject(model);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
 
-      // Center model horizontally at origin and place bottom of tires flush on floor (y = 0)
-      model.position.x += -center.x;
-      model.position.z += -center.z;
-      model.position.y += -box.min.y;
-      model.updateMatrixWorld(true);
+        // Center model horizontally at origin and place bottom of tires flush on floor (y = 0)
+        model.position.x += -center.x;
+        model.position.z += -center.z;
+        model.position.y += -box.min.y;
+        model.updateMatrixWorld(true);
 
-      const wrapper = new THREE.Group();
-      wrapper.add(model);
-      this.carGroup = wrapper;
+        const wrapper = new THREE.Group();
+        wrapper.add(model);
+        this.carGroup = wrapper;
 
-      // 2. Adjust Camera to Frame the Normalized Vehicle at 70-75% of visual area
-      const maxDim = Math.max(size.x, size.y, size.z) || targetMaxDim;
-      const fovRad = this.camera.fov * (Math.PI / 180);
-      const idealDist = (maxDim / 2) / Math.tan(fovRad / 2) * 1.35;
+        // 2. Adjust Camera to Frame the Normalized Vehicle at 70-75% of visual area
+        const maxDim = Math.max(size.x, size.y, size.z) || targetMaxDim;
+        const fovRad = this.camera.fov * (Math.PI / 180);
+        const idealDist = (maxDim / 2) / Math.tan(fovRad / 2) * 1.35;
 
-      this.camera.near = 0.05;
-      this.camera.far = Math.max(500, idealDist * 20);
-      this.camera.updateProjectionMatrix();
+        this.camera.near = 0.05;
+        this.camera.far = Math.max(500, idealDist * 20);
+        this.camera.updateProjectionMatrix();
 
-      this.camera.position.set(
-        idealDist * 0.75,
-        maxDim * 0.36,
-        idealDist * 0.75
-      );
-      if (this.controls) {
-        this.controls.minDistance = maxDim * 0.55;
-        this.controls.maxDistance = maxDim * 3.0;
-        this.controls.target.set(0, size.y * 0.36, 0);
-        this.controls.update();
-      }
-
-      // 3. Preserve Original GLTF PBR Materials & Textures while registering paintable Body & Rim materials
-      this.bodyMaterials = [];
-      this.rimMaterials = [];
-      const fallbackBodyCandidates = [];
-
-      this.carGroup.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-
-          const mats = Array.isArray(child.material) ? child.material : (child.material ? [child.material] : []);
-          const meshName = (child.name || '').toLowerCase();
-
-          mats.forEach((mat) => {
-            if (!mat) return;
-            const matName = (mat.name || '').toLowerCase();
-
-            const isPaint = (
-              matName.includes('paint') ||
-              matName.includes('carpaint') ||
-              matName.includes('body') ||
-              matName.includes('exterior') ||
-              matName.includes('shell') ||
-              matName.includes('carroceria') ||
-              matName.includes('coat') ||
-              matName.includes('color') ||
-              meshName.includes('paint') ||
-              meshName.includes('carpaint') ||
-              (meshName.includes('body') && !meshName.includes('under') && !meshName.includes('glass'))
-            );
-
-            if (isPaint && mat.color && !this.bodyMaterials.includes(mat)) {
-              this.bodyMaterials.push(mat);
-            } else if (
-              mat.color &&
-              !mat.transparent &&
-              !matName.includes('glass') &&
-              !matName.includes('window') &&
-              !matName.includes('tire') &&
-              !matName.includes('tyre') &&
-              !matName.includes('rubber') &&
-              !matName.includes('interior') &&
-              !matName.includes('light') &&
-              !matName.includes('chrome') &&
-              !matName.includes('black') &&
-              !fallbackBodyCandidates.includes(mat)
-            ) {
-              fallbackBodyCandidates.push(mat);
-            }
-
-            const isRim = (
-              matName.includes('rim') ||
-              matName.includes('wheel') ||
-              matName.includes('alloy') ||
-              meshName.includes('rim')
-            );
-            if (isRim && mat.color && !this.rimMaterials.includes(mat)) {
-              this.rimMaterials.push(mat);
-            }
-          });
+        this.camera.position.set(
+          idealDist * 0.75,
+          maxDim * 0.36,
+          idealDist * 0.75
+        );
+        if (this.controls) {
+          this.controls.minDistance = maxDim * 0.55;
+          this.controls.maxDistance = maxDim * 3.0;
+          this.controls.target.set(0, size.y * 0.36, 0);
+          this.controls.update();
         }
-      });
 
-      if (this.bodyMaterials.length === 0 && fallbackBodyCandidates.length > 0) {
-        this.bodyMaterials = fallbackBodyCandidates;
+        // 3. Preserve Original GLTF PBR Materials & Textures while registering paintable Body & Rim materials
+        this.bodyMaterials = [];
+        this.rimMaterials = [];
+        const fallbackBodyCandidates = [];
+
+        this.carGroup.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+
+            const mats = Array.isArray(child.material) ? child.material : (child.material ? [child.material] : []);
+            const meshName = (child.name || '').toLowerCase();
+
+            mats.forEach((mat) => {
+              if (!mat) return;
+              const matName = (mat.name || '').toLowerCase();
+
+              const isPaint = (
+                matName.includes('paint') ||
+                matName.includes('carpaint') ||
+                matName.includes('body') ||
+                matName.includes('exterior') ||
+                matName.includes('shell') ||
+                matName.includes('carroceria') ||
+                matName.includes('coat') ||
+                matName.includes('color') ||
+                meshName.includes('paint') ||
+                meshName.includes('carpaint') ||
+                (meshName.includes('body') && !meshName.includes('under') && !meshName.includes('glass'))
+              );
+
+              if (isPaint && mat.color && !this.bodyMaterials.includes(mat)) {
+                this.bodyMaterials.push(mat);
+              } else if (
+                mat.color &&
+                !mat.transparent &&
+                !matName.includes('glass') &&
+                !matName.includes('window') &&
+                !matName.includes('tire') &&
+                !matName.includes('tyre') &&
+                !matName.includes('rubber') &&
+                !matName.includes('interior') &&
+                !matName.includes('light') &&
+                !matName.includes('chrome') &&
+                !matName.includes('black') &&
+                !fallbackBodyCandidates.includes(mat)
+              ) {
+                fallbackBodyCandidates.push(mat);
+              }
+
+              const isRim = (
+                matName.includes('rim') ||
+                matName.includes('wheel') ||
+                matName.includes('alloy') ||
+                meshName.includes('rim')
+              );
+              if (isRim && mat.color && !this.rimMaterials.includes(mat)) {
+                this.rimMaterials.push(mat);
+              }
+            });
+          }
+        });
+
+        if (this.bodyMaterials.length === 0 && fallbackBodyCandidates.length > 0) {
+          this.bodyMaterials = fallbackBodyCandidates;
+        }
+
+        this.scene.add(this.carGroup);
+        this.handleResize();
+        this.setRotationAngle(this.currentAngle);
+        this.syncRotationAngleFromCamera();
+      } catch (err) {
+        console.error('[Car3DViewer] Error in setupLoadedModel:', err);
+      } finally {
+        if (this.options.onReady) {
+          this.options.onReady();
+        }
       }
-
-      this.scene.add(this.carGroup);
-      this.handleResize();
-      this.setRotationAngle(this.currentAngle);
-
-      if (this.options.onReady) this.options.onReady();
-      this.syncRotationAngleFromCamera();
     }
 
     setupHotspots() {
