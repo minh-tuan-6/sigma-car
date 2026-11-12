@@ -111,6 +111,13 @@
         const devices = await navigator.mediaDevices.enumerateDevices();
         return devices
           .filter(d => d.kind === 'videoinput')
+          .sort((a, b) => {
+            const isVirtA = /virtual|obs|droidcam|camo|manycam/i.test(a.label);
+            const isVirtB = /virtual|obs|droidcam|camo|manycam/i.test(b.label);
+            if (isVirtA && !isVirtB) return 1;
+            if (!isVirtA && isVirtB) return -1;
+            return 0;
+          })
           .map((d, index) => {
             const label = d.label || `Camera ${index + 1}`;
             const isBack = /back|rear|environment|sau|0,/i.test(label);

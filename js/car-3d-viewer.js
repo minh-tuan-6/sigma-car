@@ -166,6 +166,7 @@
         this.container.appendChild(video);
       }
       this.videoElement = video;
+      this.videoTexture = null;
 
       // 1. Scene: Null background when transparent/AR to allow camera video to show through!
       this.scene = new THREE.Scene();
@@ -876,6 +877,48 @@
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     }
 
+    _updateVideoTextureAspect() {
+      if (!this.videoTexture || !this.videoElement) return;
+      const vw = this.videoElement.videoWidth;
+      const vh = this.videoElement.videoHeight;
+      if (!vw || !vh) return;
+
+      const parentEl = this.container.parentElement;
+      const containerW = this.container.clientWidth || (parentEl && parentEl.clientWidth) || window.innerWidth;
+      const containerH = this.container.clientHeight || (parentEl && parentEl.clientHeight) || window.innerHeight;
+      if (!containerW || !containerH) return;
+
+      const containerAspect = containerW / containerH;
+      const videoAspect = vw / vh;
+
+      this.videoTexture.matrixAutoUpdate = false;
+      this.videoTexture.wrapS = THREE.ClampToEdgeWrapping;
+      this.videoTexture.wrapT = THREE.ClampToEdgeWrapping;
+
+      let repeatX = 1;
+      let repeatY = 1;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (containerAspect > videoAspect) {
+        repeatY = videoAspect / containerAspect;
+        offsetY = (1 - repeatY) / 2;
+      } else {
+        repeatX = containerAspect / videoAspect;
+        offsetX = (1 - repeatX) / 2;
+      }
+
+      // If user-facing (selfie/webcam), mirror horizontally for intuitive natural interaction
+      if (this.activeFacingMode === 'user') {
+        repeatX = -repeatX;
+        offsetX = 1 - offsetX;
+      }
+
+      this.videoTexture.repeat.set(repeatX, repeatY);
+      this.videoTexture.offset.set(offsetX, offsetY);
+      this.videoTexture.updateMatrix();
+    }
+
     animate() {
       if (this.isDisposed) return;
       this.animId = requestAnimationFrame(this.animate);
@@ -888,16 +931,35 @@
 
       this.updateHotspots();
 
-      if (this.isCameraActive || this.options.arMode || this.options.transparent) {
+      if (this.isCameraActive && this.videoElement && this.mediaStream) {
+        // Ensure camera video stream continues playing
+        if (this.videoElement.paused) {
+          this.videoElement.play().catch(() => {});
+        }
+
+        // Render live camera video frame directly inside WebGL scene background
+        if (this.videoElement.readyState >= 2 && this.videoElement.videoWidth > 0) {
+          if (!this.videoTexture && typeof THREE.VideoTexture !== 'undefined') {
+            this.videoTexture = new THREE.VideoTexture(this.videoElement);
+            this.videoTexture.minFilter = THREE.LinearFilter;
+            this.videoTexture.magFilter = THREE.LinearFilter;
+            this.videoTexture.format = THREE.RGBAFormat;
+            if (typeof THREE.SRGBColorSpace !== 'undefined') {
+              this.videoTexture.colorSpace = THREE.SRGBColorSpace;
+            }
+          }
+
+          if (this.videoTexture) {
+            this._updateVideoTextureAspect();
+            this.scene.background = this.videoTexture;
+          }
+        }
+      } else if (this.options.arMode || this.options.transparent) {
         if (this.scene && this.scene.background !== null) {
           this.scene.background = null;
         }
         if (this.renderer) {
           this.renderer.setClearColor(0x000000, 0);
-        }
-        // Ensure camera video feed continues playing smoothly
-        if (this.isCameraActive && this.videoElement && this.videoElement.paused) {
-          this.videoElement.play().catch(() => {});
         }
       }
 
@@ -955,8 +1017,20 @@
       }
 
       const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const requestedDeviceId = options.deviceId || this.activeDeviceId;
+      let requestedDeviceId = options.deviceId || this.activeDeviceId;
       const requestedFacing = options.facingMode || (isMobile ? (this.activeFacingMode || 'environment') : undefined);
+
+      // Auto-prioritize physical camera over virtual cameras if deviceId not explicitly selected
+      if (!requestedDeviceId && typeof navigator !== 'undefined' && navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        try {
+          const devs = await navigator.mediaDevices.enumerateDevices();
+          const cams = devs.filter(d => d.kind === 'videoinput');
+          const physicalCam = cams.find(c => c.label && !/virtual|obs|droidcam|camo|manycam/i.test(c.label));
+          if (physicalCam && physicalCam.deviceId) {
+            requestedDeviceId = physicalCam.deviceId;
+          }
+        } catch (e) {}
+      }
 
       const profiles = [];
       if (requestedDeviceId) {
@@ -1251,12 +1325,24 @@
         });
         this.mediaStream = null;
       }
+      if (this.videoTexture) {
+        try { this.videoTexture.dispose(); } catch (e) {}
+        this.videoTexture = null;
+      }
       if (this.videoElement) {
         this.videoElement.srcObject = null;
         this.videoElement.style.display = 'none';
       }
       this.isCameraActive = false;
       this.currentMode = 'studio';
+
+      // Restore studio background
+      if (this.scene) {
+        this.scene.background = new THREE.Color(0x0B1120);
+      }
+      if (this.renderer) {
+        this.renderer.setClearColor(0x0B1120, 1);
+      }
 
       // Restore container backgrounds to studio dark
       if (this.container && this.container.classList) {
@@ -1356,7 +1442,14 @@
       }
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        return devices.filter(d => d.kind === 'videoinput');
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        return cams.sort((a, b) => {
+          const isVirtA = /virtual|obs|droidcam|camo|manycam/i.test(a.label);
+          const isVirtB = /virtual|obs|droidcam|camo|manycam/i.test(b.label);
+          if (isVirtA && !isVirtB) return 1;
+          if (!isVirtA && isVirtB) return -1;
+          return 0;
+        });
       } catch (e) {
         return [];
       }
