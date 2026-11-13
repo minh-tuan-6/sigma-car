@@ -28,7 +28,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.setHeader('Permissions-Policy', 'camera=(self), xr-spatial-tracking=(self)');
+  res.setHeader('Permissions-Policy', 'camera=(self), xr-spatial-tracking=(self), gyroscope=(self), accelerometer=(self), magnetometer=(self)');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);

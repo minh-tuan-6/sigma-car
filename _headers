@@ -1,7 +1,7 @@
 /*
   Access-Control-Allow-Origin: *
   X-Content-Type-Options: nosniff
-  Permissions-Policy: camera=(self), xr-spatial-tracking=(self)
+  Permissions-Policy: camera=(self), xr-spatial-tracking=(self), gyroscope=(self), accelerometer=(self), magnetometer=(self)
 
 /
   Cache-Control: no-cache, no-store, must-revalidate

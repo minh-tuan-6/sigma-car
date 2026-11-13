@@ -3971,7 +3971,13 @@ img {
   border-radius: 9999px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
   margin: 0 auto;
+}
+.ar-floating-dock::-webkit-scrollbar {
+  display: none;
 }
 .ar-dock-btn {
   width: 42px;
@@ -4469,13 +4475,19 @@ img {
     border-radius: 14px;
   }
   .ar-floating-dock {
-    padding: 6px 12px;
-    gap: 8px;
+    padding: 6px 10px;
+    gap: 5px;
   }
   .ar-dock-btn {
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
+    width: 34px;
+    height: 34px;
+    font-size: 13.5px;
+    flex-shrink: 0;
+  }
+  .ar-dock-btn.primary-capture {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
   }
   .vr-methods-grid,
   .return-photo-upload-grid,
@@ -4497,5 +4509,154 @@ img {
 #vr-3d-canvas-container canvas#ar-camera-bg-canvas {
   z-index: 1 !important;
   pointer-events: none !important;
-  background: #000 !important;
+  background: transparent !important;
 }
+
+/* ==========================================================================
+   REAL GYROSCOPE (MOTION SENSOR) CONTROLLER STYLES
+   ========================================================================== */
+
+/* Gyro Button in Floating Dock */
+.ar-dock-btn#btn-ar-dock-gyro {
+  position: relative;
+  transition: all 0.25s ease;
+}
+
+.ar-dock-btn.gyro-active,
+#btn-vr-gyro.gyro-active {
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.75), inset 0 0 10px rgba(255, 255, 255, 0.35) !important;
+  animation: gyroPulseGlow 2.2s infinite ease-in-out;
+}
+
+@keyframes gyroPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.65), inset 0 0 6px rgba(255, 255, 255, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(56, 189, 248, 0.95), inset 0 0 12px rgba(255, 255, 255, 0.6);
+    transform: scale(1.04);
+  }
+}
+
+/* Floating Status Indicator Pill above Dock */
+.ar-gyro-indicator {
+  position: absolute;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(56, 189, 248, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #f8fafc;
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 16;
+  pointer-events: none;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.ar-gyro-indicator.active {
+  border-color: #38bdf8;
+  color: #e0f2fe;
+}
+
+.ar-gyro-indicator.warn {
+  border-color: #f59e0b;
+  color: #fef3c7;
+}
+
+.ar-gyro-indicator.err {
+  border-color: #ef4444;
+  color: #fee2e2;
+}
+
+/* Sidebar Gyro Settings Card */
+.ar-gyro-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 14px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.ar-gyro-card .btn-gyro-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.ar-gyro-card .btn-gyro-action:hover:not(:disabled) {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.ar-gyro-card .btn-gyro-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ar-gyro-card .btn-gyro-action.active {
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid #0284c7;
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+}
+
+.ar-gyro-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  color: #475569;
+  letter-spacing: 0.4px;
+}
+
+.ar-gyro-badge.active {
+  background: #dbeafe;
+  color: #0284c7;
+}
+
+.ar-gyro-badge.warn {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.ar-gyro-badge.err {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.vr-gyro-indicator {
+  bottom: 14px;
+  right: 16px;
+  left: auto;
+  transform: none;
+  padding: 6px 12px;
+  font-size: 11px;
+}
+

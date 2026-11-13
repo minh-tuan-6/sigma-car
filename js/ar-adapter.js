@@ -680,6 +680,11 @@
           onCameraStateChange: (state, detail) => {
             this.handleCameraStateChange(state, detail);
           },
+          onGyroStateChange: (state, detail) => {
+            if (typeof this.options.onGyroStateChange === 'function') {
+              this.options.onGyroStateChange(state, detail);
+            }
+          },
           onDevicesUpdated: (devices) => {
             if (typeof this.options.onDevicesUpdated === 'function') {
               this.options.onDevicesUpdated(devices);
@@ -1118,6 +1123,52 @@
       }
     }
 
+    // Real Gyroscope / Motion Sensor Controls
+    enableGyro(opts) {
+      if (this.threeViewer && typeof this.threeViewer.enableGyro === 'function') {
+        return this.threeViewer.enableGyro(opts);
+      }
+      return Promise.resolve(false);
+    }
+
+    disableGyro() {
+      if (this.threeViewer && typeof this.threeViewer.disableGyro === 'function') {
+        return this.threeViewer.disableGyro();
+      }
+    }
+
+    toggleGyro(opts) {
+      if (this.threeViewer && typeof this.threeViewer.toggleGyro === 'function') {
+        return this.threeViewer.toggleGyro(opts);
+      }
+      return Promise.resolve(false);
+    }
+
+    calibrateGyro(opts) {
+      if (this.threeViewer && typeof this.threeViewer.calibrateGyro === 'function') {
+        return this.threeViewer.calibrateGyro(opts);
+      }
+    }
+
+    resetGyroOrientation() {
+      if (this.threeViewer && typeof this.threeViewer.resetGyroOrientation === 'function') {
+        return this.threeViewer.resetGyroOrientation();
+      }
+    }
+
+    setGyroSettings(settings) {
+      if (this.threeViewer && typeof this.threeViewer.setGyroSettings === 'function') {
+        return this.threeViewer.setGyroSettings(settings);
+      }
+    }
+
+    getGyroState() {
+      if (this.threeViewer && typeof this.threeViewer.getGyroState === 'function') {
+        return this.threeViewer.getGyroState();
+      }
+      return { isEnabled: false, isActive: false, isSupported: false };
+    }
+
     dispose() {
       this.isDisposed = true;
 
@@ -1233,6 +1284,29 @@
       if (currentInstance) {
         currentInstance.setColor(colorHex, colorName, colorIdx);
       }
+    },
+
+    // Real Gyroscope Controls
+    enableGyro: function (opts) {
+      return currentInstance ? currentInstance.enableGyro(opts) : Promise.resolve(false);
+    },
+    disableGyro: function () {
+      if (currentInstance) currentInstance.disableGyro();
+    },
+    toggleGyro: function (opts) {
+      return currentInstance ? currentInstance.toggleGyro(opts) : Promise.resolve(false);
+    },
+    calibrateGyro: function (opts) {
+      if (currentInstance) currentInstance.calibrateGyro(opts);
+    },
+    resetGyroOrientation: function () {
+      if (currentInstance) currentInstance.resetGyroOrientation();
+    },
+    setGyroSettings: function (settings) {
+      if (currentInstance) currentInstance.setGyroSettings(settings);
+    },
+    getGyroState: function () {
+      return currentInstance ? currentInstance.getGyroState() : { isEnabled: false, isActive: false, isSupported: false };
     },
 
     dispose: function () {

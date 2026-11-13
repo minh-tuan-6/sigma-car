@@ -3707,6 +3707,189 @@ const AppState = {
   // =================================================================
   // VIEW 5B: VR / AR / 360° SHOWROOM (Trang VR AR Xem Xe Trực Tuyến.pdf)
   // =================================================================
+  function buildGyroControlsCardHtml(prefix) {
+    return `
+      <div class="ar-gyro-card" id="${prefix}-gyro-controls-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
+          <span style="font-size:12.5px; font-weight:800; color:var(--text-dark);">🧭 CẢM BIẾN GYROSCOPE (3D MOTION)</span>
+          <span class="ar-gyro-badge" id="${prefix}-gyro-sidebar-badge">GYRO OFF</span>
+        </div>
+        <div id="${prefix}-gyro-status-sub" style="font-size:11.5px; color:#64748B; margin-bottom:10px; line-height:1.4;">
+          Manual Mode (Chuột / Cảm ứng) • Bấm GYRO để điều khiển bằng nghiêng máy.
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+          <button type="button" class="btn-gyro-action" id="${prefix}-btn-toggle-gyro">🧭 Bật GYRO (OFF)</button>
+          <button type="button" class="btn-gyro-action" id="${prefix}-btn-recenter-gyro" disabled title="Đặt tư thế cầm máy hiện tại làm gốc 0°">🎯 Calibrate / Recenter</button>
+        </div>
+        <button type="button" class="btn-gyro-action" id="${prefix}-btn-reset-gyro" style="width:100%; margin-bottom:12px;">↺ Reset Orientation (Về góc chuẩn)</button>
+        <div>
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px;">
+            <span style="font-weight:700; color:var(--text-dark);">Độ nhạy (Sensitivity):</span>
+            <strong style="color:var(--primary);" id="${prefix}-gyro-sens-label">1.2x</strong>
+          </div>
+          <input type="range" id="${prefix}-gyro-sens-slider" min="0.4" max="2.5" step="0.1" value="1.2" style="width:100%; accent-color:#0284C7;">
+        </div>
+        <div style="display:flex; gap:14px; margin-top:8px; font-size:11.5px; color:var(--text-dark); flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:600;">
+            <input type="checkbox" id="${prefix}-chk-gyro-inv-h"> Invert Horizontal
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:600;">
+            <input type="checkbox" id="${prefix}-chk-gyro-inv-v"> Invert Vertical
+          </label>
+        </div>
+      </div>
+    `;
+  }
+
+  function bindGyroControlsUI({ prefix, getController, dockBtn, dockRecenterBtn, indicatorEl }) {
+    const toggleBtn = document.getElementById(`${prefix}-btn-toggle-gyro`);
+    const recenterBtn = document.getElementById(`${prefix}-btn-recenter-gyro`);
+    const resetBtn = document.getElementById(`${prefix}-btn-reset-gyro`);
+    const sensSlider = document.getElementById(`${prefix}-gyro-sens-slider`);
+    const sensLabel = document.getElementById(`${prefix}-gyro-sens-label`);
+    const invHCheck = document.getElementById(`${prefix}-chk-gyro-inv-h`);
+    const invVCheck = document.getElementById(`${prefix}-chk-gyro-inv-v`);
+    const badgeEl = document.getElementById(`${prefix}-gyro-sidebar-badge`);
+    const subEl = document.getElementById(`${prefix}-gyro-status-sub`);
+    let hideIndicatorTimer = null;
+
+    const readSettings = () => ({
+      sensitivity: sensSlider ? parseFloat(sensSlider.value) || 1.2 : 1.2,
+      invertH: !!(invHCheck && invHCheck.checked),
+      invertV: !!(invVCheck && invVCheck.checked)
+    });
+
+    const setIndicator = (cls, text, autoHideMs = 0) => {
+      if (hideIndicatorTimer) {
+        clearTimeout(hideIndicatorTimer);
+        hideIndicatorTimer = null;
+      }
+      if (!indicatorEl) return;
+      indicatorEl.className = 'ar-gyro-indicator' + (prefix === 'vr' ? ' vr-gyro-indicator' : '') + (cls ? ` ${cls}` : '');
+      indicatorEl.textContent = text;
+      indicatorEl.style.display = text ? 'inline-flex' : 'none';
+      if (autoHideMs > 0) {
+        hideIndicatorTimer = setTimeout(() => {
+          const ctrl = getController();
+          if (ctrl && typeof ctrl.getGyroState === 'function' && !ctrl.getGyroState().isActive) {
+            indicatorEl.style.display = 'none';
+          }
+        }, autoHideMs);
+      }
+    };
+
+    const setToggleVisuals = (isOn) => {
+      if (dockBtn) {
+        dockBtn.classList.toggle('gyro-active', isOn);
+        dockBtn.title = isOn ? 'Tắt Gyroscope (Về Manual Mode)' : 'Bật Gyroscope (Cảm biến chuyển động)';
+      }
+      if (toggleBtn) {
+        toggleBtn.classList.toggle('active', isOn);
+        toggleBtn.textContent = isOn ? '🧭 GYRO ON (Tắt)' : '🧭 Bật GYRO (OFF)';
+      }
+      if (recenterBtn) recenterBtn.disabled = !isOn;
+      if (dockRecenterBtn) dockRecenterBtn.style.display = isOn ? 'inline-flex' : 'none';
+    };
+
+    const handleStateChange = (status, info = {}) => {
+      if (status === 'active') {
+        setToggleVisuals(true);
+        if (badgeEl) {
+          badgeEl.className = 'ar-gyro-badge active';
+          badgeEl.textContent = 'GYRO ACTIVE';
+        }
+        if (subEl) subEl.textContent = 'Motion Tracking Enabled — Nghiêng / xoay điện thoại để quan sát xe 3D.';
+        setIndicator('active', '🧭 GYRO ACTIVE • Motion Tracking Enabled');
+        showToast('GYRO ACTIVE — Motion Tracking Enabled', '🧭');
+      } else if (status === 'requesting') {
+        setToggleVisuals(false);
+        if (badgeEl) {
+          badgeEl.className = 'ar-gyro-badge';
+          badgeEl.textContent = 'CONNECTING...';
+        }
+        if (subEl) subEl.textContent = 'Đang kiểm tra & kết nối cảm biến chuyển động...';
+        setIndicator('', '⏳ Đang kết nối cảm biến Gyro...');
+      } else if (status === 'unsupported') {
+        setToggleVisuals(false);
+        if (badgeEl) {
+          badgeEl.className = 'ar-gyro-badge err';
+          badgeEl.textContent = 'GYRO NOT AVAILABLE';
+        }
+        if (subEl) subEl.textContent = 'Your device does not support motion tracking. Vẫn hỗ trợ xoay chuột / cảm ứng.';
+        setIndicator('err', '⚠️ GYRO NOT AVAILABLE • Your device does not support motion tracking.', 5500);
+        showToast('GYRO NOT AVAILABLE — Your device does not support motion tracking.', '⚠️');
+      } else if (status === 'permission_denied' || status === 'permission_error') {
+        setToggleVisuals(false);
+        if (badgeEl) {
+          badgeEl.className = 'ar-gyro-badge warn';
+          badgeEl.textContent = 'MOTION PERMISSION REQUIRED';
+        }
+        if (subEl) subEl.textContent = 'Please allow motion sensor access. Chuyển sang Manual Mode (chuột / cảm ứng).';
+        setIndicator('warn', '🔒 MOTION PERMISSION REQUIRED • Please allow motion sensor access.', 5500);
+        showToast('MOTION PERMISSION REQUIRED — Please allow motion sensor access.', '🔒');
+      } else if (status === 'disabled') {
+        setToggleVisuals(false);
+        if (badgeEl) {
+          badgeEl.className = 'ar-gyro-badge';
+          badgeEl.textContent = 'GYRO OFF';
+        }
+        if (subEl) subEl.textContent = 'Manual Mode (Chuột / Cảm ứng) • Bấm GYRO để điều khiển bằng nghiêng máy.';
+        setIndicator('', '🖱️ Manual Mode (Chuột / Cảm ứng)', 2000);
+      } else if (status === 'calibrated') {
+        showToast(info.message || 'Đã cân chỉnh (Calibrate) vị trí gốc = 0°!', '🎯');
+      } else if (status === 'reset') {
+        showToast(info.message || 'Đã đặt lại hướng nhìn xe mặc định!', '↺');
+      }
+    };
+
+    const handleToggleClick = () => {
+      const ctrl = getController();
+      if (!ctrl || typeof ctrl.toggleGyro !== 'function') {
+        handleStateChange('unsupported');
+        return;
+      }
+      // Call synchronously in click handler to preserve iOS requestPermission() gesture activation
+      ctrl.toggleGyro(readSettings());
+    };
+
+    dockBtn?.addEventListener('click', handleToggleClick);
+    toggleBtn?.addEventListener('click', handleToggleClick);
+
+    const handleCalibrateClick = () => {
+      const ctrl = getController();
+      if (ctrl && typeof ctrl.calibrateGyro === 'function') {
+        ctrl.calibrateGyro();
+      }
+    };
+    recenterBtn?.addEventListener('click', handleCalibrateClick);
+    dockRecenterBtn?.addEventListener('click', handleCalibrateClick);
+
+    resetBtn?.addEventListener('click', () => {
+      const ctrl = getController();
+      if (ctrl && typeof ctrl.resetGyroOrientation === 'function') {
+        ctrl.resetGyroOrientation();
+      } else if (ctrl && typeof ctrl.resetView === 'function') {
+        ctrl.resetView();
+      }
+    });
+
+    sensSlider?.addEventListener('input', () => {
+      const val = parseFloat(sensSlider.value) || 1.2;
+      if (sensLabel) sensLabel.textContent = `${val.toFixed(1)}x`;
+      getController()?.setGyroSettings?.(readSettings());
+    });
+
+    invHCheck?.addEventListener('change', () => {
+      getController()?.setGyroSettings?.(readSettings());
+    });
+
+    invVCheck?.addEventListener('change', () => {
+      getController()?.setGyroSettings?.(readSettings());
+    });
+
+    return { handleStateChange, readSettings };
+  }
+
   function renderVrArShowroomPage() {
     // Dispose previous 3D instance if running to prevent memory leaks
     if (window._activeCar3DViewer) {
@@ -3831,6 +4014,8 @@ const AppState = {
                   <button class="vr-mode-btn" id="btn-mode-ar">📦 AR Camera</button>
                 </div>
                 <div class="vr-util-buttons">
+                  <button class="vr-util-btn" id="btn-vr-gyro" title="Bật / Tắt điều khiển Gyroscope (Cảm biến chuyển động)">🧭</button>
+                  <button class="vr-util-btn" id="btn-vr-gyro-recenter" style="display:none;" title="Calibrate / Recenter góc nhìn Gyro">🎯</button>
                   <button class="vr-util-btn" id="btn-vr-sound" title="Bật/Tắt âm thanh mô phỏng">${isMuted ? '🔇' : '🔊'}</button>
                   <button class="vr-util-btn" id="btn-vr-share" title="Sao chép liên kết chia sẻ">🔗</button>
                   <button class="vr-util-btn" id="btn-vr-fullscreen" title="Toàn màn hình">⛶</button>
@@ -3863,6 +4048,9 @@ const AppState = {
                   <span style="display:inline-block; width:7px; height:7px; background:#10B981; border-radius:50%; box-shadow:0 0 8px #10B981;"></span>
                   <span>REAL 3D PBR ENGINE • ${escapeHtml(modelUrl.split('/').pop().toUpperCase())} • WASD WALKTHROUGH</span>
                 </div>
+
+                <!-- Gyroscope Status Pill (Hidden until Gyro is toggled) -->
+                <div class="ar-gyro-indicator vr-gyro-indicator" id="vr-gyro-status-indicator" style="display:none;"></div>
               </div>
 
               <!-- Footer Rotation Slider & Floating CTAs -->
@@ -3943,6 +4131,9 @@ const AppState = {
                   <strong style="font-size:14px; color:var(--text-dark);">${car.hp || 600} hp</strong>
                 </div>
               </div>
+
+              <!-- Gyroscope Motion Sensor Controls -->
+              ${buildGyroControlsCardHtml('vr')}
 
               <!-- CTA Deposit & Detail -->
               <div style="display:flex; flex-direction:column; gap:8px;">
@@ -4116,12 +4307,14 @@ const AppState = {
 
     // Initialize Real 3D Automotive WebGL Viewer with car-specific modelUrl
     let viewer = null;
+    let vrGyroCtrl = null;
     if (window.Car3DViewer && window.Car3DViewer.isSupported() && viewerContainer) {
       viewer = window.Car3DViewer.init(viewerContainer, {
         modelUrl: modelUrl,
         initialColor: carColors[selectedColorIdx]?.hex || '#0284C7',
         initialAngle: currentAngle,
         hotspots: hotspotsList,
+        onGyroStateChange: (status, info) => vrGyroCtrl?.handleStateChange(status, info),
         onRotate: (angleDeg) => {
           currentAngle = angleDeg;
           if (rotInput) rotInput.value = angleDeg;
@@ -4153,6 +4346,14 @@ const AppState = {
       window._activeCar3DViewer = viewer;
       setTimeout(hideLoadingOverlay, 5000); // Fail-safe auto dismiss
     }
+
+    vrGyroCtrl = bindGyroControlsUI({
+      prefix: 'vr',
+      getController: () => viewer,
+      dockBtn: document.getElementById('btn-vr-gyro'),
+      dockRecenterBtn: document.getElementById('btn-vr-gyro-recenter'),
+      indicatorEl: document.getElementById('vr-gyro-status-indicator')
+    });
 
     // Bidirectional Rotation Slider Sync
     rotInput?.addEventListener('input', (e) => {
@@ -4454,10 +4655,14 @@ const AppState = {
                 ${escapeHtml(car.name)} • <span id="ar-tag-color">${escapeHtml(carColors[selectedColorIdx]?.name || '')}</span> • Tỉ lệ: <span id="ar-tag-scale">100% (Chuẩn 1:1)</span>
               </div>
 
+              <!-- Gyroscope Status Pill (Hidden until Gyro is toggled) -->
+              <div class="ar-gyro-indicator" id="ar-gyro-status-indicator" style="display:none;"></div>
+
               <!-- Floating Bottom Dock -->
               <div class="ar-floating-dock">
                 <button class="ar-dock-btn" id="btn-ar-dock-camera" title="Bật / Tắt Camera thực tế">📹</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-flip" title="Lật Camera Trước / Sau (Đổi Camera)">🔄</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-gyro" title="Bật / Tắt Gyroscope (Cảm biến chuyển động)">🧭</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-reset" title="Đặt lại góc nhìn xe 3D chuẩn">🎯</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-minus" title="Thu nhỏ 10%">−</button>
                 <button class="ar-dock-btn primary-capture" id="btn-ar-dock-shutter" title="Chụp ảnh AR (Nền Camera thật + Xe 3D)">📸</button>
@@ -4559,6 +4764,9 @@ const AppState = {
                   🚀 Khởi chạy WebXR / Scene Viewer / Quick Look
                 </button>
               </div>
+
+              <!-- Gyroscope Motion Sensor Controls Card -->
+              ${buildGyroControlsCardHtml('ar')}
 
               <!-- QR Card for Mobile Handoff -->
               <div style="display:flex; align-items:center; gap:12px; padding:12px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px;">
@@ -4797,12 +5005,14 @@ const AppState = {
     });
 
     // Mount real AR Session via SigmaARAdapter
+    let arGyroCtrl = null;
     if (mountNode && window.SigmaARAdapter) {
       window.SigmaARAdapter.init(mountNode, {
         carId: car.id,
         colorIdx: selectedColorIdx,
         autoStartCamera: true, // Proactively request camera permission and start video feed immediately!
         onCameraStateChange: handleCameraStateChange,
+        onGyroStateChange: (status, info) => arGyroCtrl?.handleStateChange(status, info),
         onDevicesUpdated: (devices) => updateCameraDeviceOptions(devices),
         onStatusChange: (status, msg) => {
           if (statusBadge && status !== 'active') statusBadge.textContent = msg;
@@ -4817,6 +5027,13 @@ const AppState = {
         updateCameraDeviceOptions(devices);
       });
     }
+
+    arGyroCtrl = bindGyroControlsUI({
+      prefix: 'ar',
+      getController: () => window.SigmaARAdapter,
+      dockBtn: document.getElementById('btn-ar-dock-gyro'),
+      indicatorEl: document.getElementById('ar-gyro-status-indicator')
+    });
 
     // Toggle Camera stream
     const handleCameraToggle = async () => {
