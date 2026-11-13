@@ -24,9 +24,13 @@ echo [2/4] Kiểm tra Git và remote origin...
 if not exist .git (
     git init
 )
-git remote set-url origin https://minh-tuan-6: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@github.com/minh-tuan-6/sigma-car.git 2>nul
+git remote set-url origin https://github.com/minh-tuan-6/sigma-car.git 2>nul
 if %ERRORLEVEL% NEQ 0 (
-    git remote add origin https://minh-tuan-6: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@github.com/minh-tuan-6/sigma-car.git
+    git remote add origin https://github.com/minh-tuan-6/sigma-car.git
+)
+where gh >nul 2>nul
+if %ERRORLEVEL% EQU 0 (
+    gh auth setup-git >nul 2>nul
 )
 git branch -M main
 
@@ -42,7 +46,7 @@ if %ERRORLEVEL% EQU 0 (
     echo 👉 Xem mã nguồn tại: https://github.com/minh-tuan-6/sigma-car
     echo ====================================================================
 ) else (
-    echo [!] Cảnh báo: Lỗi khi đẩy lên GitHub. Vui lòng kiểm tra lại token.
+    echo [!] Cảnh báo: Lỗi khi đẩy lên GitHub. Hãy chạy "gh auth login" hoặc đăng nhập Git Credential Manager rồi thử lại.
 )
 
 echo.
