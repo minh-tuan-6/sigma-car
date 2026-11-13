@@ -108,6 +108,71 @@
     };
   }
 
+  function quatNormalize(q) {
+    const inv = 1 / (Math.hypot(q.x || 0, q.y || 0, q.z || 0, q.w || 0) || 1);
+    return {
+      x: (q.x || 0) * inv,
+      y: (q.y || 0) * inv,
+      z: (q.z || 0) * inv,
+      w: (q.w || 0) * inv
+    };
+  }
+
+  function quatLookAt(eye, target) {
+    let zx = (eye.x || 0) - (target.x || 0);
+    let zy = (eye.y || 0) - (target.y || 0);
+    let zz = (eye.z || 0) - (target.z || 0);
+    const zLen = Math.hypot(zx, zy, zz);
+    if (zLen < 1e-6) {
+      zx = 0; zy = 0; zz = 1;
+    } else {
+      zx /= zLen; zy /= zLen; zz /= zLen;
+    }
+
+    // Horizontal right = normalize(cross((0,1,0), zAxis))
+    let xx = zz, xy = 0, xz = -zx;
+    const xLen = Math.hypot(xx, xz);
+    if (xLen < 1e-6) {
+      xx = 1; xy = 0; xz = 0;
+    } else {
+      xx /= xLen; xz /= xLen;
+    }
+
+    // Orthogonal camera up = cross(zAxis, right)
+    const yx = zy * xz - zz * xy;
+    const yy = zz * xx - zx * xz;
+    const yz = zx * xy - zy * xx;
+
+    const trace = xx + yy + zz;
+    let qx, qy, qz, qw;
+    if (trace > 0) {
+      const s = 0.5 / Math.sqrt(trace + 1.0);
+      qw = 0.25 / s;
+      qx = (yz - zy) * s;
+      qy = (zx - xz) * s;
+      qz = (xy - yx) * s;
+    } else if (xx > yy && xx > zz) {
+      const s = 2.0 * Math.sqrt(1.0 + xx - yy - zz);
+      qw = (yz - zy) / s;
+      qx = 0.25 * s;
+      qy = (yx + xy) / s;
+      qz = (zx + xz) / s;
+    } else if (yy > zz) {
+      const s = 2.0 * Math.sqrt(1.0 + yy - xx - zz);
+      qw = (zx - xz) / s;
+      qx = (yx + xy) / s;
+      qy = 0.25 * s;
+      qz = (zy + yz) / s;
+    } else {
+      const s = 2.0 * Math.sqrt(1.0 + zz - xx - yy);
+      qw = (xy - yx) / s;
+      qx = (zx + xz) / s;
+      qy = (zy + yz) / s;
+      qz = 0.25 * s;
+    }
+    return quatNormalize({ x: qx, y: qy, z: qz, w: qw });
+  }
+
   // Check WebGL Support
   function isWebGLAvailable() {
     try {
@@ -210,14 +275,19 @@
       this._deviceChangeHandler = null;
 
       // Real Gyroscope / Motion Tracking Controller State (Default OFF)
+      const defaultIsAR = !!(this.options.arMode || this.options.transparent);
+      const initialTrackMode = this.options.gyroMode === 'orbit' || this.options.gyroMode === 'world_lock'
+        ? this.options.gyroMode
+        : (defaultIsAR ? 'world_lock' : 'orbit');
       this.gyro = {
         isSupported: null,        // true | false | null (pending check)
         isEnabled: false,         // user toggled ON/OFF
         isActive: false,          // true ONLY after real numeric sensor readings arrive
         permissionState: 'prompt', // 'prompt' | 'granted' | 'denied' | 'unsupported'
+        trackingMode: initialTrackMode, // 'world_lock' (car stays stationary in space) | 'orbit' (360 deg turntable)
 
         // User-configurable tuning
-        sensitivity: 1.2,
+        sensitivity: initialTrackMode === 'world_lock' ? 1.0 : 1.2,
         invertH: false,
         invertV: false,
         defaultAngle: 137,
@@ -234,6 +304,14 @@
         accumRoll: 0,
         needsCalibrateRef: true,
         needsSoftResync: false,
+
+        // World-Lock Spatial Anchoring State (AR camera keeps car anchored at fixed world position)
+        worldLockRef: null,
+        currentCamQuat: null,
+        targetCamQuat: null,
+        worldLockSlerpAlpha: 0.58,
+        worldLockDampingSpeed: 18.0,
+        worldLockMaxAngularSpeed: 12.0,
 
         // Spherical orbit anchor & smoothed state
         baseTheta: 0,
@@ -336,8 +414,9 @@
         this.scene.fog = new THREE.FogExp2(0x0B1120, 0.035);
       }
 
-      // 2. Camera: 38deg FOV gives realistic automotive telephoto proportions
-      this.camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+      // 2. Camera: 52deg wide-angle lens in AR Camera to match smartphone room scale, 38deg telephoto in 3D Studio
+      const initialFov = isTransparent ? 52 : 38;
+      this.camera = new THREE.PerspectiveCamera(initialFov, width / height, 0.1, 100);
       this.camera.position.set(4.8, 1.8, 4.2);
 
       // 3. Renderer: LAYER 3 with Alpha enabled & Transparent ClearColor in AR mode
@@ -378,11 +457,12 @@
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.06;
-        this.controls.enablePan = false;
+        this.controls.enablePan = isTransparent;
+        this.controls.screenSpacePanning = !isTransparent; // Floor-plane XZ panning in AR
         this.controls.maxPolarAngle = Math.PI / 2 - 0.03; // Stay strictly above floor
         this.controls.minPolarAngle = Math.PI / 8;        // Realistic max high angle
         this.controls.minDistance = 3.2;
-        this.controls.maxDistance = 8.5;
+        this.controls.maxDistance = isTransparent ? 12.0 : 8.5;
         this.controls.rotateSpeed = 0.8;
         this.controls.zoomSpeed = 0.9;
         this.controls.target.set(0, 0.6, 0);
@@ -401,7 +481,7 @@
           this.container.style.cursor = 'grab';
           // Seamless handover: re-anchor Gyro reference to post-drag camera angle without jump
           if (this.gyro && this.gyro.isEnabled) {
-            this.calibrateGyro({ silent: true });
+            this.calibrateGyro({ silent: true, keepCameraPose: true });
           }
           if (this.gyro) {
             this.gyro.isUserInteracting = false;
@@ -1002,7 +1082,7 @@
       this.controls.update();
 
       if (this.gyro && this.gyro.isEnabled) {
-        this.calibrateGyro({ silent: true });
+        this.calibrateGyro({ silent: true, keepCameraPose: true });
       }
 
       if (this.options.onRotate) {
@@ -1074,8 +1154,118 @@
       }
       if (!wasActive && typeof this.options.onGyroStateChange === 'function') {
         this.options.onGyroStateChange('active', {
-          message: 'Motion Tracking Enabled'
+          trackingMode: this.gyro.trackingMode,
+          message: this.gyro.trackingMode === 'world_lock'
+            ? 'Motion Tracking Enabled (World-Locked Anchor)'
+            : 'Motion Tracking Enabled'
         });
+      }
+    }
+
+    _buildWorldLockRef(qRawDevice, anchorCamPos, anchorCamQuat, anchorTarget) {
+      const fwdPhone0 = rotateVecByQuat(qRawDevice, { x: 0, y: 0, z: -1 });
+      let phoneYaw0 = 0;
+      if (Math.hypot(fwdPhone0.x, fwdPhone0.z) > 0.08) {
+        phoneYaw0 = Math.atan2(-fwdPhone0.x, -fwdPhone0.z);
+      } else {
+        const rightPhone0 = rotateVecByQuat(qRawDevice, { x: 1, y: 0, z: 0 });
+        phoneYaw0 = Math.atan2(-rightPhone0.z, rightPhone0.x);
+      }
+
+      const fwdCam0 = rotateVecByQuat(anchorCamQuat, { x: 0, y: 0, z: -1 });
+      const camYaw0 = Math.hypot(fwdCam0.x, fwdCam0.z) > 1e-4
+        ? Math.atan2(-fwdCam0.x, -fwdCam0.z)
+        : 0;
+
+      const halfDiff = (camYaw0 - phoneYaw0) * 0.5;
+      const qYawAlign = { x: 0, y: Math.sin(halfDiff), z: 0, w: Math.cos(halfDiff) };
+      const qAligned0 = quatMultiply(qYawAlign, qRawDevice);
+      const qCalibOffset = quatMultiply(quatInvert(qAligned0), anchorCamQuat);
+
+      return {
+        qYawAlign,
+        qCalibOffset,
+        anchorCamPos: { x: anchorCamPos.x || 0, y: anchorCamPos.y || 0, z: anchorCamPos.z || 0 },
+        anchorCamQuat: quatNormalize(anchorCamQuat),
+        anchorTarget: { x: anchorTarget.x || 0, y: anchorTarget.y || 0, z: anchorTarget.z || 0 }
+      };
+    }
+
+    _applyWorldLockSample(qRaw) {
+      const target = (this.controls && this.controls.target) || { x: 0, y: 0.6, z: 0 };
+      const camPos = (this.camera && this.camera.position) || { x: 0, y: 2.2, z: 5.0 };
+
+      if (this.gyro.needsSoftResync || this.gyro.needsCalibrateRef || !this.gyro.qFiltered || !this.gyro.worldLockRef) {
+        let anchorQuat = null;
+        if (!this.gyro.needsCalibrateRef && this.gyro.currentCamQuat) {
+          // Soft resync on OS portrait/landscape flip: preserve live camera quaternion without snap
+          anchorQuat = quatNormalize(this.gyro.currentCamQuat);
+        } else if (this.gyro.worldLockRef && this.gyro.worldLockRef.anchorCamQuat) {
+          anchorQuat = quatNormalize(this.gyro.worldLockRef.anchorCamQuat);
+        } else if (this.camera && this.camera.quaternion) {
+          anchorQuat = quatNormalize(this.camera.quaternion);
+        } else {
+          anchorQuat = quatLookAt(camPos, target);
+        }
+
+        this.gyro.qFiltered = qRaw;
+        this.gyro.qPrev = qRaw;
+        this.gyro.worldLockRef = this._buildWorldLockRef(qRaw, camPos, anchorQuat, target);
+        this.gyro.targetCamQuat = this.gyro.worldLockRef.anchorCamQuat;
+        this.gyro.currentCamQuat = this.gyro.worldLockRef.anchorCamQuat;
+        this.gyro.needsCalibrateRef = false;
+        this.gyro.needsSoftResync = false;
+        return;
+      }
+
+      // 1. Stationary sensor noise gate (eliminates micro-jitter when held steady)
+      const angleDiff = quatAngleTo(this.gyro.qFiltered, qRaw);
+      if (angleDiff < (this.gyro.sensorDeadZone || 0.002)) {
+        return;
+      }
+
+      // 2. Smooth quaternion low-pass SLERP
+      const slerpWeight = this.gyro.worldLockSlerpAlpha || 0.58;
+      this.gyro.qFiltered = quatSlerp(this.gyro.qFiltered, qRaw, slerpWeight);
+      this.gyro.qPrev = this.gyro.qFiltered;
+
+      // 3. Map real-world phone pose directly into 3D scene camera space while keeping car anchored
+      const ref = this.gyro.worldLockRef;
+      const qTargetRaw = quatNormalize(
+        quatMultiply(quatMultiply(ref.qYawAlign, this.gyro.qFiltered), ref.qCalibOffset)
+      );
+
+      const sens = this.gyro.sensitivity || 1.0;
+      const hSign = this.gyro.invertH ? -1 : 1;
+      const vSign = this.gyro.invertV ? -1 : 1;
+
+      if (Math.abs(sens - 1.0) < 1e-3 && hSign === 1 && vSign === 1) {
+        this.gyro.targetCamQuat = qTargetRaw;
+        return;
+      }
+
+      let qDelta = quatMultiply(quatInvert(ref.anchorCamQuat), qTargetRaw);
+      if (qDelta.w < 0) {
+        qDelta = { x: -qDelta.x, y: -qDelta.y, z: -qDelta.z, w: -qDelta.w };
+      }
+      const sinH = Math.hypot(qDelta.x, qDelta.y, qDelta.z);
+      if (sinH > 1e-7) {
+        const halfAng = Math.atan2(sinH, qDelta.w);
+        const ax = (qDelta.x / sinH) * vSign;
+        const ay = (qDelta.y / sinH) * hSign;
+        const az = qDelta.z / sinH;
+        const aLen = Math.hypot(ax, ay, az) || 1;
+        const scaledHalf = Math.min(Math.PI * 0.99, halfAng * sens);
+        const sNew = Math.sin(scaledHalf);
+        const qScaled = {
+          x: (ax / aLen) * sNew,
+          y: (ay / aLen) * sNew,
+          z: (az / aLen) * sNew,
+          w: Math.cos(scaledHalf)
+        };
+        this.gyro.targetCamQuat = quatNormalize(quatMultiply(ref.anchorCamQuat, qScaled));
+      } else {
+        this.gyro.targetCamQuat = ref.anchorCamQuat;
       }
     }
 
@@ -1085,6 +1275,11 @@
       const screenAngle = this._getScreenOrientationAngle();
       const qRaw = quatFromDeviceOrientation(alphaDeg, betaDeg, gammaDeg, screenAngle);
       this.gyro.lastQRaw = qRaw;
+
+      if (this.gyro.trackingMode === 'world_lock') {
+        this._applyWorldLockSample(qRaw);
+        return;
+      }
 
       // Soft resync after OS portrait/landscape screen flip without camera snap
       if (this.gyro.needsSoftResync || this.gyro.needsCalibrateRef || !this.gyro.qFiltered) {
@@ -1243,6 +1438,25 @@
       this.gyro.targetPhi = currentPhi;
       this.gyro.targetTheta = currentTheta;
 
+      // World-Lock Spatial Anchoring calibration:
+      // - Explicit Recenter click (!opts.keepCameraPose): brings parked car cleanly in front of current view and anchors it there.
+      // - Silent internal recalibrate (opts.keepCameraPose): keeps exact current camera quaternion with zero snap.
+      const camQuat = (!opts.keepCameraPose)
+        ? quatLookAt(pos, target)
+        : (this.camera.quaternion ? quatNormalize(this.camera.quaternion) : quatLookAt(pos, target));
+
+      if (this.gyro.trackingMode === 'world_lock' && !opts.keepCameraPose) {
+        if (this.camera.quaternion && typeof this.camera.quaternion.set === 'function') {
+          this.camera.quaternion.set(camQuat.x, camQuat.y, camQuat.z, camQuat.w);
+        }
+        if (typeof this.camera.updateMatrixWorld === 'function') {
+          this.camera.updateMatrixWorld();
+        }
+      }
+
+      this.gyro.currentCamQuat = camQuat;
+      this.gyro.targetCamQuat = camQuat;
+
       // Reset relative motion accumulators cleanly to latest raw posture (zero post-calibration SLERP drift)
       const qAnchor = this.gyro.lastQRaw || this.gyro.qFiltered;
       if (this.gyro.hasSensorReading && qAnchor) {
@@ -1255,6 +1469,7 @@
         this.gyro.prevRoll = Math.asin(Math.max(-1, Math.min(1, right.y)));
         this.gyro.accumYaw = 0;
         this.gyro.accumRoll = 0;
+        this.gyro.worldLockRef = this._buildWorldLockRef(qAnchor, pos, camQuat, target);
         this.gyro.needsCalibrateRef = false;
       } else {
         this.gyro.refTilt = null;
@@ -1263,12 +1478,22 @@
         this.gyro.qPrev = null;
         this.gyro.accumYaw = 0;
         this.gyro.accumRoll = 0;
+        this.gyro.worldLockRef = {
+          qYawAlign: { x: 0, y: 0, z: 0, w: 1 },
+          qCalibOffset: { x: 0, y: 0, z: 0, w: 1 },
+          anchorCamPos: { x: pos.x || 0, y: pos.y || 0, z: pos.z || 0 },
+          anchorCamQuat: camQuat,
+          anchorTarget: { x: target.x || 0, y: target.y || 0, z: target.z || 0 }
+        };
         this.gyro.needsCalibrateRef = true;
       }
 
       if (!opts.silent && typeof this.options.onGyroStateChange === 'function') {
         this.options.onGyroStateChange('calibrated', {
-          message: 'Đã căn chỉnh (Recenter) lại vị trí tham chiếu = 0°'
+          trackingMode: this.gyro.trackingMode,
+          message: this.gyro.trackingMode === 'world_lock'
+            ? 'Đã neo lại xe ngay trước mặt trong không gian thực!'
+            : 'Đã căn chỉnh (Recenter) lại vị trí tham chiếu = 0°'
         });
       }
     }
@@ -1296,7 +1521,7 @@
         this.controls.update();
       }
 
-      this.calibrateGyro({ silent: true });
+      this.calibrateGyro({ silent: true, keepCameraPose: true });
 
       if (this.options.onRotate) {
         this.options.onRotate(this.currentAngle);
@@ -1318,6 +1543,37 @@
       const rawDt = this.gyro._lastFrameTime ? (ts - this.gyro._lastFrameTime) / 1000 : (1 / 60);
       const dt = Math.max(0.001, Math.min(0.05, rawDt));
       this.gyro._lastFrameTime = ts;
+
+      // WORLD-LOCK MOTION TRACKING MODE:
+      // Car remains stationary at its fixed world position while the camera freely looks around in 3D space.
+      if (this.gyro.trackingMode === 'world_lock') {
+        const targetQ = this.gyro.targetCamQuat;
+        const currQ = this.gyro.currentCamQuat;
+        if (!targetQ || !currQ) return;
+
+        const errAngle = quatAngleTo(currQ, targetQ);
+        const deadZone = this.gyro.renderDeadZone || 0.0005;
+        if (errAngle < deadZone) {
+          return;
+        }
+
+        const speed = this.gyro.worldLockDampingSpeed || 18.0;
+        const alphaDamp = 1 - Math.exp(-speed * dt);
+        const maxStep = (this.gyro.worldLockMaxAngularSpeed || 12.0) * dt;
+        const stepAngle = errAngle * alphaDamp;
+        const interpT = stepAngle > maxStep ? (maxStep / errAngle) : alphaDamp;
+
+        const nextQ = quatSlerp(currQ, targetQ, Math.min(1, Math.max(0, interpT)));
+        this.gyro.currentCamQuat = nextQ;
+
+        if (this.camera.quaternion && typeof this.camera.quaternion.set === 'function') {
+          this.camera.quaternion.set(nextQ.x, nextQ.y, nextQ.z, nextQ.w);
+        }
+        if (typeof this.camera.updateMatrixWorld === 'function') {
+          this.camera.updateMatrixWorld();
+        }
+        return;
+      }
 
       const target = this.controls.target || { x: 0, y: 0.6, z: 0 };
       const pos = this.camera.position || { x: 0, y: 2.2, z: 5.0 };
@@ -1387,6 +1643,9 @@
     }
 
     async enableGyro(opts = {}) {
+      if (opts.trackingMode === 'world_lock' || opts.trackingMode === 'orbit') {
+        this.gyro.trackingMode = opts.trackingMode;
+      }
       if (opts.sensitivity !== undefined) this.gyro.sensitivity = Math.max(0.2, Math.min(3.5, opts.sensitivity));
       if (opts.invertH !== undefined) this.gyro.invertH = !!opts.invertH;
       if (opts.invertV !== undefined) this.gyro.invertV = !!opts.invertV;
@@ -1511,7 +1770,7 @@
       }
       window.addEventListener('orientationchange', this.gyro._onOrientationChange);
 
-      this.calibrateGyro({ silent: true });
+      this.calibrateGyro({ silent: true, keepCameraPose: true });
 
       if (typeof this.options.onGyroStateChange === 'function') {
         this.options.onGyroStateChange('requesting', {
@@ -1573,6 +1832,9 @@
     }
 
     setGyroSettings(settings = {}) {
+      if (settings.trackingMode === 'world_lock' || settings.trackingMode === 'orbit') {
+        this.gyro.trackingMode = settings.trackingMode;
+      }
       if (typeof settings.sensitivity === 'number') {
         this.gyro.sensitivity = Math.max(0.2, Math.min(3.5, settings.sensitivity));
       }
@@ -1584,8 +1846,31 @@
       }
       // Re-anchor smoothly to current posture so toggling Invert or sliding Sensitivity never snaps camera
       if (this.gyro.isEnabled && this.gyro.hasSensorReading) {
-        this.calibrateGyro({ silent: true });
+        this.calibrateGyro({ silent: true, keepCameraPose: true });
       }
+    }
+
+    setGyroTrackingMode(mode, opts = {}) {
+      if (mode !== 'world_lock' && mode !== 'orbit') return this.gyro.trackingMode;
+      if (this.gyro.trackingMode === mode) return mode;
+      this.gyro.trackingMode = mode;
+
+      // Preserve current camera pose seamlessly when switching between World-Lock & Orbit 360
+      if (this.gyro.isEnabled) {
+        this.calibrateGyro({ silent: true, keepCameraPose: true });
+      }
+      if (!opts.silent && typeof this.options.onGyroStateChange === 'function') {
+        this.options.onGyroStateChange(
+          this.gyro.isActive ? 'active' : (this.gyro.isEnabled ? 'requesting' : 'mode_changed'),
+          {
+            trackingMode: this.gyro.trackingMode,
+            message: mode === 'world_lock'
+              ? 'Motion Tracking Enabled (Xe neo cố định tại chỗ)'
+              : 'Motion Tracking Enabled (Chế độ Xoay 360°)'
+          }
+        );
+      }
+      return mode;
     }
 
     getGyroState() {
@@ -1594,6 +1879,7 @@
         isActive: this.gyro.isActive,
         isSupported: this.gyro.isSupported,
         permissionState: this.gyro.permissionState,
+        trackingMode: this.gyro.trackingMode,
         sensitivity: this.gyro.sensitivity,
         invertH: this.gyro.invertH,
         invertV: this.gyro.invertV,
@@ -1614,7 +1900,7 @@
       this.controls.update();
 
       if (this.gyro && this.gyro.isEnabled) {
-        this.calibrateGyro({ silent: true });
+        this.calibrateGyro({ silent: true, keepCameraPose: true });
       }
     }
 
@@ -1624,7 +1910,7 @@
         this.setRotationAngle(137);
       }
       if (this.gyro && this.gyro.isEnabled) {
-        this.calibrateGyro({ silent: true });
+        this.calibrateGyro({ silent: true, keepCameraPose: true });
       }
     }
 
@@ -1658,10 +1944,24 @@
       }
     }
 
-    async enterWebXR() {
-      this.setVRStudioMode(true);
+    async enterWebXR(opts = {}) {
+      const preferAR = opts.ar !== undefined ? !!opts.ar : !!(this.options.arMode || this.options.transparent || this.isCameraActive);
+      if (!preferAR) {
+        this.setVRStudioMode(true);
+      }
       if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
         try {
+          if (preferAR) {
+            const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+            if (arSupported && this.renderer && this.renderer.xr) {
+              const session = await navigator.xr.requestSession('immersive-ar', {
+                optionalFeatures: ['local-floor', 'hit-test', 'dom-overlay']
+              });
+              this.setTransparentMode(true);
+              await this.renderer.xr.setSession(session);
+              return { mode: 'webxr-ar', active: true };
+            }
+          }
           const supported = await navigator.xr.isSessionSupported('immersive-vr');
           if (supported && this.renderer && this.renderer.xr) {
             const session = await navigator.xr.requestSession('immersive-vr', {
@@ -1671,10 +1971,10 @@
             return { mode: 'webxr-headset', active: true };
           }
         } catch (err) {
-          console.warn('[Car3DViewer] WebXR session fallback to desktop VR studio:', err.message);
+          console.warn('[Car3DViewer] WebXR session fallback to virtual viewer:', err.message);
         }
       }
-      return { mode: 'virtual-studio', active: true };
+      return { mode: preferAR ? 'ar-world-lock' : 'virtual-studio', active: true };
     }
 
     handleResize() {
@@ -2181,11 +2481,22 @@
           });
         }
 
-        // Enable transparent Three.js WebGL canvas above video!
+        // Enable transparent Three.js WebGL canvas above video & widen AR FOV to match room camera
         this.setTransparentMode(true);
         this.isCameraActive = true;
         this.currentMode = 'ar_camera';
         this.lastCameraError = null;
+        if (this.camera && this.camera.fov !== 52) {
+          this.camera.fov = 52;
+          if (typeof this.camera.updateProjectionMatrix === 'function') {
+            this.camera.updateProjectionMatrix();
+          }
+        }
+        if (this.controls) {
+          this.controls.enablePan = true;
+          this.controls.screenSpacePanning = false;
+          this.controls.maxDistance = 12.0;
+        }
 
         // Apply camera-active classes with solid black background behind video (NEVER transparent white!)
         if (this.container && this.container.classList) {
@@ -2246,6 +2557,12 @@
       }
       this.isCameraActive = false;
       this.currentMode = 'studio';
+      if (!this.options.arMode && !this.options.transparent && this.camera && this.camera.fov !== 38) {
+        this.camera.fov = 38;
+        if (typeof this.camera.updateProjectionMatrix === 'function') {
+          this.camera.updateProjectionMatrix();
+        }
+      }
 
       // Restore studio background
       if (this.scene) {

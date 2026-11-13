@@ -537,15 +537,151 @@ function getSpherical(viewer) {
 
     assert(adapterCode.includes('resetGyroOrientation'), 'ar-adapter.js must expose resetGyroOrientation');
     assert(adapterCode.includes('calibrateGyro'), 'ar-adapter.js must expose calibrateGyro');
+    assert(adapterCode.includes('setGyroTrackingMode'), 'ar-adapter.js must expose setGyroTrackingMode');
     assert(appCode.includes('btn-ar-dock-gyro'), 'app.js must include AR dock Gyro button');
+    assert(appCode.includes('btn-ar-dock-gyro-recenter'), 'app.js must include AR dock Recenter button');
     assert(appCode.includes('btn-vr-gyro'), 'app.js must include VR Showroom Gyro button');
     assert(appCode.includes('ar-gyro-status-indicator'), 'app.js must include AR Gyro status indicator');
+    assert(appCode.includes('btn-mode-world-lock'), 'app.js must include AR World-Lock Motion Tracking switch');
     assert(appCode.includes('GYRO ACTIVE'), 'app.js must display GYRO ACTIVE status');
     assert(appCode.includes('Motion Tracking Enabled'), 'app.js must display Motion Tracking Enabled status');
     assert(appCode.includes('GYRO NOT AVAILABLE'), 'app.js must display GYRO NOT AVAILABLE status');
     assert(appCode.includes('MOTION PERMISSION REQUIRED'), 'app.js must display MOTION PERMISSION REQUIRED status');
     assert(appCode.includes('Invert Horizontal') && appCode.includes('Invert Vertical'), 'app.js must include Invert controls');
-    assert(htmlCode.includes('js/car-3d-viewer.js?v=19.0'), 'index.html cache buster must be updated to v=19.0');
+    assert(htmlCode.includes('js/car-3d-viewer.js?v=20.0'), 'index.html cache buster must be updated to v=20.0');
+  });
+
+  await testAsync('11. AR World-Lock Motion Tracking keeps car stationary in world space when looking around', async () => {
+    const env = createViewerSandbox();
+    const events = [];
+    const viewer = env.Car3DViewer.init(env.container, {
+      arMode: true,
+      transparent: true,
+      enableKeyboard: false,
+      onGyroStateChange: (s, info) => events.push({ s, info })
+    });
+
+    // AR mode defaults: world_lock, 1.0x sensitivity, 52deg FOV, floor pan enabled
+    assert.strictEqual(viewer.getGyroState().trackingMode, 'world_lock');
+    assert.strictEqual(viewer.getGyroState().sensitivity, 1.0);
+    assert.strictEqual(viewer.camera.fov, 52);
+    assert.strictEqual(viewer.controls.enablePan, true);
+
+    await viewer.enableGyro({ sensorTimeoutMs: 5000 });
+    env.emitOrientation(0, 70, 0); // Hold phone at ~70deg pitch looking at car
+    viewer.camera.updateMatrixWorld();
+
+    const carAnchor = new THREE.Vector3(0, 0.6, 0);
+    const camPos0 = viewer.camera.position.clone();
+    const shadowPos0 = viewer.shadowMesh.position.clone();
+    const ndc0 = carAnchor.clone().project(viewer.camera);
+    assert(Math.abs(ndc0.x) < 0.05 && Math.abs(ndc0.y) < 0.05, `Initial anchored car should be centered, got (${ndc0.x.toFixed(2)}, ${ndc0.y.toFixed(2)})`);
+
+    // 1. Stationary noise (<0.05 deg): car NDC must stay completely steady (zero jitter)
+    for (let i = 0; i < 20; i++) {
+      env.emitOrientation(Math.sin(i) * 0.03, 70 + Math.cos(i) * 0.03, 0);
+      env.stepFrames(viewer, 2);
+    }
+    const ndcStill = carAnchor.clone().project(viewer.camera);
+    assert(Math.hypot(ndcStill.x - ndc0.x, ndcStill.y - ndc0.y) < 1e-4, 'World-lock car shook under stationary sensor tremor');
+
+    // 2. Turn phone RIGHT 30 deg (alpha 0 -> 330): camera looks right, car stays parked -> shifts LEFT on screen
+    for (let a = 0; a >= -30; a -= 3) {
+      env.emitOrientation((a + 360) % 360, 70, 0);
+    }
+    env.stepFrames(viewer, 60);
+    assert(viewer.camera.position.distanceTo(camPos0) < 1e-5, 'Camera world position should remain anchored');
+    assert(viewer.shadowMesh.position.distanceTo(shadowPos0) < 1e-5, 'Ground anchor shadow must remain stationary in world space');
+    const ndcRight30 = carAnchor.clone().project(viewer.camera);
+    assert(ndcRight30.x < -0.65, `Turning right 30 deg must leave stationary car on left side of screen (ndc.x=${ndcRight30.x.toFixed(2)})`);
+
+    // 3. Turn phone RIGHT 60 deg (alpha 330 -> 300): car moves completely off-screen left!
+    for (let a = -30; a >= -60; a -= 3) {
+      env.emitOrientation((a + 360) % 360, 70, 0);
+    }
+    env.stepFrames(viewer, 60);
+    const ndcRight60 = carAnchor.clone().project(viewer.camera);
+    assert(ndcRight60.x < -1.1, `Turning right 60 deg must pan car completely out of frame (ndc.x=${ndcRight60.x.toFixed(2)})`);
+
+    // 4. Turn back to 0 deg (with settled sensor events) -> car returns directly to original centered spot
+    for (let a = -60; a <= 0; a += 4) {
+      env.emitOrientation((a + 360) % 360, 70, 0);
+    }
+    for (let s = 0; s < 6; s++) env.emitOrientation(0, 70, 0);
+    env.stepFrames(viewer, 60);
+    const ndcBack = carAnchor.clone().project(viewer.camera);
+    assert(Math.hypot(ndcBack.x, ndcBack.y) < 0.03, `Returning phone to 0 deg must re-center car cleanly (${ndcBack.x.toFixed(3)}, ${ndcBack.y.toFixed(3)})`);
+
+    // 5. Tilt phone UP +30 deg toward ceiling (beta 70 -> 100): car stays parked on floor -> drops off bottom edge
+    for (let b = 70; b <= 100; b += 3) {
+      env.emitOrientation(0, b, 0);
+    }
+    for (let s = 0; s < 6; s++) env.emitOrientation(0, 100, 0);
+    env.stepFrames(viewer, 60);
+    const ndcUp30 = carAnchor.clone().project(viewer.camera);
+    assert(ndcUp30.y < -0.9, `Tilting up toward ceiling must drop floor-anchored car down (ndc.y=${ndcUp30.y.toFixed(2)})`);
+
+    // Tilt back to 70 deg: car returns to center
+    for (let b = 100; b >= 70; b -= 3) {
+      env.emitOrientation(0, b, 0);
+    }
+    for (let s = 0; s < 6; s++) env.emitOrientation(0, 70, 0);
+    env.stepFrames(viewer, 60);
+    const ndcRestored = carAnchor.clone().project(viewer.camera);
+    assert(Math.hypot(ndcRestored.x, ndcRestored.y) < 0.03, `Restoring pitch must re-center car (${ndcRestored.x.toFixed(3)}, ${ndcRestored.y.toFixed(3)})`);
+    viewer.dispose();
+  });
+
+  await testAsync('12. World-Lock Recenter brings parked car back, Invert/Sensitivity never snap, & Mode switching is jump-free', async () => {
+    const env = createViewerSandbox();
+    const viewer = env.Car3DViewer.init(env.container, { arMode: true, enableKeyboard: false });
+    await viewer.enableGyro({ sensorTimeoutMs: 5000 });
+    env.emitOrientation(40, 65, 0);
+
+    const carAnchor = new THREE.Vector3(0, 0.6, 0);
+
+    // Look 45 deg LEFT away from car (alpha 40 -> 85)
+    for (let a = 40; a <= 85; a += 5) env.emitOrientation(a, 65, 0);
+    env.stepFrames(viewer, 60);
+    const ndcAway = carAnchor.clone().project(viewer.camera);
+    assert(ndcAway.x > 0.9, `Looking left 45 deg should place stationary car past right edge (ndc.x=${ndcAway.x.toFixed(2)})`);
+
+    // Tweak sensitivity + invertH while looking away -> MUST NOT snap camera!
+    const preSettingQuat = viewer.camera.quaternion.clone();
+    viewer.setGyroSettings({ sensitivity: 1.5, invertH: true });
+    env.stepFrames(viewer, 5);
+    assert(viewer.camera.quaternion.angleTo(preSettingQuat) < 1e-4, 'Changing settings in world_lock must not snap camera');
+
+    // Explicit Recenter ("Neo lại trước mặt") brings parked car cleanly back to center & anchors new heading (alpha=85)
+    viewer.calibrateGyro();
+    const ndcRecentered = carAnchor.clone().project(viewer.camera);
+    assert(Math.hypot(ndcRecentered.x, ndcRecentered.y) < 0.03, `Explicit calibrateGyro must recenter car to view (${ndcRecentered.x.toFixed(3)}, ${ndcRecentered.y.toFixed(3)})`);
+
+    // Test inverted horizontal response after calibrate: turning RIGHT now rotates view LEFT -> car shifts LEFT or RIGHT oppositely
+    // Wait: normally turning right shifts car LEFT (ndc.x < 0); with invertH:true, turning right (alpha 85 -> 55) rotates cam LEFT -> car shifts RIGHT (ndc.x > 0)
+    viewer.setGyroSettings({ sensitivity: 1.0, invertH: true });
+    for (let a = 85; a >= 55; a -= 3) env.emitOrientation(a, 65, 0);
+    env.stepFrames(viewer, 60);
+    const ndcInverted = carAnchor.clone().project(viewer.camera);
+    assert(ndcInverted.x > 0.5, `invertH in world_lock must flip horizontal pan (ndc.x=${ndcInverted.x.toFixed(2)})`);
+
+    // Switch world_lock -> orbit seamlessly with zero camera jump
+    const preSwitchQuat = viewer.camera.quaternion.clone();
+    const preSwitchPos = viewer.camera.position.clone();
+    viewer.setGyroTrackingMode('orbit');
+    assert.strictEqual(viewer.getGyroState().trackingMode, 'orbit');
+    env.stepFrames(viewer, 5);
+    assert(viewer.camera.position.distanceTo(preSwitchPos) < 1e-4, 'Switching world_lock -> orbit must not jump camera position');
+    assert(viewer.camera.quaternion.angleTo(preSwitchQuat) < 1e-4, 'Switching world_lock -> orbit must not jump camera quaternion');
+
+    // Roll/tilt in orbit mode still orbits car around spherical axes
+    viewer.setGyroSettings({ invertH: false });
+    const theta0 = getSpherical(viewer).theta;
+    for (let g = 0; g <= 25; g += 5) env.emitOrientation(55, 65, g);
+    env.stepFrames(viewer, 50);
+    assert(getSpherical(viewer).theta > theta0 + 0.12, 'Switched orbit mode must orbit around car smoothly');
+
+    viewer.dispose();
   });
 
   console.log(`\n======================================================`);

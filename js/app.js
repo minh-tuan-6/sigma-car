@@ -3708,26 +3708,34 @@ const AppState = {
   // VIEW 5B: VR / AR / 360° SHOWROOM (Trang VR AR Xem Xe Trực Tuyến.pdf)
   // =================================================================
   function buildGyroControlsCardHtml(prefix) {
+    const isAR = prefix === 'ar';
+    const defaultSens = isAR ? '1.0' : '1.2';
     return `
       <div class="ar-gyro-card" id="${prefix}-gyro-controls-card">
         <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;">
-          <span style="font-size:12.5px; font-weight:800; color:var(--text-dark);">🧭 CẢM BIẾN GYROSCOPE (3D MOTION)</span>
+          <span style="font-size:12.5px; font-weight:800; color:var(--text-dark);">🧭 ${isAR ? 'AR MOTION TRACKING / GYRO' : 'CẢM BIẾN GYROSCOPE (3D MOTION)'}</span>
           <span class="ar-gyro-badge" id="${prefix}-gyro-sidebar-badge">GYRO OFF</span>
         </div>
         <div id="${prefix}-gyro-status-sub" style="font-size:11.5px; color:#64748B; margin-bottom:10px; line-height:1.4;">
-          Manual Mode (Chuột / Cảm ứng) • Bấm GYRO để điều khiển bằng nghiêng máy.
+          ${isAR
+            ? 'Manual Mode • Bấm GYRO để neo xe đứng im một chỗ trong không gian & xoay máy quan sát.'
+            : 'Manual Mode (Chuột / Cảm ứng) • Bấm GYRO để điều khiển bằng nghiêng máy.'}
+        </div>
+        <div class="ar-gyro-mode-switch" role="group" aria-label="Chế độ Motion Tracking">
+          <button type="button" class="ar-gyro-mode-btn ${isAR ? 'active' : ''}" id="${prefix}-btn-mode-world-lock" data-gyro-mode="world_lock" title="Xe neo cố định một chỗ trong không gian thật">📍 Xe đứng im (AR)</button>
+          <button type="button" class="ar-gyro-mode-btn ${!isAR ? 'active' : ''}" id="${prefix}-btn-mode-orbit" data-gyro-mode="orbit" title="Xoay 360° quanh xe theo độ nghiêng">🔄 Xoay 360° (Orbit)</button>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
           <button type="button" class="btn-gyro-action" id="${prefix}-btn-toggle-gyro">🧭 Bật GYRO (OFF)</button>
-          <button type="button" class="btn-gyro-action" id="${prefix}-btn-recenter-gyro" disabled title="Đặt tư thế cầm máy hiện tại làm gốc 0°">🎯 Calibrate / Recenter</button>
+          <button type="button" class="btn-gyro-action" id="${prefix}-btn-recenter-gyro" disabled title="Đặt xe / neo vị trí tham chiếu ngay trước mặt">🎯 ${isAR ? 'Neo lại trước mặt' : 'Calibrate / Recenter'}</button>
         </div>
         <button type="button" class="btn-gyro-action" id="${prefix}-btn-reset-gyro" style="width:100%; margin-bottom:12px;">↺ Reset Orientation (Về góc chuẩn)</button>
         <div>
           <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px;">
             <span style="font-weight:700; color:var(--text-dark);">Độ nhạy (Sensitivity):</span>
-            <strong style="color:var(--primary);" id="${prefix}-gyro-sens-label">1.2x</strong>
+            <strong style="color:var(--primary);" id="${prefix}-gyro-sens-label">${defaultSens}x</strong>
           </div>
-          <input type="range" id="${prefix}-gyro-sens-slider" min="0.4" max="2.5" step="0.1" value="1.2" style="width:100%; accent-color:#0284C7;">
+          <input type="range" id="${prefix}-gyro-sens-slider" min="0.4" max="2.5" step="0.1" value="${defaultSens}" style="width:100%; accent-color:#0284C7;">
         </div>
         <div style="display:flex; gap:14px; margin-top:8px; font-size:11.5px; color:var(--text-dark); flex-wrap:wrap;">
           <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:600;">
@@ -3751,10 +3759,24 @@ const AppState = {
     const invVCheck = document.getElementById(`${prefix}-chk-gyro-inv-v`);
     const badgeEl = document.getElementById(`${prefix}-gyro-sidebar-badge`);
     const subEl = document.getElementById(`${prefix}-gyro-status-sub`);
+    const modeWorldBtn = document.getElementById(`${prefix}-btn-mode-world-lock`);
+    const modeOrbitBtn = document.getElementById(`${prefix}-btn-mode-orbit`);
+    let currentTrackingMode = prefix === 'ar' ? 'world_lock' : 'orbit';
     let hideIndicatorTimer = null;
 
+    const syncModeVisuals = (mode) => {
+      if (mode !== 'world_lock' && mode !== 'orbit') return;
+      currentTrackingMode = mode;
+      modeWorldBtn?.classList.toggle('active', mode === 'world_lock');
+      modeOrbitBtn?.classList.toggle('active', mode === 'orbit');
+      if (recenterBtn) {
+        recenterBtn.textContent = mode === 'world_lock' ? '🎯 Neo lại trước mặt' : '🎯 Calibrate / Recenter';
+      }
+    };
+
     const readSettings = () => ({
-      sensitivity: sensSlider ? parseFloat(sensSlider.value) || 1.2 : 1.2,
+      trackingMode: currentTrackingMode,
+      sensitivity: sensSlider ? parseFloat(sensSlider.value) || (currentTrackingMode === 'world_lock' ? 1.0 : 1.2) : (currentTrackingMode === 'world_lock' ? 1.0 : 1.2),
       invertH: !!(invHCheck && invHCheck.checked),
       invertV: !!(invVCheck && invVCheck.checked)
     });
@@ -3781,7 +3803,7 @@ const AppState = {
     const setToggleVisuals = (isOn) => {
       if (dockBtn) {
         dockBtn.classList.toggle('gyro-active', isOn);
-        dockBtn.title = isOn ? 'Tắt Gyroscope (Về Manual Mode)' : 'Bật Gyroscope (Cảm biến chuyển động)';
+        dockBtn.title = isOn ? 'Tắt Gyroscope / Motion Tracking (Về Manual Mode)' : 'Bật Gyroscope / Motion Tracking (Xe đứng im tại chỗ)';
       }
       if (toggleBtn) {
         toggleBtn.classList.toggle('active', isOn);
@@ -3792,15 +3814,29 @@ const AppState = {
     };
 
     const handleStateChange = (status, info = {}) => {
+      const mode = info.trackingMode || getController()?.getGyroState?.().trackingMode || currentTrackingMode;
+      syncModeVisuals(mode);
       if (status === 'active') {
         setToggleVisuals(true);
         if (badgeEl) {
           badgeEl.className = 'ar-gyro-badge active';
-          badgeEl.textContent = 'GYRO ACTIVE';
+          badgeEl.textContent = mode === 'world_lock' ? 'TRACKING ACTIVE' : 'GYRO ACTIVE';
         }
-        if (subEl) subEl.textContent = 'Motion Tracking Enabled — Nghiêng / xoay điện thoại để quan sát xe 3D.';
-        setIndicator('active', '🧭 GYRO ACTIVE • Motion Tracking Enabled');
-        showToast('GYRO ACTIVE — Motion Tracking Enabled', '🧭');
+        if (mode === 'world_lock') {
+          if (subEl) subEl.textContent = 'Motion Tracking Enabled — Xe đã neo cố định tại chỗ! Xoay/nghiêng điện thoại để nhìn quanh xe.';
+          setIndicator('active', '📍 MOTION TRACKING • Xe đang đứng im tại chỗ');
+          showToast('MOTION TRACKING — Xe đang neo im tại 1 vị trí trong không gian!', '📍');
+        } else {
+          if (subEl) subEl.textContent = 'Motion Tracking Enabled — Nghiêng / xoay điện thoại để quan sát xe 3D.';
+          setIndicator('active', '🧭 GYRO ACTIVE • Motion Tracking Enabled');
+          showToast('GYRO ACTIVE — Motion Tracking Enabled', '🧭');
+        }
+      } else if (status === 'mode_changed') {
+        if (subEl) {
+          subEl.textContent = mode === 'world_lock'
+            ? 'Đã chọn Motion Tracking (Xe đứng im tại chỗ). Bấm Bật GYRO để bắt đầu!'
+            : 'Đã chọn chế độ Orbit 360° (Xoay quanh xe). Bấm Bật GYRO để bắt đầu!';
+        }
       } else if (status === 'requesting') {
         setToggleVisuals(false);
         if (badgeEl) {
@@ -3841,6 +3877,26 @@ const AppState = {
         showToast(info.message || 'Đã đặt lại hướng nhìn xe mặc định!', '↺');
       }
     };
+
+    const handleModeSelect = (nextMode) => {
+      if (nextMode !== 'world_lock' && nextMode !== 'orbit') return;
+      const prevMode = currentTrackingMode;
+      syncModeVisuals(nextMode);
+      // Match natural sensitivity default when toggling between AR 1:1 Lock (1.0x) and Orbit (1.2x)
+      if (sensSlider) {
+        const curVal = parseFloat(sensSlider.value);
+        if (prevMode !== nextMode && ((nextMode === 'world_lock' && Math.abs(curVal - 1.2) < 0.05) || (nextMode === 'orbit' && Math.abs(curVal - 1.0) < 0.05))) {
+          const autoSens = nextMode === 'world_lock' ? 1.0 : 1.2;
+          sensSlider.value = String(autoSens);
+          if (sensLabel) sensLabel.textContent = `${autoSens.toFixed(1)}x`;
+          getController()?.setGyroSettings?.({ sensitivity: autoSens });
+        }
+      }
+      getController()?.setGyroTrackingMode?.(nextMode);
+    };
+
+    modeWorldBtn?.addEventListener('click', () => handleModeSelect('world_lock'));
+    modeOrbitBtn?.addEventListener('click', () => handleModeSelect('orbit'));
 
     const handleToggleClick = () => {
       const ctrl = getController();
@@ -4662,7 +4718,8 @@ const AppState = {
               <div class="ar-floating-dock">
                 <button class="ar-dock-btn" id="btn-ar-dock-camera" title="Bật / Tắt Camera thực tế">📹</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-flip" title="Lật Camera Trước / Sau (Đổi Camera)">🔄</button>
-                <button class="ar-dock-btn" id="btn-ar-dock-gyro" title="Bật / Tắt Gyroscope (Cảm biến chuyển động)">🧭</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-gyro" title="Bật / Tắt Gyroscope / Motion Tracking (Xe neo tại chỗ)">🧭</button>
+                <button class="ar-dock-btn" id="btn-ar-dock-gyro-recenter" style="display:none;" title="Neo / Đặt lại xe ngay trước mặt (Recenter Motion Tracking)">📍</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-reset" title="Đặt lại góc nhìn xe 3D chuẩn">🎯</button>
                 <button class="ar-dock-btn" id="btn-ar-dock-minus" title="Thu nhỏ 10%">−</button>
                 <button class="ar-dock-btn primary-capture" id="btn-ar-dock-shutter" title="Chụp ảnh AR (Nền Camera thật + Xe 3D)">📸</button>
@@ -4740,7 +4797,7 @@ const AppState = {
               <!-- Placement Mode & Ground Shadow -->
               <div style="display:flex; flex-direction:column; gap:10px; padding:12px; background:#F8FAFC; border-radius:12px; border:1px solid #E2E8F0;">
                 <div style="font-size:12px; color:#475569; line-height:1.4;">
-                  <strong>🎯 Chế độ đặt xe:</strong> Phủ Camera thực tế 1:1 (Manual Camera Overlay). Vuốt 1 ngón để xoay 360°, kéo 2 ngón để di chuyển xe trên sàn phòng.
+                  <strong>🎯 Chế độ đặt xe & Motion Tracking:</strong> Bật <strong>🧭 GYRO</strong> để xe neo cố định tại 1 chỗ trong không gian (xoay điện thoại để nhìn xung quanh xe). Vuốt 1 ngón xoay 360°, kéo 2 ngón di chuyển vị trí xe trên sàn.
                 </div>
                 <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dark);">
                   <span>☁️ Bóng đổ tiếp đất (Contact Shadow)</span>
@@ -5032,6 +5089,7 @@ const AppState = {
       prefix: 'ar',
       getController: () => window.SigmaARAdapter,
       dockBtn: document.getElementById('btn-ar-dock-gyro'),
+      dockRecenterBtn: document.getElementById('btn-ar-dock-gyro-recenter'),
       indicatorEl: document.getElementById('ar-gyro-status-indicator')
     });
 

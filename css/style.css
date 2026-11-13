@@ -4626,6 +4626,40 @@ img {
   box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
 }
 
+.ar-gyro-mode-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+}
+
+.ar-gyro-mode-btn {
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+}
+
+.ar-gyro-mode-btn:hover {
+  color: #0f172a;
+}
+
+.ar-gyro-mode-btn.active {
+  background: #ffffff;
+  color: #0284c7;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
 .ar-gyro-badge {
   font-size: 10px;
   font-weight: 800;

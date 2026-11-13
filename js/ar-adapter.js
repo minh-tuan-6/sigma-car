@@ -1162,11 +1162,18 @@
       }
     }
 
+    setGyroTrackingMode(mode, opts) {
+      if (this.threeViewer && typeof this.threeViewer.setGyroTrackingMode === 'function') {
+        return this.threeViewer.setGyroTrackingMode(mode, opts);
+      }
+      return mode;
+    }
+
     getGyroState() {
       if (this.threeViewer && typeof this.threeViewer.getGyroState === 'function') {
         return this.threeViewer.getGyroState();
       }
-      return { isEnabled: false, isActive: false, isSupported: false };
+      return { isEnabled: false, isActive: false, isSupported: false, trackingMode: 'world_lock' };
     }
 
     dispose() {
@@ -1305,8 +1312,11 @@
     setGyroSettings: function (settings) {
       if (currentInstance) currentInstance.setGyroSettings(settings);
     },
+    setGyroTrackingMode: function (mode, opts) {
+      return currentInstance ? currentInstance.setGyroTrackingMode(mode, opts) : mode;
+    },
     getGyroState: function () {
-      return currentInstance ? currentInstance.getGyroState() : { isEnabled: false, isActive: false, isSupported: false };
+      return currentInstance ? currentInstance.getGyroState() : { isEnabled: false, isActive: false, isSupported: false, trackingMode: 'world_lock' };
     },
 
     dispose: function () {
