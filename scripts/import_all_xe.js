@@ -1677,41 +1677,10 @@ async function main() {
     }
   }
 
-  // 6.4 Update AR Manifest
-  const manifestData = {
-    version: '2.0.0',
-    updatedAt: new Date().toISOString(),
-    totalVerifiedVehicles: arManifestEntries.length,
-    vehicles: arManifestEntries
-  };
-  fs.writeFileSync(AR_MANIFEST_JSON, JSON.stringify(manifestData, null, 2), 'utf8');
-
-  const manifestJsContent =
-    `/**\n * js/ar-manifest.js - Centralized AR & 3D Model Registry\n */\n` +
-    `const SIGMA_AR_MANIFEST = {\n` +
-    `  version: '2.0.0',\n` +
-    `  vehicles: ${JSON.stringify(arManifestEntries, null, 2)},\n` +
-    `  isVehicleArVerified: function(carId) {\n` +
-    `    return this.vehicles.some(v => v.carId === carId);\n` +
-    `  },\n` +
-    `  getVehicleArConfig: function(carId, colorIdx = 0) {\n` +
-    `    const v = this.vehicles.find(item => item.carId === carId) || this.vehicles[0];\n` +
-    `    const paint = (v.paintColors && v.paintColors[colorIdx]) ? v.paintColors[colorIdx] : (v.paintColors && v.paintColors[0]) ? v.paintColors[0] : { name: 'Mặc định', hex: '#94A3B8' };\n` +
-    `    return {\n` +
-    `      carId: v.carId,\n` +
-    `      carName: v.carName,\n` +
-    `      glbUrl: v.glbUrl,\n` +
-    `      dimensionsMeters: v.dimensionsMeters,\n` +
-    `      readiness: v.readiness,\n` +
-    `      paintMaterial: paint\n` +
-    `    };\n` +
-    `  }\n` +
-    `};\n` +
-    `if (typeof module !== 'undefined' && module.exports) {\n` +
-    `  module.exports = { SIGMA_AR_MANIFEST };\n` +
-    `}\n`;
-  fs.writeFileSync(AR_MANIFEST_JS, manifestJsContent, 'utf8');
-  console.log(`   ✓ Đã cập nhật AR Manifest: ${arManifestEntries.length} xe có Model 3D thực tế.`);
+  // 6.4 Update AR Manifest via unified generator (preserves readiness, bindings.json & CommonJS/Browser export)
+  const { generateAll } = require('./generate_ar_manifest');
+  const arSummary = generateAll();
+  console.log(`   ✓ Đã cập nhật AR Manifest thống nhất: ${arSummary.totalCatalogVehicles} xe (${arSummary.totalVerifiedVehicles} xe chuẩn AR 1:1).`);
 
   // 7. Rebuild dist bundle
   console.log(`\n📦 [4/4] Đóng gói bản build static phân phối (node scripts/build_dist.js)...`);

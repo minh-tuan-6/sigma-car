@@ -1,0 +1,1032 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-11-13T15:57:04.471Z",
+  "protectedMaterialPatterns": [
+    "glass",
+    "window",
+    "windshield",
+    "tire",
+    "tyre",
+    "pneus",
+    "rubber",
+    "chrome",
+    "light",
+    "lamp",
+    "headlight",
+    "taillight",
+    "interior",
+    "leather",
+    "seat",
+    "badge",
+    "emblem",
+    "brake",
+    "disk",
+    "disc",
+    "shadow",
+    "caliper"
+  ],
+  "vehicles": {
+    "honda-civic-eg6-1991": {
+      "carId": "honda-civic-eg6-1991",
+      "studioGlbUrl": "assets/models/honda_civic_eg6_1991.glb",
+      "fileSizeBytes": 2073528,
+      "nodeCount": 29,
+      "meshCount": 29,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "Car_Paint"
+      ],
+      "rimMaterials": [
+        "velg"
+      ],
+      "protectedMaterials": [
+        "lampu",
+        "Window_Glass"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 7,
+      "boundsSummary": {
+        "rawMin": [
+          -1.8121,
+          -1,
+          -4.1335
+        ],
+        "rawMax": [
+          1.8253,
+          1.7493,
+          4.0641
+        ],
+        "accessorCount": 78
+      }
+    },
+    "honda-civic-type-r-2018": {
+      "carId": "honda-civic-type-r-2018",
+      "studioGlbUrl": "assets/models/honda_civic_type_r_2018.glb",
+      "fileSizeBytes": 3318824,
+      "nodeCount": 844,
+      "meshCount": 834,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "Honda_CivicTypeRElite_2017Paint_Material",
+        "RED_PAINT"
+      ],
+      "rimMaterials": [
+        "Honda_CivicTypeRElite_2017_Wheel1A_3D_3DWheel1A_Material"
+      ],
+      "protectedMaterials": [
+        "Honda_CivicTypeRElite_2017InteriorTillingA_Material",
+        "Honda_CivicTypeRElite_2017InteriorA_Material",
+        "Honda_CivicTypeRElite_2017BadgeA_Material",
+        "Honda_CivicTypeRElite_2017Window_Material",
+        "RED_GLASS",
+        "Honda_CivicTypeRElite_2017LightA_Material"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 11,
+      "boundsSummary": {
+        "rawMin": [
+          -0.0105,
+          -0.0033,
+          -0.0228
+        ],
+        "rawMax": [
+          0.0105,
+          0.0142,
+          0.0228
+        ],
+        "accessorCount": 837
+      }
+    },
+    "bugatti-chiron": {
+      "carId": "bugatti-chiron",
+      "studioGlbUrl": "assets/models/bugatti_chiron.glb",
+      "fileSizeBytes": 3147680,
+      "nodeCount": 65,
+      "meshCount": 63,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [
+        "blur_rim",
+        "rim_screws"
+      ],
+      "protectedMaterials": [
+        "Badge_Material",
+        "Brake_Disk",
+        "Brake_Disk_rear",
+        "EXT_Caliper",
+        "Glass_Material",
+        "Glass_frontlights",
+        "Interior_Material",
+        "Light_Material",
+        "SeatBelt_Material",
+        "Tyre",
+        "Window_Material",
+        "Window_Material1",
+        "chrome3",
+        "disc_hub_metal",
+        "emblem",
+        "glass_inside",
+        "glass_inside1",
+        "leather",
+        "light_niz_rear",
+        "rear_glass"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 27,
+      "boundsSummary": {
+        "rawMin": [
+          -1.0814,
+          -2.236,
+          -1.0078
+        ],
+        "rawMax": [
+          1.082,
+          2.2723,
+          1.2079
+        ],
+        "accessorCount": 126
+      }
+    },
+    "ferrari-f50-1995": {
+      "carId": "ferrari-f50-1995",
+      "studioGlbUrl": "assets/models/ferrari_f50_1995.glb",
+      "fileSizeBytes": 2786032,
+      "nodeCount": 52,
+      "meshCount": 50,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "blackchrome",
+        "brakedisc",
+        "brakelight",
+        "chrome",
+        "emblem_hood",
+        "engine_glass",
+        "exhaust_chrome",
+        "headlight1",
+        "headlight2",
+        "headlightglass",
+        "interior",
+        "mirror_interior",
+        "pininfarina_chrome",
+        "rim_emblem",
+        "tire",
+        "tire_side",
+        "turnlight_front",
+        "turnlight_side"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 32,
+      "boundsSummary": {
+        "rawMin": [
+          -1.2017,
+          -2.3611,
+          -1.0078
+        ],
+        "rawMax": [
+          1.202,
+          2.3309,
+          1.1685
+        ],
+        "accessorCount": 100
+      }
+    },
+    "honda-civic-rs": {
+      "carId": "honda-civic-rs",
+      "studioGlbUrl": "assets/models/honda_civic_rs.glb",
+      "fileSizeBytes": 8188196,
+      "nodeCount": 307,
+      "meshCount": 306,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "M_BLACK_PAINTED_PARTS [257363041]",
+        "M_BLACK_PAINTED_PARTS_muffler [257363427]",
+        "M_ROOM_Door_PaintBK [257363393]",
+        "R_81_BODY_PAINT [281465048]"
+      ],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "M_BLACK_RUBBER [257363039]",
+        "M_DARK_GLASS [257363066]",
+        "M_KAKUSHIMEN_TIRE [257363426]",
+        "M_ALUMINUM_BRAKE_DISC [257363058]",
+        "M_AKLUMINUM_EXT_BRAKE [257363057]",
+        "M_CHROME_METAL [257363028]",
+        "M_TIRES_A [257363055]",
+        "M_TIRES_B [257363060]",
+        "M_BLACK_PAINTED_PARTS_brake [257363436]",
+        "premium_crystal_red_metallic_WINDOW [257363539]",
+        "M_CLEAR_GLASS [257363064]",
+        "M_BERLINA_BLACK_headlight [257363437]",
+        "M_RS_BADGE_RED [257363043]",
+        "M_CHROME_METAL_RS [257363425]",
+        "M_BLACK_PLASTIC_headlight [257363421]",
+        "M_BLACK_METAL_headlight [257363418]",
+        "M_INTERIOR [257363037]",
+        "M_CLEAR_PLASTIC_headlight2 [257363420]",
+        "M_CLEAR_PLASTIC_headlight [257363419]",
+        "M_CLEAR_PLASTIC_headlight3 [257363424]",
+        "M_HL_SILVER_headlight [257363623]",
+        "taillamp_red [257363388]",
+        "headlight_lamp_white [257363394]",
+        "taillamp_chome [257363389]",
+        "headlight_white [257363391]",
+        "taillamp_black [257363399]",
+        "mirror_taillamp_line [257363398]",
+        "taillamp_reflector [257363390]",
+        "REAR_TAIL_GLASS1 [257363444]",
+        "M_INTERIOR [257363455]"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 56,
+      "boundsSummary": {
+        "rawMin": [
+          -95.9067,
+          -65.8419,
+          -104.7821
+        ],
+        "rawMax": [
+          3451.0242,
+          119.3382,
+          824.0959
+        ],
+        "accessorCount": 307
+      }
+    },
+    "honda-accord-euro-r": {
+      "carId": "honda-accord-euro-r",
+      "studioGlbUrl": "assets/models/honda_accord_euro_r.glb",
+      "fileSizeBytes": 660720,
+      "nodeCount": 118,
+      "meshCount": 51,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [],
+      "protectedMaterials": [],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 21,
+      "boundsSummary": {
+        "rawMin": [
+          -1.0025,
+          -2.3627,
+          -1
+        ],
+        "rawMax": [
+          1.0025,
+          2.3069,
+          1.2943
+        ],
+        "accessorCount": 102
+      }
+    },
+    "honda-prelude-bp1": {
+      "carId": "honda-prelude-bp1",
+      "studioGlbUrl": "assets/models/honda_prelude_bp1.glb",
+      "fileSizeBytes": 3019320,
+      "nodeCount": 309,
+      "meshCount": 134,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "car_shadow_00",
+        "car_shadow_00_0"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 7,
+      "boundsSummary": {
+        "rawMin": [
+          -1.0291,
+          -1,
+          -2.2706
+        ],
+        "rawMax": [
+          1.0291,
+          1.0206,
+          2.2652
+        ],
+        "accessorCount": 268
+      }
+    },
+    "hyundai-elantra-n-2024": {
+      "carId": "hyundai-elantra-n-2024",
+      "studioGlbUrl": "assets/models/hyundai_elantra_n_2024.glb",
+      "fileSizeBytes": 5647640,
+      "nodeCount": 88,
+      "meshCount": 35,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "HHyundai_ElantraNRewardRecycled_2022Paint_Material1"
+      ],
+      "rimMaterials": [
+        "HHyundai_ElantraNRewardRecycled_2022_Wheel2A_3D_3DWheel1A_Materi1"
+      ],
+      "protectedMaterials": [
+        "HHyundai_ElantraNRewardRecycled_2022BadgeA_Material1",
+        "HHyundai_ElantraNRewardRecycled_2022InteriorTillingA_Material1",
+        "HHyundai_ElantraNRewardRecycled_2022InteriorA_Material1",
+        "HHyundai_ElantraNRewardRecycled_2022LightA_Material1",
+        "HHyundai_ElantraNRewardRecycled_2022Window_Material1",
+        "red_glass",
+        "HHyundai_ElantraNRewardRecycled_2022InteriorA_Emmessvei1",
+        "HHyundai_ElantraNRewardRecycled_2022_CallipersCalliperBadgeA_Mat1"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 16,
+      "boundsSummary": {
+        "rawMin": [
+          -1.0742,
+          -1.0078,
+          -2.4372
+        ],
+        "rawMax": [
+          1.0736,
+          1.4229,
+          2.2808
+        ],
+        "accessorCount": 70
+      }
+    },
+    "lamborghini-aventador-sv": {
+      "carId": "lamborghini-aventador-sv",
+      "studioGlbUrl": "assets/models/lamborghini_aventador_sv.glb",
+      "fileSizeBytes": 3262284,
+      "nodeCount": 150,
+      "meshCount": 112,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "Brake_Disc",
+        "Tire_Treads",
+        "Tire_Sidewall",
+        "Glass",
+        "Dark_Glass",
+        "Badge",
+        "Leather",
+        "Interior",
+        "Seat_Belt",
+        "Interior_Body_Colour",
+        "Seat",
+        "Seat_Badge",
+        "Light_Frame",
+        "License_Plate_Light",
+        "Headlight_Glass",
+        "Brake_Light",
+        "Head_Lights",
+        "Day_Lights",
+        "Exhaust_Interior",
+        "Calipers",
+        "Door_Lights",
+        "Door_Badge",
+        "Body_Colour_sv_interior.png",
+        "Taillights"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 27,
+      "boundsSummary": {
+        "rawMin": [
+          -1.119,
+          -1.0078,
+          -2.5168
+        ],
+        "rawMax": [
+          1.2513,
+          1.2373,
+          2.7974
+        ],
+        "accessorCount": 224
+      }
+    },
+    "lamborghini-terzo-millennio": {
+      "carId": "lamborghini-terzo-millennio",
+      "studioGlbUrl": "assets/models/lamborghini_terzo_millennio.glb",
+      "fileSizeBytes": 2159320,
+      "nodeCount": 237,
+      "meshCount": 105,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [
+        "Jantes_I",
+        "Jantes"
+      ],
+      "protectedMaterials": [
+        "Tire"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 29,
+      "boundsSummary": {
+        "rawMin": [
+          -5.7965,
+          -5.3077,
+          -8.2951
+        ],
+        "rawMax": [
+          4.7692,
+          5.151,
+          8.687
+        ],
+        "accessorCount": 210
+      }
+    },
+    "land-rover-defender-110": {
+      "carId": "land-rover-defender-110",
+      "studioGlbUrl": "assets/models/land_rover_defender_110.glb",
+      "fileSizeBytes": 5305680,
+      "nodeCount": 235,
+      "meshCount": 139,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "Body_Paint",
+        "Paint_Mod"
+      ],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "Tire",
+        "Glass_light_stop.002",
+        "Glass_light_stop.001",
+        "Glass_light_signal",
+        "Cap_fog_light",
+        "Glass_light",
+        "Glass_light_signal.001",
+        "Glass_light_stop",
+        "Glass_window"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 10,
+      "boundsSummary": {
+        "rawMin": [
+          -2.6481,
+          -1.0078,
+          -2.5292
+        ],
+        "rawMax": [
+          2.8897,
+          2.3608,
+          1.6191
+        ],
+        "accessorCount": 278
+      }
+    },
+    "lucid-air-sapphire": {
+      "carId": "lucid-air-sapphire",
+      "studioGlbUrl": "assets/models/lucid_air_sapphire.glb",
+      "fileSizeBytes": 1584916,
+      "nodeCount": 103,
+      "meshCount": 99,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "Procedural_Car_Paint"
+      ],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "Dense_Glass",
+        "Pneus_ecriture.001",
+        "Architectural_Glass",
+        "Rubber_Black"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 25,
+      "boundsSummary": {
+        "rawMin": [
+          -2.7466,
+          -2.5348,
+          2.0363
+        ],
+        "rawMax": [
+          2.0745,
+          -0.6052,
+          3.4387
+        ],
+        "accessorCount": 229
+      }
+    },
+    "maybach-exelero-2005": {
+      "carId": "maybach-exelero-2005",
+      "studioGlbUrl": "assets/models/maybach_exelero_2005.glb",
+      "fileSizeBytes": 2927304,
+      "nodeCount": 38,
+      "meshCount": 18,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "paint"
+      ],
+      "rimMaterials": [
+        "RIM_Mat"
+      ],
+      "protectedMaterials": [
+        "red_glass",
+        "tyre",
+        "Chrome_2",
+        "CHROME_1",
+        "Glass",
+        "badges",
+        "black_Caliper",
+        "black_glass"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 7,
+      "boundsSummary": {
+        "rawMin": [
+          -1.0957,
+          -1,
+          -2.918
+        ],
+        "rawMax": [
+          1.0957,
+          1.2725,
+          2.916
+        ],
+        "accessorCount": 36
+      }
+    },
+    "porsche-911-carrera-4s-2024": {
+      "carId": "porsche-911-carrera-4s-2024",
+      "studioGlbUrl": "assets/models/porsche_911_carrera_4s_2024.glb",
+      "fileSizeBytes": 3675640,
+      "nodeCount": 79,
+      "meshCount": 45,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "coat",
+        "paint"
+      ],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "rubber",
+        "window",
+        "glass",
+        "lights"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 8,
+      "boundsSummary": {
+        "rawMin": [
+          -72.5466,
+          -49.9258,
+          -50.9923
+        ],
+        "rawMax": [
+          64.1761,
+          32.0411,
+          2.3052
+        ],
+        "accessorCount": 90
+      }
+    },
+    "rolls-royce-boat-tail": {
+      "carId": "rolls-royce-boat-tail",
+      "studioGlbUrl": "assets/models/rolls_royce_boat_tail.glb",
+      "fileSizeBytes": 1444496,
+      "nodeCount": 106,
+      "meshCount": 79,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "CarPaint",
+        "CarPaint_2"
+      ],
+      "rimMaterials": [
+        "Rim2"
+      ],
+      "protectedMaterials": [
+        "Light_Part",
+        "Glass",
+        "Side_Glass",
+        "Tire2"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 2,
+      "boundsSummary": {
+        "rawMin": [
+          -0.0135,
+          0,
+          -0.0371
+        ],
+        "rawMax": [
+          0.0135,
+          0.0208,
+          0.0345
+        ],
+        "accessorCount": 79
+      }
+    },
+    "subaru-impreza-2024": {
+      "carId": "subaru-impreza-2024",
+      "studioGlbUrl": "assets/models/subaru_impreza_2024.glb",
+      "fileSizeBytes": 9911676,
+      "nodeCount": 178,
+      "meshCount": 89,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [
+        "wheel.001",
+        "wheel.002",
+        "wheel_clean"
+      ],
+      "protectedMaterials": [
+        "fog_light",
+        "spare_tire_frame",
+        "taillight.001",
+        "window_frame.001",
+        "headlights.001",
+        "interior.001",
+        "glass.001",
+        "brake_lights"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 11,
+      "boundsSummary": {
+        "rawMin": [
+          -1.2232,
+          -2.3436,
+          -1.0078
+        ],
+        "rawMax": [
+          1.2228,
+          3.2686,
+          2.089
+        ],
+        "accessorCount": 182
+      }
+    },
+    "suzuki-ciaz-2021": {
+      "carId": "suzuki-ciaz-2021",
+      "studioGlbUrl": "assets/models/suzuki_ciaz_2021.glb",
+      "fileSizeBytes": 6434944,
+      "nodeCount": 320,
+      "meshCount": 243,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [
+        "hub_rf.1",
+        "hub_rf.0",
+        "wheel_rf.3",
+        "wheel_rf.2",
+        "wheel_rf.4",
+        "wheel_rf.1",
+        "wheel_rf.5",
+        "wheel_rf.0",
+        "primary"
+      ],
+      "protectedMaterials": [
+        "right_front_light",
+        "revlight_r",
+        "revlight_L",
+        "right_rear_light",
+        "glass",
+        "glass.002",
+        "glass.001",
+        "foglight_r",
+        "foglight_l"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 44,
+      "boundsSummary": {
+        "rawMin": [
+          -1.0078,
+          -4.1746,
+          -1.0078
+        ],
+        "rawMax": [
+          1.0118,
+          1.0117,
+          1.1919
+        ],
+        "accessorCount": 486
+      }
+    },
+    "tesla-cybertruck": {
+      "carId": "tesla-cybertruck",
+      "studioGlbUrl": "assets/models/tesla_cybertruck.glb",
+      "fileSizeBytes": 407140,
+      "nodeCount": 22,
+      "meshCount": 14,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [],
+      "protectedMaterials": [],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 8,
+      "boundsSummary": {
+        "rawMin": [
+          -1.2545,
+          -1.0298,
+          -3.7592
+        ],
+        "rawMax": [
+          1.2545,
+          1,
+          3.4874
+        ],
+        "accessorCount": 28
+      }
+    },
+    "tesla-cybertruck#cybertruck-steel-v1": {
+      "carId": "tesla-cybertruck",
+      "variantId": "cybertruck-steel-v1",
+      "arGlbUrl": "assets/models/ar/tesla_cybertruck_ar_v1.glb",
+      "fileSizeBytes": 407164,
+      "nodeCount": 23,
+      "meshCount": 14,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [
+        "Material_Trim",
+        "Material_Rims"
+      ],
+      "protectedMaterials": [
+        "Material_Glass",
+        "Material_Tires"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 4,
+      "boundsSummary": {
+        "rawMin": [
+          -1.2545,
+          -1.0298,
+          -3.7592
+        ],
+        "rawMax": [
+          1.2545,
+          1,
+          3.4874
+        ],
+        "accessorCount": 28
+      }
+    },
+    "tesla-cybertruck#cybertruck-stealth-black": {
+      "carId": "tesla-cybertruck",
+      "variantId": "cybertruck-stealth-black",
+      "arGlbUrl": "assets/models/ar/tesla_cybertruck_ar_stealth_black.glb",
+      "fileSizeBytes": 407164,
+      "nodeCount": 23,
+      "meshCount": 14,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [
+        "Material_Trim",
+        "Material_Rims"
+      ],
+      "protectedMaterials": [
+        "Material_Glass",
+        "Material_Tires"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 4,
+      "boundsSummary": {
+        "rawMin": [
+          -1.2545,
+          -1.0298,
+          -3.7592
+        ],
+        "rawMax": [
+          1.2545,
+          1,
+          3.4874
+        ],
+        "accessorCount": 28
+      }
+    },
+    "tesla-cybertruck#cybertruck-ceramic-white": {
+      "carId": "tesla-cybertruck",
+      "variantId": "cybertruck-ceramic-white",
+      "arGlbUrl": "assets/models/ar/tesla_cybertruck_ar_ceramic_white.glb",
+      "fileSizeBytes": 407164,
+      "nodeCount": 23,
+      "meshCount": 14,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [
+        "Material_Trim",
+        "Material_Rims"
+      ],
+      "protectedMaterials": [
+        "Material_Glass",
+        "Material_Tires"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 4,
+      "boundsSummary": {
+        "rawMin": [
+          -1.2545,
+          -1.0298,
+          -3.7592
+        ],
+        "rawMax": [
+          1.2545,
+          1,
+          3.4874
+        ],
+        "accessorCount": 28
+      }
+    },
+    "tesla-cybertruck#cybertruck-tactical-green": {
+      "carId": "tesla-cybertruck",
+      "variantId": "cybertruck-tactical-green",
+      "arGlbUrl": "assets/models/ar/tesla_cybertruck_ar_tactical_green.glb",
+      "fileSizeBytes": 407164,
+      "nodeCount": 23,
+      "meshCount": 14,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [
+        "Material_Trim",
+        "Material_Rims"
+      ],
+      "protectedMaterials": [
+        "Material_Glass",
+        "Material_Tires"
+      ],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 4,
+      "boundsSummary": {
+        "rawMin": [
+          -1.2545,
+          -1.0298,
+          -3.7592
+        ],
+        "rawMax": [
+          1.2545,
+          1,
+          3.4874
+        ],
+        "accessorCount": 28
+      }
+    },
+    "tesla-roadster-2": {
+      "carId": "tesla-roadster-2",
+      "studioGlbUrl": "assets/models/tesla_roadster_2.glb",
+      "fileSizeBytes": 5699720,
+      "nodeCount": 73,
+      "meshCount": 73,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [],
+      "protectedMaterials": [],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 73,
+      "boundsSummary": {
+        "rawMin": [
+          172.5203,
+          -0.5286,
+          -88.9933
+        ],
+        "rawMax": [
+          250.1315,
+          44.0737,
+          89.0944
+        ],
+        "accessorCount": 73
+      }
+    },
+    "toyota-camry": {
+      "carId": "toyota-camry",
+      "studioGlbUrl": "assets/models/toyota_camry.glb",
+      "fileSizeBytes": 8156112,
+      "nodeCount": 14,
+      "meshCount": 6,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "Paint_Color"
+      ],
+      "rimMaterials": [],
+      "protectedMaterials": [],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 4,
+      "boundsSummary": {
+        "rawMin": [
+          -10.7165,
+          -1.0078,
+          -24.3614
+        ],
+        "rawMax": [
+          10.7267,
+          14.7402,
+          24.5663
+        ],
+        "accessorCount": 12
+      }
+    },
+    "vinfast-fadil": {
+      "carId": "vinfast-fadil",
+      "studioGlbUrl": "assets/models/vinfast_fadil.glb",
+      "fileSizeBytes": 1511424,
+      "nodeCount": 7,
+      "meshCount": 7,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [],
+      "protectedMaterials": [],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 10,
+      "boundsSummary": {
+        "rawMin": [
+          -5.358,
+          -43.207,
+          -6.3945
+        ],
+        "rawMax": [
+          2.0744,
+          -28.8139,
+          -0.0672
+        ],
+        "accessorCount": 10
+      }
+    },
+    "vinfast-lux-a20": {
+      "carId": "vinfast-lux-a20",
+      "studioGlbUrl": "assets/models/vinfast_lux_a20.glb",
+      "fileSizeBytes": 1153496,
+      "nodeCount": 42,
+      "meshCount": 41,
+      "supportsExplode": true,
+      "paintMaterials": [],
+      "rimMaterials": [],
+      "protectedMaterials": [],
+      "fallbackPaintUsed": true,
+      "unclassifiedCount": 12,
+      "boundsSummary": {
+        "rawMin": [
+          -12.3352,
+          -27.8119,
+          -8.5173
+        ],
+        "rawMax": [
+          12.3274,
+          28.0245,
+          8.5276
+        ],
+        "accessorCount": 52
+      }
+    },
+    "vinfast-vf3": {
+      "carId": "vinfast-vf3",
+      "studioGlbUrl": "assets/models/vinfast_vf3.glb",
+      "fileSizeBytes": 7357820,
+      "nodeCount": 2,
+      "meshCount": 1,
+      "supportsExplode": false,
+      "paintMaterials": [
+        "Blue Car Paint.001"
+      ],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "Tire.002",
+        "Clean chrome.001",
+        "Disk",
+        "Glass Windows-darker",
+        "Clean chrome",
+        "Glass Windows.001"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 8,
+      "boundsSummary": {
+        "rawMin": [
+          -0.496,
+          -7.3708,
+          -0.951
+        ],
+        "rawMax": [
+          4.3563,
+          1.6514,
+          3.4241
+        ],
+        "accessorCount": 15
+      }
+    },
+    "vinfast-vf9": {
+      "carId": "vinfast-vf9",
+      "studioGlbUrl": "assets/models/vinfast_vf9.glb",
+      "fileSizeBytes": 1981208,
+      "nodeCount": 78,
+      "meshCount": 70,
+      "supportsExplode": true,
+      "paintMaterials": [
+        "Car Paint.002"
+      ],
+      "rimMaterials": [],
+      "protectedMaterials": [
+        "light",
+        "Carlight line chrome white",
+        "Carlight triangle chrome red",
+        "glass"
+      ],
+      "fallbackPaintUsed": false,
+      "unclassifiedCount": 16,
+      "boundsSummary": {
+        "rawMin": [
+          -0.8997,
+          -0.3522,
+          -4.0734
+        ],
+        "rawMax": [
+          0.9554,
+          3.3449,
+          0.2158
+        ],
+        "accessorCount": 98
+      }
+    }
+  }
+}

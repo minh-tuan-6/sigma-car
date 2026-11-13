@@ -1,41 +1,66 @@
 // backend/api/middleware.js
 // Authentication, Authorization, Rate Limiting, and Response Serializers
 
+const crypto = require('crypto');
 const Security = require('../infrastructure/security');
+const Authorization = require('../domain/authorization');
+const config = require('../config');
+
+function ensureRequestId(req, res) {
+  if (!req.requestId) {
+    const incoming = req.headers && req.headers['x-request-id'];
+    req.requestId = (typeof incoming === 'string' && /^[a-zA-Z0-9._-]{4,64}$/.test(incoming))
+      ? incoming
+      : `req_${crypto.randomBytes(6).toString('hex')}`;
+  }
+  if (res && !res.headersSent) {
+    res.setHeader('X-Request-Id', req.requestId);
+  }
+  return req.requestId;
+}
 
 // Standard JSON response serializer
-function sendJSON(res, statusCode, payload) {
-  res.writeHead(statusCode, {
+function sendJSON(res, statusCode, payload, extraHeaders = {}) {
+  const headers = {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-cache',
+    'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY'
-  });
+    'X-Frame-Options': 'DENY',
+    ...extraHeaders
+  };
+  res.writeHead(statusCode, headers);
   res.end(JSON.stringify(payload));
 }
 
 // Standard Error serializer
-function sendError(res, statusCode, message, errorCode = 'ERROR') {
+function sendError(res, statusCode, message, errorCode = 'ERROR', details = undefined) {
+  const errBody = {
+    code: errorCode,
+    message
+  };
+  if (details !== undefined) {
+    errBody.details = details;
+  }
   sendJSON(res, statusCode, {
     success: false,
-    error: {
-      code: errorCode,
-      message
-    }
+    error: errBody
   });
 }
 
-// Authentication middleware
+// Authentication middleware: verifies token signature AND validates against live user store
 function authenticate(req) {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
-  const token = authHeader.substring(7);
-  return Security.verifyToken(token);
+  const token = authHeader.substring(7).trim();
+  if (!token) return null;
+  const claims = Security.verifyToken(token);
+  if (!claims) return null;
+  return Authorization.resolveActor(claims);
 }
 
-// Check role permission
+// Check role permission with live actor validation
 function authorize(req, res, allowedRoles) {
   const user = authenticate(req);
   if (!user) {
@@ -48,12 +73,13 @@ function authorize(req, res, allowedRoles) {
     return null;
   }
 
+  req.actor = user;
   return user;
 }
 
 // Rate limiter check
 function checkRateLimit(req, res) {
-  const ip = req.socket.remoteAddress || '127.0.0.1';
+  const ip = (req.socket && req.socket.remoteAddress) || '127.0.0.1';
   const check = Security.checkRateLimit(ip);
   if (!check.allowed) {
     sendError(res, 429, 'Quá nhiều yêu cầu trong thời gian ngắn. Vui lòng thử lại sau giây lát.', 'RATE_LIMITED');
@@ -62,29 +88,79 @@ function checkRateLimit(req, res) {
   return true;
 }
 
-// Parse incoming JSON body
-async function parseBody(req) {
+// Parse incoming JSON body with strict byte cap and early stream abort
+async function parseBody(req, maxBytes = (config.http && config.http.maxJsonBodyBytes) || 1024 * 1024) {
+  const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    const err = new Error('Dung lượng dữ liệu gửi lên vượt quá giới hạn cho phép.');
+    err.statusCode = 413;
+    err.code = 'PAYLOAD_TOO_LARGE';
+    req.destroy();
+    throw err;
+  }
+
   return new Promise((resolve, reject) => {
-    let body = '';
+    const chunks = [];
+    let totalBytes = 0;
+    let settled = false;
+
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    };
+
     req.on('data', chunk => {
-      body += chunk;
-      if (body.length > 1024 * 1024) { // 1MB limit
-        reject(new Error('Request payload too large'));
+      if (settled) return;
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
+      totalBytes += buf.length;
+      if (totalBytes > maxBytes) {
+        const err = new Error('Dung lượng dữ liệu gửi lên vượt quá giới hạn cho phép.');
+        err.statusCode = 413;
+        err.code = 'PAYLOAD_TOO_LARGE';
+        fail(err);
+        req.destroy();
+        return;
       }
+      chunks.push(buf);
     });
+
     req.on('end', () => {
-      if (!body) return resolve({});
+      if (settled) return;
+      settled = true;
+      const rawBufferStr = Buffer.concat(chunks).toString('utf8');
+      req.rawBody = rawBufferStr;
+      const raw = rawBufferStr.trim();
+      if (!raw) return resolve({});
       try {
-        resolve(JSON.parse(body));
+        const parsed = JSON.parse(raw);
+        if (parsed === null || typeof parsed !== 'object') {
+          const err = new Error('Payload JSON phải là đối tượng hoặc mảng hợp lệ.');
+          err.statusCode = 400;
+          err.code = 'BAD_JSON';
+          return reject(err);
+        }
+        resolve(parsed);
       } catch (e) {
-        reject(new Error('Malformed JSON payload'));
+        const err = new Error('Dữ liệu JSON không hợp lệ.');
+        err.statusCode = 400;
+        err.code = 'BAD_JSON';
+        reject(err);
       }
     });
-    req.on('error', reject);
+
+    req.on('error', (err) => fail(err));
+    req.on('aborted', () => {
+      const err = new Error('Kết nối gửi dữ liệu bị gián đoạn.');
+      err.statusCode = 400;
+      err.code = 'REQUEST_ABORTED';
+      fail(err);
+    });
   });
 }
 
 module.exports = {
+  ensureRequestId,
   sendJSON,
   sendError,
   authenticate,

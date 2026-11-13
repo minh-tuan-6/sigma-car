@@ -44,6 +44,11 @@
           <button class="btn-icon" id="btn-header-search" title="Tìm kiếm thông minh">
             🔍
           </button>
+
+          <button class="btn-icon" id="btn-header-cart" title="Giỏ hàng & Báo giá" style="position:relative;">
+            🛒
+            <span id="header-cart-badge" style="display:none; position:absolute; top:-4px; right:-4px; min-width:18px; height:18px; border-radius:99px; background:#EF4444; color:#FFFFFF; font-size:10.5px; font-weight:800; align-items:center; justify-content:center; padding:0 4px;">0</span>
+          </button>
           
           <button class="btn-icon" id="btn-header-auth" title="Tài khoản cá nhân">
             👤
@@ -112,6 +117,8 @@
           <li class="drawer-nav-item" onclick="window.location.hash='ar-home'">📦 Xem AR tại nhà <span>›</span></li>
           <li class="drawer-nav-item" onclick="window.location.hash='ai-advisor'">• AI Tư vấn <span>›</span></li>
           <li class="drawer-nav-item" onclick="window.location.hash='compare'">• So sánh xe <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='tco'">• Dự toán chi phí TCO 5 năm <span>›</span></li>
+          <li class="drawer-nav-item" onclick="window.location.hash='charging'">⚡ Tra cứu Trạm sạc xe điện <span>›</span></li>
           <li class="drawer-nav-item" onclick="openProfileSubView('profile-garage')">• Bảo hành & Bảo dưỡng số <span>›</span></li>
           <li class="drawer-nav-item" onclick="openProfileSubView('profile-returns')">• Trung tâm Đổi trả 7 ngày <span>›</span></li>
           <li class="drawer-nav-item" onclick="window.location.hash='support'">• Trung tâm Hỗ trợ & FAQ <span>›</span></li>
@@ -708,41 +715,64 @@
           </div>
         </div>
 
-        <div style="margin-bottom:20px;">
-          <label class="filter-label">Ngân hàng đối tác liên kết ưu đãi</label>
-          <select class="filter-select" id="calc-bank-select">
-            <option value="7.5">Vietcombank - Lãi suất ưu đãi 7.5%/năm (Cố định 12 tháng)</option>
-            <option value="7.9" selected>Techcombank - Lãi suất ưu đãi 7.9%/năm (Giải ngân trong 4h)</option>
-            <option value="8.2">MB Bank - Lãi suất 8.2%/năm (Duyệt hồ sơ online qua App)</option>
-            <option value="8.5">VPBank - Lãi suất 8.5%/năm (Không chứng minh thu nhập)</option>
-          </select>
+        <div class="p1-2col-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:14px;">
+          <div>
+            <label class="filter-label">Ngân hàng đối tác liên kết ưu đãi</label>
+            <select class="filter-select" id="calc-bank-select">
+              <option value="7.5">Vietcombank - Lãi suất ưu đãi 7.5%/năm</option>
+              <option value="7.9" selected>Techcombank - Lãi suất ưu đãi 7.9%/năm</option>
+              <option value="8.2">MB Bank - Lãi suất 8.2%/năm</option>
+              <option value="8.5">VPBank - Lãi suất 8.5%/năm</option>
+              <option value="0">Ưu đãi 0%/năm (Chương trình hãng)</option>
+            </select>
+          </div>
+          <div>
+            <label class="filter-label">Phương thức trả nợ</label>
+            <select class="filter-select" id="calc-repayment-method">
+              <option value="annuity" selected>Trả đều hàng tháng (Annuity)</option>
+              <option value="equal_principal">Dư nợ giảm dần (Gốc chia đều)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="p1-2col-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px;">
+          <div>
+            <label class="filter-label">Thu nhập ròng / tháng (tùy chọn - VNĐ)</label>
+            <input type="number" class="filter-input" id="calc-monthly-income" min="0" step="1000000" placeholder="Ví dụ: 55000000">
+          </div>
+          <div>
+            <label class="filter-label">Nghĩa vụ trả nợ hiện tại / tháng (VNĐ)</label>
+            <input type="number" class="filter-input" id="calc-monthly-obligation" min="0" step="500000" placeholder="Ví dụ: 5000000" value="0">
+          </div>
         </div>
 
         <!-- Result Breakdown Card -->
-        <div style="background:linear-gradient(135deg, #0A1128 0%, #002B66 100%); border-radius:var(--radius-lg); padding:20px 24px; color:#FFFFFF; margin-bottom:24px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; margin-bottom:12px;">
+        <div style="background:linear-gradient(135deg, #0A1128 0%, #002B66 100%); border-radius:var(--radius-lg); padding:20px 24px; color:#FFFFFF; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:10px; margin-bottom:10px;">
             <span style="font-size:13.5px; color:#94A3B8;">Số tiền cần trả trước:</span>
             <strong style="font-size:18px; color:var(--accent-cyan);" id="calc-out-down-amount">387.000.000 VNĐ</strong>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:10px; margin-bottom:10px;">
             <span style="font-size:13.5px; color:#94A3B8;">Số tiền vay ngân hàng:</span>
             <strong style="font-size:16px; color:#FFFFFF;" id="calc-out-loan-amount">903.000.000 VNĐ</strong>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px; margin-bottom:12px;">
-            <span style="font-size:13.5px; color:#94A3B8;">Tiền gốc trả hàng tháng:</span>
-            <strong style="font-size:15px; color:#E2E8F0;" id="calc-out-principal">15.050.000 VNĐ</strong>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:10px; margin-bottom:10px;">
+            <span style="font-size:13.5px; color:#94A3B8;">Tổng tiền lãi dự kiến:</span>
+            <strong style="font-size:15px; color:#E2E8F0;" id="calc-out-principal">—</strong>
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; padding-top:4px;">
             <div>
-              <div style="font-size:14px; font-weight:700; color:#FFFFFF;">ƯỚC TÍNH TRẢ THÁNG ĐẦU TIÊN:</div>
-              <div style="font-size:11px; color:#94A3B8;">(Đã bao gồm gốc + lãi suất ưu đãi)</div>
+              <div style="font-size:14px; font-weight:700; color:#FFFFFF;">DỰ TOÁN TRẢ THÁNG ĐẦU / ĐỀU:</div>
+              <div style="font-size:11px; color:#94A3B8;" id="calc-out-rate-note">(Số liệu tính toán tham khảo từ hệ thống SIGMACAR)</div>
             </div>
             <strong style="font-size:24px; font-weight:800; color:#10B981;" id="calc-out-monthly-total">~20.986.000 VNĐ/tháng</strong>
           </div>
+          <div id="calc-dti-badge" style="margin-top:10px; font-size:12px; color:#CBD5E1;"></div>
         </div>
+        <div id="calc-disclaimer-text" style="font-size:11.5px; color:var(--text-muted); margin-bottom:14px;"></div>
 
         <button type="button" class="btn-primary" id="btn-calc-request-advisor" style="width:100%; justify-content:center; padding:14px; font-size:15px;">
-          💬 Đăng ký nhận bảng dự toán chi tiết từ Chuyên viên
+          📋 Nộp hồ sơ dự toán trả góp (Thẩm định ngân hàng)
         </button>
       </div>
     </div>
@@ -764,6 +794,14 @@
   <script src="js/ar-manifest.js?v=20.0"></script>
   <script src="js/ar-adapter.js?v=20.0"></script>
   <script src="js/api-client.js?v=20.0"></script>
+  <script src="js/cart-view.js?v=20.0"></script>
+  <script src="js/checkout-view.js?v=20.0"></script>
+  <script src="js/registration-view.js?v=20.0"></script>
+  <script src="js/tco-view.js?v=20.0"></script>
+  <script src="js/consultation-state.js?v=20.0"></script>
+  <script src="js/p3-views.js?v=20.0"></script>
+  <script src="js/charging-view.js?v=20.0"></script>
+  <script src="js/content-admin.js?v=20.0"></script>
   <script src="js/automotive-llm.js?v=20.0"></script>
   <script src="js/ai-engine.js?v=20.0"></script>
   <script src="js/app.js?v=20.0"></script>

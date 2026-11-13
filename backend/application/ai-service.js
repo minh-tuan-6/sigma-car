@@ -135,27 +135,36 @@ class AIService {
     };
   }
 
+  _mapVehicleToEntry(v) {
+    if (!v || !v.id) return null;
+    const stockVal = typeof v.stockQuantity === 'number'
+      ? v.stockQuantity
+      : (typeof v.stock === 'number' ? v.stock : 0);
+    return {
+      id: v.id,
+      name: v.name,
+      brand: v.brand || 'Chưa cập nhật',
+      category: v.category || 'Chưa phân loại',
+      fuel: v.fuel || (Number(v.range) > 0 ? 'ev' : null),
+      price: Number.isFinite(Number(v.price)) ? Number(v.price) : null,
+      priceFormatted: v.priceFormatted || (Number.isFinite(Number(v.price)) ? `${(Number(v.price) / 1e9).toFixed(3)} tỷ VNĐ` : 'Liên hệ'),
+      range: Number(v.range) > 0 ? `${v.range} km` : null,
+      hp: Number.isFinite(Number(v.hp)) ? Number(v.hp) : null,
+      power: v.power || (Number.isFinite(Number(v.hp)) ? `${v.hp} HP` : null),
+      seats: Number.isFinite(Number(v.seats)) ? Number(v.seats) : null,
+      battery: v.battery || null,
+      batteryHealth: v.measuredBatterySoH ?? v.batteryHealth ?? null,
+      dimensions: v.dimensions || null,
+      stock: stockVal
+    };
+  }
+
   // Live RAG: Ingest and index catalog directly from database
   async syncKnowledgeBase() {
     try {
       this.knowledgeBase.syncStatus = 'syncing';
       const vehicles = await VehicleRepository.findAll();
-      this.knowledgeBase.vehicles = vehicles.map(v => ({
-        id: v.id,
-        name: v.name,
-        brand: v.brand || 'SIGMACAR',
-        category: v.category || 'SUV',
-        fuel: v.fuel || (v.range > 0 ? 'ev' : 'gas'),
-        price: v.price,
-        priceFormatted: v.priceFormatted || `${(v.price / 1e9).toFixed(3)} tỷ VNĐ`,
-        range: v.range ? `${v.range} km` : 'Không áp dụng',
-        hp: v.hp || 300,
-        power: v.power || `${v.hp || 300} HP`,
-        seats: v.seats || 5,
-        battery: v.battery || (v.fuel === 'gas' ? 'Động cơ xăng thế hệ mới' : 'Pin Lithium cao cấp'),
-        dimensions: v.dimensions || '4.975 x 1.964 x 1.680 mm',
-        stock: v.stockQuantity ?? 10
-      }));
+      this.knowledgeBase.vehicles = vehicles.map(v => this._mapVehicleToEntry(v)).filter(Boolean);
       this.knowledgeBase.totalLearned = this.knowledgeBase.vehicles.length;
       this.knowledgeBase.lastSyncTime = new Date().toISOString();
       this.knowledgeBase.syncStatus = 'synced';
@@ -167,24 +176,9 @@ class AIService {
   }
 
   async learnVehicle(car) {
-    if (!car || !car.id) return;
-    const idx = this.knowledgeBase.vehicles.findIndex(v => v.id === car.id);
-    const entry = {
-      id: car.id,
-      name: car.name,
-      brand: car.brand || 'SIGMACAR',
-      category: car.category || 'SUV',
-      fuel: car.fuel || (car.range > 0 ? 'ev' : 'gas'),
-      price: car.price,
-      priceFormatted: car.priceFormatted || `${(car.price / 1e9).toFixed(3)} tỷ VNĐ`,
-      range: car.range ? `${car.range} km` : 'Không áp dụng',
-      hp: car.hp || 300,
-      power: car.power || `${car.hp || 300} HP`,
-      seats: car.seats || 5,
-      battery: car.battery || 'Đang cập nhật',
-      dimensions: car.dimensions || '4.975 x 1.964 x 1.680 mm',
-      stock: car.stock ?? 10
-    };
+    const entry = this._mapVehicleToEntry(car);
+    if (!entry) return;
+    const idx = this.knowledgeBase.vehicles.findIndex(v => v.id === entry.id);
 
     if (idx >= 0) {
       this.knowledgeBase.vehicles[idx] = entry;
@@ -437,11 +431,11 @@ ${automotiveContext}`;
           carId: matched.id,
           name: matched.name,
           badge: 'GỢI Ý TỪ HỆ THỐNG',
-          category: `${matched.category} • ${matched.fuel === 'ev' ? 'Thuần điện' : 'Động cơ xăng'}`,
+          category: `${matched.category} • ${matched.fuel === 'ev' ? 'Thuần điện' : matched.fuel === 'hybrid' ? 'Hybrid' : 'Động cơ xăng'}`,
           price: matched.priceFormatted,
-          range: matched.range || 'N/A',
-          batteryHealth: '100%',
-          seats: `${matched.seats} Chỗ`
+          range: matched.range || 'Chưa công bố',
+          batteryHealth: matched.batteryHealth ? `${matched.batteryHealth}%` : 'Chưa đo kiểm thực tế',
+          seats: matched.seats ? `${matched.seats} Chỗ` : 'Chưa công bố'
         };
       }
     }
@@ -478,20 +472,29 @@ ${automotiveContext}`;
       parts: [{ text: userPrompt }]
     });
 
-    // 1. Primary: Official @google/genai SDK
+    // 1. Primary: Official @google/genai SDK with hard timeout enforcement
+    let timeoutId = null;
     try {
-      const ai = new GoogleGenAI({ apiKey: this.config.geminiApiKey });
-      const response = await ai.models.generateContent({
-        model: this.config.geminiModel,
-        contents,
-        config: {
-          systemInstruction: systemPrompt,
-          temperature: this.config.temperature,
-          maxOutputTokens: this.config.maxOutputTokens
-        }
+      const GenAiCtor = this.config.genAiClientClass || GoogleGenAI;
+      const ai = new GenAiCtor({ apiKey: this.config.geminiApiKey });
+      const timeoutMs = Math.max(1000, Number(this.config.timeoutMs) || 15000);
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`Gemini SDK timeout (${timeoutMs}ms)`)), timeoutMs);
       });
+      const response = await Promise.race([
+        ai.models.generateContent({
+          model: this.config.geminiModel,
+          contents,
+          config: {
+            systemInstruction: systemPrompt,
+            temperature: this.config.temperature,
+            maxOutputTokens: this.config.maxOutputTokens
+          }
+        }),
+        timeoutPromise
+      ]);
 
-      const text = response.text;
+      const text = response && response.text;
       if (!text || !text.trim()) {
         throw new Error('Gemini 2.5 Flash trả về phản hồi rỗng');
       }
@@ -500,6 +503,8 @@ ${automotiveContext}`;
     } catch (sdkErr) {
       console.warn(`[AIService Diagnostic] @google/genai SDK call failed (${sdkErr.message}), attempting REST fallback...`);
       return await this._callGeminiRest(userPrompt, history, currentUser, automotiveContext);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
   }
 

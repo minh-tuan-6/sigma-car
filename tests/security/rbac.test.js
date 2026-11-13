@@ -1,14 +1,18 @@
-const { describe, it, before } = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
-
-const BASE_URL = process.env.TEST_API_URL || 'http://localhost:3000/api/v1';
+const { startTestServer } = require('../helpers/test-app');
 
 describe('Security Test: RBAC, Privilege Escalation Prevention & Data Isolation', () => {
+  let app = null;
+  let BASE_URL = '';
   let buyerToken = null;
   let sellerToken = null;
   let adminToken = null;
 
   before(async () => {
+    app = await startTestServer({ mode: 'memory', reseed: true });
+    BASE_URL = app.baseUrl;
+
     // Authenticate all three roles
     const login = async (email, password) => {
       const res = await fetch(`${BASE_URL}/auth/login`, {
@@ -23,6 +27,10 @@ describe('Security Test: RBAC, Privilege Escalation Prevention & Data Isolation'
     buyerToken = await login('minhhoang.sigma@example.com', 'Buyer@123456');
     sellerToken = await login('minhphan.seller@sigmacar.vn', 'Seller@123456');
     adminToken = await login('admin@sigmacar.vn', 'Admin@123456');
+  });
+
+  after(async () => {
+    if (app) await app.close();
   });
 
   it('Privilege Escalation Prevention: public registration cannot assign privileged roles', async () => {

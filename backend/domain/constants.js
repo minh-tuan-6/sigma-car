@@ -9,6 +9,20 @@ const ROLES = {
   ADMIN: 'admin'
 };
 
+const CANONICAL_ROLES = [ROLES.BUYER, ROLES.SELLER, ROLES.ADMIN];
+
+const ROLE_CAPABILITIES = {
+  [ROLES.BUYER]: ['catalog:read', 'order:own', 'appointment:own', 'support:own', 'profile:own'],
+  [ROLES.SELLER]: [
+    'catalog:read', 'branch:orders:read', 'branch:orders:fulfill', 'branch:appointments:manage',
+    'branch:returns:manage', 'branch:warranties:manage', 'branch:tickets:manage',
+    'branch:inventory:adjust', 'branch:customers:read', 'branch:analytics:read', 'branch:registration:manage'
+  ],
+  [ROLES.SUPPORT_STAFF]: ['catalog:read', 'branch:tickets:manage', 'branch:returns:manage', 'reviews:moderate'],
+  [ROLES.SERVICE_STAFF]: ['catalog:read', 'branch:appointments:manage', 'branch:warranties:manage', 'branch:returns:manage', 'branch:workshop:manage'],
+  [ROLES.ADMIN]: ['*']
+};
+
 const ORDER_STATUS = {
   PENDING: 'Pending',
   CONFIRMED: 'Confirmed',
@@ -22,10 +36,31 @@ const ORDER_STATUS = {
 
 const PAYMENT_STATUS = {
   UNPAID: 'Unpaid',
+  PENDING_PAYMENT: 'Pending_Payment',
   DEPOSIT_PAID: 'Deposit_Paid',
+  PARTIALLY_PAID: 'Partially_Paid',
   FULLY_PAID: 'Fully_Paid',
   REFUNDED: 'Refunded',
   FAILED: 'Failed'
+};
+
+const PAYMENT_INTENT_STATUS = {
+  CREATED: 'created',
+  PENDING: 'pending',
+  SUCCEEDED: 'succeeded',
+  FAILED: 'failed',
+  CANCELLED: 'cancelled',
+  EXPIRED: 'expired'
+};
+
+const REGISTRATION_STATUS = {
+  DRAFT: 'draft',
+  DOCUMENTS_PENDING: 'documents_pending',
+  SUBMITTED: 'submitted',
+  TAX_FILING: 'tax_filing',
+  PLATE_ISSUANCE: 'plate_issuance',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled'
 };
 
 const APPOINTMENT_STATUS = {
@@ -53,7 +88,7 @@ const TICKET_PRIORITY = {
   URGENT: 'Khẩn cấp'
 };
 
-// 9 Progressive Return Stages (as specified in Master Prompt section 2)
+// 9 Progressive Return Stages
 const RETURN_STATUS = {
   PENDING_RECEIPT: 'Chờ tiếp nhận',
   CHECKING_CONDITIONS: 'Đang kiểm tra điều kiện',
@@ -96,7 +131,7 @@ const WARRANTY_STATUS = {
 };
 
 const WARRANTY_COVERED_COMPONENTS = [
-  { name: 'Khối Pin Cao Áp (HV Battery Pack)', duration: '8 năm hoặc 160.000 km', coverage: 'Bảo hành dung lượng ≥ 75%, thay mới Cell pin lỗi' },
+  { name: 'Khối Pin Cao Áp (HV Battery Pack)', duration: '8 năm hoặc 160.000 km', coverage: 'Bảo hành dung lượng ≥ 75%, thay mới Cell pin lỗi (chỉ áp dụng xe thuần điện / Hybrid Pin)' },
   { name: 'Động cơ điện (Electric Motor Drive Unit)', duration: '5 năm hoặc 150.000 km', coverage: 'Bảo hành toàn bộ cụm Stator, Rotor và hệ dẫn động' },
   { name: 'Biến tần & Bộ điều khiển (Inverter & MCU)', duration: '5 năm hoặc 150.000 km', coverage: 'Bảo hành lỗi phần cứng điều áp và bảng mạch công suất' },
   { name: 'Hệ thống Quản lý Nhiệt (Thermal Management)', duration: '5 năm hoặc 120.000 km', coverage: 'Bảo hành bơm nhiệt, két giải nhiệt và cảm biến nhiệt độ' },
@@ -105,26 +140,36 @@ const WARRANTY_COVERED_COMPONENTS = [
 ];
 
 const MAINTENANCE_MILESTONES = [
-  { km: 1000, months: 1, title: 'Kiểm tra chạy rà đầu tiên (1.000 km / 1 tháng)', items: ['Kiểm tra lực siết bu-lông gầm', 'Quét chẩn đoán mã lỗi ECU', 'Kiểm tra áp suất và cân bằng động 4 bánh', 'Kiểm tra mức nước làm mát pin cao áp'], costEstimated: 'Miễn phí 100%' },
-  { km: 10000, months: 6, title: 'Bảo dưỡng Cấp 1 (10.000 km / 6 tháng)', items: ['Vệ sinh và kiểm tra hệ thống phanh tái sinh', 'Thay lọc gió điều hòa kháng khuẩn', 'Cập nhật firmware OTA hệ thống xe', 'Đo dung lượng và cân bằng Cell pin'], costEstimated: '850.000 VNĐ' },
-  { km: 20000, months: 12, title: 'Bảo dưỡng Cấp 2 (20.000 km / 12 tháng)', items: ['Đảo lốp và căn chỉnh góc đặt bánh xe', 'Kiểm tra dầu cầu / hộp giảm tốc', 'Thay dầu phanh chuyên dụng cho xe điện', 'Kiểm tra gioăng cao su cách âm'], costEstimated: '1.450.000 VNĐ' },
-  { km: 40000, months: 24, title: 'Bảo dưỡng Cấp 3 (40.000 km / 24 tháng)', items: ['Thay dung dịch làm mát Pin cao áp chuyên dụng', 'Thay dầu bôi trơn hộp giảm tốc', 'Bảo dưỡng hệ thống treo khí nén', 'Kiểm định an toàn hệ thống sạc DC'], costEstimated: '2.800.000 VNĐ' },
-  { km: 80000, months: 48, title: 'Bảo dưỡng Cấp 4 (80.000 km / 48 tháng)', items: ['Đại tu kiểm tra toàn diện cụm dẫn động điện', 'Thay toàn bộ các loại chất lỏng và lọc', 'Hiệu chuẩn lại hệ thống camera LiDAR ADAS', 'Đánh giá tuổi thọ khối Pin theo chuẩn quốc tế'], costEstimated: '4.200.000 VNĐ' }
+  { km: 1000, months: 1, title: 'Kiểm tra chạy rà đầu tiên (1.000 km / 1 tháng)', items: ['Kiểm tra lực siết bu-lông gầm', 'Quét chẩn đoán mã lỗi ECU', 'Kiểm tra áp suất và cân bằng động 4 bánh', 'Kiểm tra mức nước làm mát'], costEstimated: 'Miễn phí 100%', costVnd: 0 },
+  { km: 10000, months: 6, title: 'Bảo dưỡng Cấp 1 (10.000 km / 6 tháng)', items: ['Vệ sinh và kiểm tra hệ thống phanh', 'Thay lọc gió điều hòa kháng khuẩn', 'Cập nhật firmware OTA hệ thống xe', 'Kiểm tra dung lượng ắc-quy / Cell pin'], costEstimated: '850.000 VNĐ', costVnd: 850000 },
+  { km: 20000, months: 12, title: 'Bảo dưỡng Cấp 2 (20.000 km / 12 tháng)', items: ['Đảo lốp và căn chỉnh góc đặt bánh xe', 'Kiểm tra dầu cầu / hộp giảm tốc', 'Thay dầu phanh chuyên dụng', 'Kiểm tra gioăng cao su cách âm'], costEstimated: '1.450.000 VNĐ', costVnd: 1450000 },
+  { km: 40000, months: 24, title: 'Bảo dưỡng Cấp 3 (40.000 km / 24 tháng)', items: ['Thay dung dịch làm mát chuyên dụng', 'Thay dầu bôi trơn hộp giảm tốc', 'Bảo dưỡng hệ thống treo khí nén', 'Kiểm định an toàn hệ thống truyền động'], costEstimated: '2.800.000 VNĐ', costVnd: 2800000 },
+  { km: 80000, months: 48, title: 'Bảo dưỡng Cấp 4 (80.000 km / 48 tháng)', items: ['Đại tu kiểm tra toàn diện cụm dẫn động', 'Thay toàn bộ các loại chất lỏng và lọc', 'Hiệu chuẩn lại hệ thống camera LiDAR ADAS', 'Đánh giá sức khỏe khung gầm / khối Pin'], costEstimated: '4.200.000 VNĐ', costVnd: 4200000 }
 ];
 
 const SHOWROOM_BRANCHES = [
-  { id: 'hn-caugiay', name: 'Showroom SIGMACAR Cầu Giấy (Hà Nội)', city: 'Hà Nội', address: 'Số 68 Xuân Thủy, Cầu Giấy, Hà Nội', phone: '024 3888 6688', isServiceCenter: true },
-  { id: 'hn-mydinh', name: 'Showroom SIGMACAR Mỹ Đình (Hà Nội)', city: 'Hà Nội', address: 'Số 8 Lê Quang Đạo, Mỹ Đình, Nam Từ Liêm, Hà Nội', phone: '024 3999 5599', isServiceCenter: true },
-  { id: 'hcm-q7', name: 'Showroom SIGMACAR Quận 7 (TP.HCM)', city: 'TP.HCM', address: 'Số 101 Nguyễn Thị Thập, Tân Phú, Quận 7, TP.HCM', phone: '028 3777 8899', isServiceCenter: true },
-  { id: 'hcm-thuduc', name: 'Showroom SIGMACAR Thủ Đức (TP.HCM)', city: 'TP.HCM', address: 'Số 12 Võ Văn Ngân, Phường Bình Thọ, TP. Thủ Đức, TP.HCM', phone: '028 3666 4433', isServiceCenter: true },
-  { id: 'dn-haichau', name: 'Showroom SIGMACAR Đà Nẵng', city: 'Đà Nẵng', address: 'Số 234 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', phone: '0236 3555 777', isServiceCenter: true }
+  { id: 'hn-caugiay', name: 'Showroom SIGMACAR Cầu Giấy (Hà Nội)', city: 'Hà Nội', region: 'north', address: 'Số 68 Xuân Thủy, Cầu Giấy, Hà Nội', phone: '024 3888 6688', isServiceCenter: true, homeServiceDistricts: ['Cầu Giấy', 'Nam Từ Liêm', 'Ba Đình', 'Đống Đa', 'Tây Hồ', 'Thanh Xuân', 'Hà Đông', 'Hoàn Kiếm', 'Hai Bà Trưng'] },
+  { id: 'hn-mydinh', name: 'Showroom SIGMACAR Mỹ Đình (Hà Nội)', city: 'Hà Nội', region: 'north', address: 'Số 8 Lê Quang Đạo, Mỹ Đình, Nam Từ Liêm, Hà Nội', phone: '024 3999 5599', isServiceCenter: true, homeServiceDistricts: ['Nam Từ Liêm', 'Bắc Từ Liêm', 'Cầu Giấy', 'Hoài Đức', 'Thanh Xuân', 'Hà Đông'] },
+  { id: 'hcm-q7', name: 'Showroom SIGMACAR Quận 7 (TP.HCM)', city: 'TP.HCM', region: 'south', address: 'Số 101 Nguyễn Thị Thập, Tân Phú, Quận 7, TP.HCM', phone: '028 3777 8899', isServiceCenter: true, homeServiceDistricts: ['Quận 7', 'Quận 1', 'Quận 3', 'Quận 4', 'Quận 5', 'Bình Thạnh', 'Nhà Bè'] },
+  { id: 'hcm-thuduc', name: 'Showroom SIGMACAR Thủ Đức (TP.HCM)', city: 'TP.HCM', region: 'south', address: 'Số 12 Võ Văn Ngân, Phường Bình Thọ, TP. Thủ Đức, TP.HCM', phone: '028 3666 4433', isServiceCenter: true, homeServiceDistricts: ['TP. Thủ Đức', 'Thủ Đức', 'Quận 2', 'Quận 9', 'Bình Thạnh', 'Dĩ An'] },
+  { id: 'dn-haichau', name: 'Showroom SIGMACAR Đà Nẵng', city: 'Đà Nẵng', region: 'central', address: 'Số 234 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', phone: '0236 3555 777', isServiceCenter: true, homeServiceDistricts: ['Hải Châu', 'Thanh Khê', 'Sơn Trà', 'Ngũ Hành Sơn', 'Cẩm Lệ'] }
 ];
 
 const SERVICE_CENTERS = SHOWROOM_BRANCHES.map(b => ({
   ...b,
   workingHours: '08:00 - 18:00 (Thứ 2 - Chủ Nhật)',
+  baysCount: 4,
   servicesSupported: ['Bảo dưỡng định kỳ', 'Kiểm tra pin cao áp', 'Sửa chữa bảo hành', 'Cân chỉnh góc lái điện tử', 'Thay thế phụ tùng chính hãng', 'Trạm sạc siêu nhanh 180kW']
 }));
+
+const SUPPORT_CONFIG = {
+  workingHours: '08:00 - 20:00 (GMT+7, Thứ 2 - Chủ Nhật)',
+  hotline: '1900 8888 (Cước 1.000đ/phút, giờ hành chính & cuối tuần)',
+  email: 'cskh@sigmacar.vn',
+  avgTargetSlaMinutes: 60,
+  is247Available: false,
+  note: 'Kênh tổng đài hoạt động từ 08:00 - 20:00 hàng ngày. Yêu cầu gửi ngoài giờ sẽ được hệ thống Ticket tiếp nhận và phản hồi theo SLA vào ca làm việc kế tiếp.'
+};
 
 const CAMPAIGN_CATEGORIES = {
   BIRTHDAY: 'Chúc mừng Sinh nhật',
@@ -143,10 +188,39 @@ const CAMPAIGN_STATUS = {
   CANCELLED: 'Đã hủy'
 };
 
+// Approved legacy ID metadata so historical orders remain auditable without remapping blindly to a current car
+const LEGACY_VEHICLE_ARCHIVES = {
+  'model-e': { id: 'model-e', name: 'SIGMA Model E (Phiên bản Tiền nhiệm 2025)', brand: 'SIGMACAR Legacy', category: 'SUV', fuel: 'ev', archived: true, provenance: 'legacy-order-snapshot' },
+  'vision-s': { id: 'vision-s', name: 'SIGMA Vision S (Phiên bản Tiền nhiệm 2025)', brand: 'SIGMACAR Legacy', category: 'Sedan', fuel: 'ev', archived: true, provenance: 'legacy-order-snapshot' },
+  'x-series-gt': { id: 'x-series-gt', name: 'SIGMA X-Series GT (Phiên bản Tiền nhiệm 2025)', brand: 'SIGMACAR Legacy', category: 'Sports', fuel: 'ev', archived: true, provenance: 'legacy-order-snapshot' },
+  'city-g': { id: 'city-g', name: 'SIGMA City G (Phiên bản Tiền nhiệm 2025)', brand: 'SIGMACAR Legacy', category: 'Compact', fuel: 'ev', archived: true, provenance: 'legacy-order-snapshot' }
+};
+
+function normalizeOrderStatus(rawStatus) {
+  if (!rawStatus) return null;
+  const key = String(rawStatus).trim().toLowerCase();
+  const map = {
+    pending: ORDER_STATUS.PENDING,
+    confirmed: ORDER_STATUS.CONFIRMED,
+    preparing: ORDER_STATUS.PREPARING,
+    shipped: ORDER_STATUS.SHIPPED,
+    delivered: ORDER_STATUS.DELIVERED,
+    completed: ORDER_STATUS.COMPLETED,
+    cancelled: ORDER_STATUS.CANCELLED,
+    canceled: ORDER_STATUS.CANCELLED,
+    failed: ORDER_STATUS.FAILED
+  };
+  return map[key] || (Object.values(ORDER_STATUS).includes(rawStatus) ? rawStatus : null);
+}
+
 module.exports = {
   ROLES,
+  CANONICAL_ROLES,
+  ROLE_CAPABILITIES,
   ORDER_STATUS,
   PAYMENT_STATUS,
+  PAYMENT_INTENT_STATUS,
+  REGISTRATION_STATUS,
   APPOINTMENT_STATUS,
   TICKET_STATUS,
   TICKET_PRIORITY,
@@ -158,6 +232,9 @@ module.exports = {
   MAINTENANCE_MILESTONES,
   SHOWROOM_BRANCHES,
   SERVICE_CENTERS,
+  SUPPORT_CONFIG,
   CAMPAIGN_CATEGORIES,
-  CAMPAIGN_STATUS
+  CAMPAIGN_STATUS,
+  LEGACY_VEHICLE_ARCHIVES,
+  normalizeOrderStatus
 };

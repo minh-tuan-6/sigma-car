@@ -1,0 +1,47 @@
+name: SIGMACAR CI Verification
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install production dependencies
+        run: npm ci --omit=dev
+
+      - name: Syntax check core JS files
+        run: |
+          node --check server.js
+          node --check backend/api/router.js
+          node --check js/api-client.js
+          node --check js/app.js
+
+      - name: Data integrity audit
+        run: node scripts/audit-data-integrity.js
+
+      - name: Run Unit Tests
+        run: npm run test:unit
+
+      - name: Run Integration Tests (Isolated Ephemeral Server)
+        run: npm run test:integration
+
+      - name: Run Security Tests
+        run: npm run test:security
+
+      - name: Verify SQL Migration Dry-Run
+        run: node scripts/migrate-json-to-sql.js --dry-run
+
+      - name: Build static dist bundle & verify no secret leaks
+        run: npm run build

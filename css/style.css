@@ -4469,6 +4469,15 @@ img {
   }
 }
 @media (max-width: 768px) {
+  .cart-layout-grid,
+  #form-p1-checkout,
+  .p1-2col-grid,
+  .checkout-layout-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .dash-table-card {
+    overflow-x: auto;
+  }
   .ar-live-viewport {
     min-height: 440px;
     padding: 14px;
@@ -4693,4 +4702,77 @@ img {
   padding: 6px 12px;
   font-size: 11px;
 }
+
+/* =================================================================
+   P3 EXPERIENCE: TCO ESTIMATOR, COMPARE RESPONSIVE, AI & BUNDLES
+   ================================================================= */
+.compare-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+}
+
+.compare-table-scroll table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+.compare-diff-cell {
+  background: #EFF6FF !important;
+  color: #1D4ED8 !important;
+  font-weight: 700;
+}
+
+.tco-layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+.ai-pref-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ar-capability-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+}
+
+.ar-capability-badge.verified {
+  background: #DCFCE7;
+  color: #166534;
+  border: 1px solid #86EFAC;
+}
+
+.ar-capability-badge.simulated {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+}
+
+@media (max-width: 768px) {
+  .ai-pref-grid {
+    grid-template-columns: 1fr;
+  }
+  .tco-layout-grid {
+    grid-template-columns: 1fr;
+  }
+  .vr-stage-wrapper,
+  .ar-live-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 

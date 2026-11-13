@@ -11,16 +11,9 @@ console.log('🧪 RUNNING AR PHASE 1 ACCEPTANCE TESTS...\n');
 let passedTests = 0;
 let totalTests = 0;
 
+const pendingPhase1Tests = [];
 function test(name, fn) {
-  totalTests++;
-  try {
-    fn();
-    console.log(`  ✅ PASS: ${name}`);
-    passedTests++;
-  } catch (err) {
-    console.error(`  ❌ FAIL: ${name}`);
-    console.error(`     Error: ${err.message}`);
-  }
+  pendingPhase1Tests.push({ name, fn });
 }
 
 // 1. Headers Configuration Test
@@ -67,7 +60,7 @@ test('All 4 calibrated Cybertruck AR models exist in assets/models/ar/', () => {
 });
 
 // 4. Three.js Physical Scale & Alignment Calibration
-test('AR GLB model has 1:1 physical scale (5.682m), centered origin and Y=0 ground contact', () => {
+test('AR GLB model has 1:1 physical scale (5.682m), centered origin and Y=0 ground contact', async () => {
   const threeCode = fs.readFileSync(path.resolve('js/libs/three.min.js'), 'utf8');
   const gltfLoaderCode = fs.readFileSync(path.resolve('js/libs/GLTFLoader.js'), 'utf8');
 
@@ -84,22 +77,29 @@ test('AR GLB model has 1:1 physical scale (5.682m), centered origin and Y=0 grou
   const glbBuffer = fs.readFileSync(path.resolve('assets/models/ar/tesla_cybertruck_ar_v1.glb'));
   const loader = new THREE.GLTFLoader();
 
-  loader.parse(glbBuffer.buffer.slice(glbBuffer.byteOffset, glbBuffer.byteOffset + glbBuffer.byteLength), '', (gltf) => {
-    const box = new THREE.Box3().setFromObject(gltf.scene);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
+  await new Promise((resolve, reject) => {
+    loader.parse(glbBuffer.buffer.slice(glbBuffer.byteOffset, glbBuffer.byteOffset + glbBuffer.byteLength), '', (gltf) => {
+      try {
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
 
-    // Check Length (Z)
-    assert(Math.abs(size.z - 5.682) < 0.005, `Length should be 5.682m, got ${size.z}`);
-    // Check Width (X)
-    assert(size.x > 1.95 && size.x < 2.05, `Width should be ~1.996m, got ${size.x}`);
-    // Check Height (Y)
-    assert(size.y > 1.85 && size.y < 1.92, `Height should be ~1.886m, got ${size.y}`);
-    // Check Center (X, Z)
-    assert(Math.abs(center.x) < 0.001, `Center X should be 0.0, got ${center.x}`);
-    assert(Math.abs(center.z) < 0.001, `Center Z should be 0.0, got ${center.z}`);
-    // Check Ground Contact (Min Y)
-    assert(Math.abs(box.min.y) < 0.001, `Min Y should be 0.0 (ground plane contact), got ${box.min.y}`);
+        // Check Length (Z)
+        assert(Math.abs(size.z - 5.682) < 0.005, `Length should be 5.682m, got ${size.z}`);
+        // Check Width (X)
+        assert(size.x > 1.95 && size.x < 2.05, `Width should be ~1.996m, got ${size.x}`);
+        // Check Height (Y)
+        assert(size.y > 1.85 && size.y < 1.92, `Height should be ~1.886m, got ${size.y}`);
+        // Check Center (X, Z)
+        assert(Math.abs(center.x) < 0.001, `Center X should be 0.0, got ${center.x}`);
+        assert(Math.abs(center.z) < 0.001, `Center Z should be 0.0, got ${center.z}`);
+        // Check Ground Contact (Min Y)
+        assert(Math.abs(box.min.y) < 0.001, `Min Y should be 0.0 (ground plane contact), got ${box.min.y}`);
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    }, reject);
   });
 });
 
@@ -130,10 +130,23 @@ test('index.html includes js/ar-manifest.js script tag', () => {
   assert(html.includes('js/ar-manifest.js'), 'index.html should include js/ar-manifest.js');
 });
 
-console.log(`\n========================================`);
-console.log(`TEST SUMMARY: ${passedTests}/${totalTests} Passed (${passedTests === totalTests ? '100% SUCCESS' : 'FAILED'})`);
-console.log(`========================================`);
+(async () => {
+  for (const t of pendingPhase1Tests) {
+    totalTests++;
+    try {
+      await t.fn();
+      console.log(`  ✅ PASS: ${t.name}`);
+      passedTests++;
+    } catch (err) {
+      console.error(`  ❌ FAIL: ${t.name}`);
+      console.error(`     Error: ${err.message}`);
+    }
+  }
+  console.log(`\n========================================`);
+  console.log(`TEST SUMMARY: ${passedTests}/${totalTests} Passed (${passedTests === totalTests ? '100% SUCCESS' : 'FAILED'})`);
+  console.log(`========================================`);
 
-if (passedTests !== totalTests) {
-  process.exit(1);
-}
+  if (passedTests !== totalTests) {
+    process.exit(1);
+  }
+})();

@@ -1,9 +1,44 @@
 // js/api-client.js
-// Centralized API Client with session persistence and shared error handling for SIGMACAR
+// Centralized API Client with session persistence, abort timeout & strict live/static separation
 
 const API_BASE = (typeof window !== 'undefined' && (window.SIGMACAR_API_BASE || localStorage.getItem('sigmacar_api_base'))) || '/api/v1';
 
+function escapeHtmlClient(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeSafeUrlClient(url, fallback = '#profile') {
+  const s = String(url || '').trim();
+  if (!s) return fallback;
+  if (s.startsWith('#') || (s.startsWith('/') && !s.startsWith('//'))) return s;
+  try {
+    const parsed = new URL(s);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return s;
+  } catch (_) {}
+  return fallback;
+}
+
 const ApiClient = {
+  isDemoMode() {
+    try {
+      return localStorage.getItem('sigmacar_demo_mode') === 'true';
+    } catch (_) {
+      return false;
+    }
+  },
+
+  setDemoMode(enabled) {
+    try {
+      if (enabled) localStorage.setItem('sigmacar_demo_mode', 'true');
+      else localStorage.removeItem('sigmacar_demo_mode');
+    } catch (_) {}
+  },
+
   // Session token storage
   getToken() {
     return localStorage.getItem('sigmacar_auth_token') || null;
@@ -34,7 +69,7 @@ const ApiClient = {
     }
   },
 
-  // Central HTTP request handler
+  // Central HTTP request handler with AbortController timeout and zero fake fallback in Live Mode
   async request(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
     const headers = {
@@ -47,258 +82,216 @@ const ApiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    try {
-      const res = await fetch(url, {
-        ...options,
-        headers
-      });
+    const timeoutMs = options.timeoutMs || 15000;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
-      // Detect static cloud hosting (e.g. Cloudflare Pages returning index.html for API routes)
+    try {
+      const fetchOpts = { ...options, headers };
+      if (controller && !options.signal) {
+        fetchOpts.signal = controller.signal;
+      }
+      const res = await fetch(url, fetchOpts);
+
       const contentType = res.headers.get('content-type') || '';
-      if (contentType.includes('text/html')) {
+      if (contentType.includes('text/html') && res.ok) {
+        // Static CDN SPA rewrite returned index.html instead of an API server
         return this.handleStaticFallback(endpoint, options);
       }
 
       const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (jsonErr) {
-        return this.handleStaticFallback(endpoint, options);
+      let data = null;
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (_) {
+          data = null;
+        }
+      }
+
+      if (!data) {
+        if (res.status === 404 || res.status === 405) {
+          // Pure static hosting (e.g. Cloudflare Pages) without Node backend
+          return this.handleStaticFallback(endpoint, options);
+        }
+        const err = new Error(`Máy chủ phản hồi không đúng định dạng (${res.status}).`);
+        err.status = res.status;
+        err.code = 'INVALID_SERVER_RESPONSE';
+        throw err;
       }
 
       if (!res.ok || data.success === false) {
         const errorMsg = data.error?.message || `Lỗi máy chủ (${res.status})`;
         const err = new Error(errorMsg);
         err.status = res.status;
-        err.code = data.error?.code;
+        err.code = data.error?.code || 'API_ERROR';
         throw err;
       }
 
       return data;
     } catch (err) {
-      if (err.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'))) {
+      if (err && err.name === 'AbortError') {
+        const timeoutErr = new Error('Kết nối tới máy chủ quá thời gian chờ. Vui lòng thử lại.');
+        timeoutErr.code = 'REQUEST_TIMEOUT';
+        timeoutErr.status = 504;
+        throw timeoutErr;
+      }
+      if (err && (err.status || err.code === 'API_ERROR')) {
+        throw err;
+      }
+      const isNetworkOffline = err && err.message && (
+        err.message.includes('Failed to fetch') ||
+        err.message.includes('NetworkError') ||
+        err.message.includes('Load failed') ||
+        err.name === 'TypeError'
+      );
+      if (isNetworkOffline) {
         return this.handleStaticFallback(endpoint, options);
       }
       console.warn(`[ApiClient Error] ${options.method || 'GET'} ${url}:`, err.message);
       throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
     }
   },
 
-  // Seamless fallback for Static Cloudflare Pages hosting when backend Node server is not active
+  // Read-only static catalog + opt-in local demo sandbox ONLY when explicitly running without backend
   handleStaticFallback(endpoint, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
     let body = {};
     if (options.body) {
-      try { body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body; } catch(e) {}
+      try { body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body; } catch (e) {}
     }
 
-    const DEMO_USERS = [
-      {
-        id: 'usr_admin_01',
-        email: 'admin@sigmacar.vn',
-        fullName: 'Hệ Thống Quản Trị SIGMACAR',
-        role: 'admin',
-        phone: '+84 1900 8888',
-        branchName: 'Tổng Công Ty SIGMACAR',
-        tier: 'Quản trị viên',
-        savedCars: [],
-        createdAt: new Date().toISOString()
+    // Read-only public endpoints allowed on static CDN hosting
+    if (method === 'GET' && endpoint.startsWith('/vehicles/certified')) {
+      return { success: true, staticReadOnly: true, data: typeof SIGMA_DATA !== 'undefined' ? SIGMA_DATA.certifiedCars : [] };
+    }
+    if (method === 'GET' && endpoint.startsWith('/vehicles/') && endpoint.endsWith('/related')) {
+      const targetId = decodeURIComponent(endpoint.replace('/vehicles/', '').replace('/related', '').split('?')[0]);
+      const all = (typeof SIGMA_DATA !== 'undefined' ? (SIGMA_DATA.cars || []) : []);
+      const cur = all.find(c => c.id === targetId);
+      const rel = cur ? all.filter(c => c.id !== cur.id && c.category === cur.category).slice(0, 3) : all.slice(0, 3);
+      return { success: true, staticReadOnly: true, data: rel };
+    }
+    if (method === 'GET' && endpoint.startsWith('/vehicles/certified')) {
+      const list = (typeof SIGMA_DATA !== 'undefined' ? (SIGMA_DATA.certifiedCars || []) : []);
+      return { success: true, staticReadOnly: true, data: list };
+    }
+    if (method === 'GET' && endpoint.startsWith('/vehicles/')) {
+      const targetId = decodeURIComponent(endpoint.replace('/vehicles/', '').split('?')[0]);
+      const all = (typeof SIGMA_DATA !== 'undefined' ? [...(SIGMA_DATA.cars || []), ...(SIGMA_DATA.certifiedCars || [])] : []);
+      const found = all.find(c => c.id === targetId || c.id === targetId.replace(/^sigma-/, ''));
+      if (!found) {
+        const err = new Error(`Không tìm thấy thông tin xe với mã "${targetId}".`);
+        err.status = 404;
+        err.code = 'NOT_FOUND';
+        throw err;
       }
-    ];
-
-    // 1. Auth Login
-    if (endpoint === '/auth/login' && method === 'POST') {
-      const email = (body.email || '').trim().toLowerCase();
-      let localUsers = [];
-      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
-      const allUsers = [...DEMO_USERS, ...localUsers];
-      let user = allUsers.find(u => u.email.toLowerCase() === email);
-
-      if (!user) {
-        throw new Error('Tài khoản hoặc mật khẩu không chính xác. Nếu là khách hàng mới, vui lòng bấm sang tab Đăng ký mới.');
-      }
-
-      const token = 'sigmacar_jwt_' + Date.now();
-      this.setToken(token);
-      this.setCurrentUser(user);
-      return { success: true, data: { token, user } };
+      return { success: true, staticReadOnly: true, data: found };
     }
-
-    // 2. Auth Register
-    if (endpoint === '/auth/register' && method === 'POST') {
-      let localUsers = [];
-      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
-      const email = (body.email || '').trim().toLowerCase();
-      if (email === 'admin@sigmacar.vn' || localUsers.some(u => u.email.toLowerCase() === email)) {
-        throw new Error('Email này đã được sử dụng. Vui lòng chọn email khác.');
-      }
-
-      const newUser = {
-        id: 'usr_' + Date.now(),
-        email: email,
-        fullName: body.fullName || email.split('@')[0],
-        role: body.role || 'buyer',
-        phone: body.phone || '',
-        branchName: 'Khách hàng toàn quốc',
-        tier: 'Thành viên mới',
-        savedCars: [],
-        createdAt: new Date().toISOString()
-      };
-      localUsers.push(newUser);
-      try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
-      const token = 'sigmacar_jwt_' + Date.now();
-      this.setToken(token);
-      this.setCurrentUser(newUser);
-      return { success: true, data: { token, user: newUser } };
-    }
-
-    // 3. Auth Me
-    if (endpoint === '/auth/me') {
-      const cur = this.getCurrentUser() || DEMO_USERS[0];
-      return { success: true, data: cur };
-    }
-
-    // 4. Update Profile
-    if (endpoint === '/auth/profile') {
-      const cur = this.getCurrentUser() || DEMO_USERS[0];
-      const updated = { ...cur, ...body };
-      this.setCurrentUser(updated);
-      return { success: true, data: updated };
-    }
-
-    // 5. Saved Cars
-    if (endpoint === '/auth/saved-cars') {
-      const cur = this.getCurrentUser() || DEMO_USERS[0];
-      cur.savedCars = cur.savedCars || [];
-      const idx = cur.savedCars.indexOf(body.vehicleId);
-      if (idx === -1) cur.savedCars.push(body.vehicleId);
-      else cur.savedCars.splice(idx, 1);
-      this.setCurrentUser(cur);
-      return { success: true, data: { user: cur, savedCars: cur.savedCars } };
-    }
-
-    // 6. Vehicles
-    if (endpoint.startsWith('/vehicles/certified')) {
-      return { success: true, data: typeof SIGMA_DATA !== 'undefined' ? SIGMA_DATA.certifiedCars : [] };
-    }
-    if (endpoint.startsWith('/vehicles')) {
-      return { success: true, data: typeof SIGMA_DATA !== 'undefined' ? SIGMA_DATA.cars : [] };
-    }
-
-    // 7. Orders & Deposit
-    if (endpoint.startsWith('/orders')) {
-      let orders = [];
-      try { orders = JSON.parse(localStorage.getItem('sigmacar_orders') || '[]'); } catch(e) {}
-      if (method === 'POST') {
-        const newOrder = {
-          id: 'ord_' + Date.now().toString(36),
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-          ...body
-        };
-        orders.unshift(newOrder);
-        try { localStorage.setItem('sigmacar_orders', JSON.stringify(orders)); } catch(e) {}
-        return { success: true, data: newOrder };
-      }
-      return { success: true, data: orders };
-    }
-
-    // 8. Appointments
-    if (endpoint.startsWith('/appointments')) {
-      let appts = [];
-      try { appts = JSON.parse(localStorage.getItem('sigmacar_appointments') || '[]'); } catch(e) {}
-      if (method === 'POST') {
-        const newAppt = {
-          id: 'apt_' + Date.now().toString(36),
-          status: 'confirmed',
-          createdAt: new Date().toISOString(),
-          ...body
-        };
-        appts.unshift(newAppt);
-        try { localStorage.setItem('sigmacar_appointments', JSON.stringify(appts)); } catch(e) {}
-        return { success: true, data: newAppt };
-      }
-      return { success: true, data: appts };
-    }
-
-    // 9. Financing
-    if (endpoint.startsWith('/financing')) {
-      const price = body.vehiclePrice || 1000000000;
-      const downPercent = body.downPaymentPercent || 20;
-      const rate = body.interestRate || 7.9;
-      const months = body.termMonths || 60;
-      const loanAmount = price * (1 - downPercent / 100);
-      const monthlyRate = (rate / 100) / 12;
-      const monthlyPayment = monthlyRate === 0 ? loanAmount / months : Math.round(loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1));
+    if (method === 'GET' && endpoint.startsWith('/vehicles')) {
+      const cars = typeof SIGMA_DATA !== 'undefined' ? (SIGMA_DATA.cars || []) : [];
       return {
         success: true,
+        staticReadOnly: true,
+        data: cars,
+        pagination: { page: 1, pageSize: Math.max(12, cars.length), total: cars.length, totalPages: 1, hasMore: false }
+      };
+    }
+    if (method === 'GET' && endpoint.startsWith('/promotions')) {
+      return {
+        success: true,
+        staticReadOnly: true,
+        data: [
+          { id: 'promo_sigma50', code: 'SIGMA50', name: 'Ưu đãi đặt cọc Tiên phong 50 triệu VNĐ', discountType: 'fixed', discountValue: 50000000, minOrderValue: 1000000000 },
+          { id: 'promo_evgreen5', code: 'EVGREEN5', name: 'Ưu đãi Xe Thuần Điện 5% (tối đa 30 triệu)', discountType: 'percent', discountValue: 5, maxDiscountAmount: 30000000, minOrderValue: 300000000 }
+        ]
+      };
+    }
+    if (method === 'POST' && endpoint.startsWith('/financing/calculate')) {
+      const price = Number(body.vehiclePrice);
+      const downPercent = body.downPaymentPercent !== undefined ? Number(body.downPaymentPercent) : 30;
+      const rate = body.annualInterestRatePercent !== undefined ? Number(body.annualInterestRatePercent) : 7.9;
+      const months = body.termMonths !== undefined ? Number(body.termMonths) : 60;
+      if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(downPercent) || downPercent < 0 || downPercent >= 100 || !Number.isFinite(rate) || rate < 0 || !Number.isInteger(months) || months < 1) {
+        const err = new Error('Thông số tính toán trả góp không hợp lệ.');
+        err.status = 400;
+        throw err;
+      }
+      const downPaymentAmount = Math.round(price * (downPercent / 100));
+      const financedPrincipal = price - downPaymentAmount;
+      const monthlyRate = (rate / 100) / 12;
+      const monthlyPayment = monthlyRate === 0
+        ? Math.round(financedPrincipal / months)
+        : Math.round(financedPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1));
+      return {
+        success: true,
+        staticReadOnly: true,
         data: {
-          loanAmount,
+          vehiclePrice: price,
+          downPaymentPercent: downPercent,
+          downPaymentAmount,
+          financedPrincipal,
+          annualInterestRate: rate,
+          termMonths: months,
           monthlyPayment,
-          totalPayment: monthlyPayment * months,
-          totalInterest: (monthlyPayment * months) - loanAmount
+          totalInterest: Math.max(0, (monthlyPayment * months) - financedPrincipal),
+          totalCostOfLoan: price + Math.max(0, (monthlyPayment * months) - financedPrincipal)
         }
       };
     }
 
-    // 10. Admin Users (RBAC & Staff Management)
-    if (endpoint === '/admin/users' && method === 'GET') {
-      let localUsers = [];
-      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
-      return { success: true, count: 1 + localUsers.length, data: [DEMO_USERS[0], ...localUsers] };
+    if (endpoint === '/auth/me' && method === 'GET') {
+      const cur = this.getCurrentUser();
+      if (!cur || !this.getToken()) {
+        const err = new Error('Phiên đăng nhập chưa được kích hoạt.');
+        err.status = 401;
+        err.code = 'UNAUTHORIZED';
+        throw err;
+      }
+      if (this.isDemoMode()) {
+        return { success: true, demoMode: true, data: cur };
+      }
+      const err = new Error('Không thể xác thực phiên làm việc với máy chủ.');
+      err.status = 503;
+      err.code = 'BACKEND_UNAVAILABLE';
+      throw err;
     }
 
-    if (endpoint === '/admin/users' && method === 'POST') {
-      let localUsers = [];
-      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
+    // Write/Auth/Private routes NEVER silently spoof success unless user explicitly opted into Sandbox Demo Mode
+    if (!this.isDemoMode()) {
+      const err = new Error('Không thể kết nối tới máy chủ API SIGMACAR. Website hiện đang chạy ở chế độ xem tĩnh (Static Read-Only).');
+      err.status = 503;
+      err.code = 'BACKEND_UNAVAILABLE';
+      throw err;
+    }
+
+    // Opt-in local demo sandbox ONLY (strictly namespaced under sigmacar_demo_*, never bypasses role or password)
+    if (endpoint === '/auth/login' && method === 'POST') {
       const email = (body.email || '').trim().toLowerCase();
-      if (email === 'admin@sigmacar.vn' || localUsers.some(u => u.email.toLowerCase() === email)) {
-        throw new Error('Email nhân viên này đã tồn tại trong hệ thống.');
-      }
-      const newStaff = {
-        id: 'usr_staff_' + Date.now(),
-        email: email,
-        fullName: body.fullName || 'Nhân viên kinh doanh',
-        role: body.role || 'seller',
-        phone: body.phone || '',
-        branchName: body.branchName || 'Showroom SIGMACAR Cầu Giấy (Hà Nội)',
-        tier: 'Staff',
-        savedCars: [],
-        createdAt: new Date().toISOString()
+      const password = String(body.password || '');
+      const demoAccounts = {
+        'admin@sigmacar.vn': { pass: 'Admin@123456', user: { id: 'usr_admin_01', email: 'admin@sigmacar.vn', fullName: 'Hệ Thống Quản Trị SIGMACAR', role: 'admin', branchId: 'all', branchIds: ['hn-caugiay', 'hcm-q7'], savedCars: [] } },
+        'minhphan.seller@sigmacar.vn': { pass: 'Seller@123456', user: { id: 'usr_seller_01', email: 'minhphan.seller@sigmacar.vn', fullName: 'Minh Phan - Tư vấn SIGMACAR', role: 'seller', branchId: 'hn-caugiay', branchIds: ['hn-caugiay'], savedCars: [] } },
+        'minhhoang.sigma@example.com': { pass: 'Buyer@123456', user: { id: 'usr_buyer_01', email: 'minhhoang.sigma@example.com', fullName: 'Minh Hoàng', role: 'buyer', savedCars: [] } }
       };
-      localUsers.push(newStaff);
-      try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
-      return { success: true, message: 'Đã tạo tài khoản nhân viên thành công!', data: newStaff };
-    }
-
-    if (endpoint.startsWith('/admin/users/') && method === 'DELETE') {
-      const targetId = endpoint.replace('/admin/users/', '');
-      if (targetId === 'usr_admin_01') {
-        throw new Error('Không thể xóa tài khoản Quản trị viên tối cao.');
+      const matched = demoAccounts[email];
+      if (!matched || matched.pass !== password) {
+        const err = new Error('Email hoặc mật khẩu không chính xác (Sandbox Demo Mode).');
+        err.status = 401;
+        throw err;
       }
-      let localUsers = [];
-      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
-      localUsers = localUsers.filter(u => u.id !== targetId);
-      try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
-      return { success: true, message: 'Đã xóa tài khoản thành công!' };
+      const token = 'demo_token_' + Date.now();
+      this.setToken(token);
+      this.setCurrentUser({ ...matched.user, isDemoSandbox: true });
+      return { success: true, demoMode: true, data: { token, user: matched.user } };
     }
 
-    if (endpoint.startsWith('/admin/users/') && endpoint.endsWith('/role') && method === 'PATCH') {
-      const targetId = endpoint.replace('/admin/users/', '').replace('/role', '');
-      let localUsers = [];
-      try { localUsers = JSON.parse(localStorage.getItem('sigmacar_registered_users') || '[]'); } catch(e) {}
-      const target = localUsers.find(u => u.id === targetId);
-      if (target) {
-        target.role = body.role;
-        if (body.branchName) target.branchName = body.branchName;
-        try { localStorage.setItem('sigmacar_registered_users', JSON.stringify(localUsers)); } catch(e) {}
-      }
-      return { success: true, message: 'Đã cập nhật vai trò tài khoản thành công!' };
-    }
-
-    // Generic fallback for any other endpoint
-    return { success: true, data: [] };
+    const err = new Error('Thao tác này yêu cầu kết nối trực tiếp với máy chủ backend SIGMACAR.');
+    err.status = 503;
+    err.code = 'BACKEND_UNAVAILABLE';
+    throw err;
   },
 
   // Auth Methods
@@ -378,9 +371,17 @@ const ApiClient = {
       return res.data;
     },
 
-    logout() {
-      ApiClient.setToken(null);
-      ApiClient.setCurrentUser(null);
+    async logout() {
+      try {
+        if (ApiClient.getToken() && !ApiClient.isDemoMode()) {
+          await ApiClient.request('/auth/logout', { method: 'POST', timeoutMs: 3000 });
+        }
+      } catch (_) {
+        // Ignore network errors when tearing down local session
+      } finally {
+        ApiClient.setToken(null);
+        ApiClient.setCurrentUser(null);
+      }
     }
   },
 
@@ -390,14 +391,57 @@ const ApiClient = {
       const params = new URLSearchParams();
       if (filters.category && filters.category !== 'all') params.set('category', filters.category);
       if (filters.fuel && filters.fuel !== 'all') params.set('fuel', filters.fuel);
+      if (filters.brand && filters.brand !== 'all') params.set('brand', filters.brand);
       if (filters.minPrice) params.set('minPrice', filters.minPrice);
       if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
+      if (filters.minRange) params.set('minRange', filters.minRange);
+      if (filters.maxRange) params.set('maxRange', filters.maxRange);
+      if (filters.minBatteryKwh) params.set('minBatteryKwh', filters.minBatteryKwh);
+      if (filters.maxMonthlyPayment) params.set('maxMonthlyPayment', filters.maxMonthlyPayment);
+      if (filters.usage && filters.usage !== 'all') params.set('usage', filters.usage);
+      if (filters.inStock) params.set('inStock', 'true');
       if (filters.search) params.set('search', filters.search);
       if (filters.sort && filters.sort !== 'default') params.set('sort', filters.sort);
 
       const qs = params.toString() ? `?${params.toString()}` : '';
       const res = await ApiClient.request(`/vehicles${qs}`);
       return res.data || [];
+    },
+
+    async query(filters = {}, requestOpts = {}) {
+      const params = new URLSearchParams();
+      if (filters.category && filters.category !== 'all') params.set('category', filters.category);
+      if (filters.fuel && filters.fuel !== 'all') params.set('fuel', filters.fuel);
+      if (filters.brand && filters.brand !== 'all') params.set('brand', filters.brand);
+      if (filters.minPrice) params.set('minPrice', filters.minPrice);
+      if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
+      if (filters.minRange) params.set('minRange', filters.minRange);
+      if (filters.maxRange) params.set('maxRange', filters.maxRange);
+      if (filters.minBatteryKwh) params.set('minBatteryKwh', filters.minBatteryKwh);
+      if (filters.maxMonthlyPayment) params.set('maxMonthlyPayment', filters.maxMonthlyPayment);
+      if (filters.usage && filters.usage !== 'all') params.set('usage', filters.usage);
+      if (filters.inStock) params.set('inStock', 'true');
+      if (filters.search) params.set('search', filters.search);
+      if (filters.sort && filters.sort !== 'default') params.set('sort', filters.sort);
+      params.set('paginated', '1');
+      params.set('page', String(filters.page || 1));
+      params.set('pageSize', String(filters.pageSize || 12));
+
+      const res = await ApiClient.request(`/vehicles?${params.toString()}`, requestOpts);
+      return { items: res.data || [], pagination: res.pagination || { page: 1, pageSize: 12, total: (res.data || []).length, totalPages: 1, hasMore: false } };
+    },
+
+    async getRelated(id) {
+      const res = await ApiClient.request(`/vehicles/${encodeURIComponent(id)}/related`);
+      return res.data || [];
+    },
+
+    async create(payload) {
+      const res = await ApiClient.request('/vehicles', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
     },
 
     async getCertified(filters = {}) {
@@ -413,15 +457,50 @@ const ApiClient = {
     async getById(id) {
       const res = await ApiClient.request(`/vehicles/${id}`);
       return res.data;
+    },
+
+    async update(id, payload) {
+      const res = await ApiClient.request(`/vehicles/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
     }
   },
 
-  // Financing Calculator
+  // Financing Calculator & Applications
   financing: {
-    async calculate({ vehiclePrice, downPaymentPercent, annualInterestRatePercent, termMonths }) {
+    async calculate({ vehiclePrice, downPaymentPercent, annualInterestRatePercent, termMonths, repaymentMethod, includeSchedule, monthlyIncome, monthlyObligation }) {
       const res = await ApiClient.request('/financing/calculate', {
         method: 'POST',
-        body: JSON.stringify({ vehiclePrice, downPaymentPercent, annualInterestRatePercent, termMonths })
+        body: JSON.stringify({
+          vehiclePrice,
+          downPaymentPercent,
+          annualInterestRatePercent,
+          termMonths,
+          repaymentMethod,
+          includeSchedule,
+          monthlyIncome,
+          monthlyObligation
+        })
+      });
+      return res.data;
+    },
+    async submitApplication(payload) {
+      const res = await ApiClient.request('/financing/applications', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async getApplications() {
+      const res = await ApiClient.request('/financing/applications');
+      return res.data || [];
+    },
+    async reviewApplication(id, payload) {
+      const res = await ApiClient.request(`/financing/applications/${encodeURIComponent(id)}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
       });
       return res.data;
     }
@@ -442,10 +521,20 @@ const ApiClient = {
       return res.data || [];
     },
 
-    async updateStatus(orderId, status) {
-      const res = await ApiClient.request(`/orders/${orderId}/status`, {
+    async getById(orderId) {
+      const res = await ApiClient.request(`/orders/${encodeURIComponent(orderId)}`);
+      return res.data;
+    },
+
+    async getTimeline(orderId) {
+      const res = await ApiClient.request(`/orders/${encodeURIComponent(orderId)}/timeline`);
+      return res.data;
+    },
+
+    async updateStatus(orderId, status, note = '') {
+      const res = await ApiClient.request(`/orders/${encodeURIComponent(orderId)}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, note })
       });
       return res.data;
     },
@@ -459,8 +548,24 @@ const ApiClient = {
     }
   },
 
-  // Test Drive Appointments
+  // Test Drive Appointments & Dynamic Slots
   appointments: {
+    async getSlots({ branchId, date, category = 'test_drive' } = {}) {
+      const params = new URLSearchParams();
+      if (branchId) params.set('branchId', branchId);
+      if (date) params.set('date', date);
+      if (category) params.set('category', category);
+      const res = await ApiClient.request(`/appointments/slots?${params.toString()}`);
+      return res.data;
+    },
+
+    async reschedule(apptId, payload) {
+      const res = await ApiClient.request(`/appointments/${encodeURIComponent(apptId)}/reschedule`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
     async create(apptPayload) {
       const res = await ApiClient.request('/appointments', {
         method: 'POST',
@@ -483,20 +588,133 @@ const ApiClient = {
     }
   },
 
-  // Analytics Overview (Seller / Admin)
+  // Analytics Overview, Funnel & CSV Export (Seller / Admin - SIG-P4-006, SIG-P4-007)
   analytics: {
-    async getOverview() {
-      const res = await ApiClient.request('/analytics/overview');
+    async getOverview(params = {}) {
+      const qs = new URLSearchParams();
+      ['branchId', 'dateFrom', 'dateTo', 'tzOffsetMinutes'].forEach(k => {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '' && params[k] !== 'all') {
+          qs.set(k, String(params[k]));
+        }
+      });
+      const qStr = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/analytics/overview${qStr}`);
       return res.data;
+    },
+    async getFunnel(params = {}) {
+      const qs = new URLSearchParams();
+      ['branchId', 'dateFrom', 'dateTo', 'promoCode'].forEach(k => {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '' && params[k] !== 'all') {
+          qs.set(k, String(params[k]));
+        }
+      });
+      const qStr = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/analytics/funnel${qStr}`);
+      return res.data;
+    },
+    async exportCsv(params = {}) {
+      const qs = new URLSearchParams();
+      ['branchId', 'dateFrom', 'dateTo', 'tzOffsetMinutes'].forEach(k => {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '' && params[k] !== 'all') {
+          qs.set(k, String(params[k]));
+        }
+      });
+      const qStr = qs.toString() ? `?${qs.toString()}` : '';
+      const headers = {};
+      const token = ApiClient.getToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const base = (ApiClient.BASE_URL || '/api/v1').replace(/\/$/, '');
+      const resp = await fetch(`${base}/analytics/export${qStr}`, { headers });
+      if (!resp.ok) throw new Error('Không thể xuất báo cáo CSV doanh thu.');
+      return await resp.text();
+    },
+    async recordEvent(payload = {}) {
+      try {
+        const consentGranted = typeof localStorage !== 'undefined'
+          ? localStorage.getItem('sigmacar_analytics_consent') !== 'false'
+          : true;
+        const sidKey = 'sigmacar_funnel_sid';
+        let sessionId = payload.sessionId;
+        if (!sessionId && typeof sessionStorage !== 'undefined') {
+          sessionId = sessionStorage.getItem(sidKey);
+          if (!sessionId) {
+            sessionId = `sid-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+            sessionStorage.setItem(sidKey, sessionId);
+          }
+        }
+        const res = await ApiClient.request('/analytics/events', {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionId: sessionId || 'anon-web',
+            eventType: payload.eventType,
+            targetId: payload.targetId || null,
+            branchId: payload.branchId || null,
+            promoCode: payload.promoCode || null,
+            consentGranted
+          })
+        });
+        return res.data;
+      } catch (_) {
+        return { recorded: false };
+      }
     }
   },
 
-  // AI Chat & Live RAG Engine
+  // AI Chat, Consultation Persistence & Live RAG Engine
   ai: {
-    async chat(message, history = []) {
+    async chat(messageOrPayload, history = []) {
+      const payload = (messageOrPayload && typeof messageOrPayload === 'object' && !Array.isArray(messageOrPayload))
+        ? messageOrPayload
+        : { message: messageOrPayload, history };
       const res = await ApiClient.request('/ai/chat', {
         method: 'POST',
-        body: JSON.stringify({ message, history })
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+
+    async getPreferences() {
+      const res = await ApiClient.request('/ai/preferences');
+      return res.data;
+    },
+
+    async updatePreferences(prefs) {
+      const res = await ApiClient.request('/ai/preferences', {
+        method: 'PUT',
+        body: JSON.stringify(prefs || {})
+      });
+      return res.data;
+    },
+
+    async getConversations(params = {}) {
+      const qs = new URLSearchParams();
+      if (params.limit) qs.set('limit', params.limit);
+      if (params.offset) qs.set('offset', params.offset);
+      const q = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/ai/conversations${q}`);
+      return res.data;
+    },
+
+    async createConversation(payload = {}) {
+      const res = await ApiClient.request('/ai/conversations', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+
+    async getConversationMessages(conversationId, params = {}) {
+      const qs = new URLSearchParams();
+      if (params.limit) qs.set('limit', params.limit);
+      if (params.offset) qs.set('offset', params.offset);
+      const q = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/ai/conversations/${encodeURIComponent(conversationId)}/messages${q}`);
+      return res.data;
+    },
+
+    async deleteConversation(conversationId) {
+      const res = await ApiClient.request(`/ai/conversations/${encodeURIComponent(conversationId)}`, {
+        method: 'DELETE'
       });
       return res.data;
     },
@@ -649,25 +867,39 @@ const ApiClient = {
       };
     },
 
-    async estimate({ orderId, reasonCode, odoKm }) {
-      const data = await this.getOverview();
-      const ord = (data.eligibleOrders || []).find(o => o.orderId === orderId || o.id === orderId) || {};
-      const basePaidAmount = Number(ord.paidAmount || ord.unitPrice || 1290000000);
-      const isTech = reasonCode === 'technical_defect' || reasonCode === 'delivery_damage' || reasonCode === 'wrong_spec' || reasonCode === 'tech_issue';
+    async estimate({ orderId, reasonCode, reasonId, odoKm, currentOdoKm }) {
+      const reasonMap = {
+        technical_defect: 'tech_issue',
+        delivery_damage: 'mismatch_spec',
+        wrong_spec: 'mismatch_spec',
+        change_of_mind: 'exchange_model'
+      };
+      const mappedReason = reasonMap[reasonCode] || reasonId || reasonCode || 'tech_issue';
+      const params = new URLSearchParams({
+        orderId: String(orderId || ''),
+        reasonId: String(mappedReason),
+        currentOdoKm: String(currentOdoKm ?? odoKm ?? 0)
+      });
+      const res = await ApiClient.request(`/returns/estimate?${params.toString()}`);
+      const d = res.data || res;
+      const fin = d.financials || {};
       const deductions = [];
-      if (!isTech) {
-        deductions.push({ name: 'Phí kiểm định & lưu kho', amount: 1500000 });
+      if (Number(fin.inspectionFee || 0) > 0) {
+        deductions.push({ name: 'Phí kiểm định & lưu kho', amount: Number(fin.inspectionFee) });
       }
-      const extraKm = Math.max(0, Number(odoKm || 0) - 200);
-      if (!isTech && extraKm > 0) {
-        deductions.push({ name: `Phụ phí ODO vượt mức (${extraKm} km)`, amount: extraKm * 5000 });
+      if (Number(fin.transportFee || 0) > 0) {
+        deductions.push({ name: 'Phí thu hồi vận chuyển', amount: Number(fin.transportFee) });
       }
-      const totalDeductions = deductions.reduce((s, d) => s + d.amount, 0);
+      if (Number(fin.odoDeduction || 0) > 0) {
+        deductions.push({ name: 'Phụ phí ODO vượt mức', amount: Number(fin.odoDeduction) });
+      }
       return {
-        basePaidAmount,
+        basePaidAmount: Number(fin.originalPaidAmount || 0),
         deductions,
-        totalDeductions,
-        estimatedRefundAmount: Math.max(0, basePaidAmount - totalDeductions)
+        totalDeductions: Number(fin.totalDeductions || 0),
+        estimatedRefundAmount: Number(fin.estimatedRefundAmount || 0),
+        eligibility: d.eligibility || null,
+        policy: d.policy || null
       };
     },
 
@@ -810,13 +1042,17 @@ const ApiClient = {
 
     async getAdminOverview() {
       const g = await this.getMyGarage();
+      const inWorkshopStatuses = ['Đang xử lý', 'Đang kiểm tra', 'Đang bảo dưỡng', 'In Progress'];
+      const activeAppts = (g.serviceAppointments || []).filter(a => inWorkshopStatuses.includes(a.status)).length;
+      const pendingAppts = (g.serviceAppointments || []).filter(a => a.status === 'Chờ xác nhận' || a.status === 'Pending').length;
+      const activeWarranties = (g.warranties || []).filter(w => (w.status || '').includes('hiệu lực') || w.status === 'Active').length;
       return {
         stats: {
-          vehiclesInWorkshop: 14,
-          pendingAppointments: g.serviceAppointments.filter(a => a.status === 'Chờ xác nhận').length,
-          activeWarranties: g.warranties.length,
-          warrantyClaimsActive: g.warranties.length,
-          csatScore: '4.9/5'
+          vehiclesInWorkshop: activeAppts,
+          pendingAppointments: pendingAppts,
+          activeWarranties: activeWarranties || (g.warranties || []).length,
+          warrantyClaimsActive: (g.warranties || []).filter(w => w.status === 'Claim').length,
+          csatScore: g.kpis?.csatScore ?? 'Chưa có đánh giá'
         },
         warranties: g.warranties,
         appointments: g.serviceAppointments,
@@ -901,13 +1137,14 @@ const ApiClient = {
           totalReviews: d.stats?.totalReviews ?? 0,
           verifiedCount: d.stats?.verifiedCount ?? 0,
           distribution: d.stats?.starDistribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-          criteriaAverages: d.stats?.criteriaAverages || { design: 5, performance: 5, features: 5, comfort: 5, value: 5 }
+          criteriaAverages: d.stats?.criteriaAverages || { design: 0, performance: 0, features: 0, comfort: 0, value: 0 }
         },
         reviews: (d.reviews || []).map(r => ({
           ...r,
           userName: r.authorName || r.userName || 'Khách hàng',
           userRole: r.authorTier || 'Chủ xe SIGMACAR',
-          orderNumber: r.orderId || r.orderNumber || 'SG-VERIFIED',
+          orderNumber: r.orderId || r.orderNumber || (r.verifiedPurchase ? 'SG-VERIFIED' : ''),
+          helpfulCount: typeof r.helpfulCount === 'number' ? r.helpfulCount : (Array.isArray(r.helpfulVoterIds) ? r.helpfulVoterIds.length : 0),
           helpfulVotes: r.helpfulVoterIds || r.helpfulVotes || [],
           media: (r.media || []).map(m => (typeof m === 'string' ? m : m.url)),
           status: r.moderationStatus === 'approved' ? 'Đã duyệt' : (r.moderationStatus === 'hidden' ? 'Đã ẩn' : 'Đã gỡ')
@@ -1009,6 +1246,35 @@ const ApiClient = {
         body: JSON.stringify({ content: payload.answer || payload.content })
       });
       return res.data || res;
+    },
+
+    async updateQuestion(questionId, payload) {
+      const res = await ApiClient.request(`/questions/${encodeURIComponent(questionId)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      return res.data || res;
+    },
+
+    async removeQuestion(questionId) {
+      const res = await ApiClient.request(`/questions/${encodeURIComponent(questionId)}`, { method: 'DELETE' });
+      return res.data || res;
+    },
+
+    async reportQuestion(questionId, reason) {
+      const res = await ApiClient.request(`/questions/${encodeURIComponent(questionId)}/report`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      return res.data || res;
+    },
+
+    async moderateQuestion(questionId, payload) {
+      const res = await ApiClient.request(`/questions/${encodeURIComponent(questionId)}/moderate`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      return res.data || res;
     }
   },
 
@@ -1100,6 +1366,14 @@ const ApiClient = {
         body: JSON.stringify({ internalNote: payload.note })
       });
       return res.data || res;
+    },
+
+    async rate(ticketId, payload) {
+      const res = await ApiClient.request(`/support/tickets/${encodeURIComponent(ticketId)}/rate`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data || res;
     }
   },
 
@@ -1115,10 +1389,14 @@ const ApiClient = {
           occasion: c.category || 'Chăm sóc Khách hàng',
           stats: {
             totalRecipients: c.stats?.eligibleRecipients ?? 0,
+            queuedCount: c.stats?.queuedCount ?? 0,
             sentCount: c.stats?.sentCount ?? 0,
+            deliveredCount: c.stats?.deliveredCount ?? 0,
+            bouncedCount: c.stats?.bouncedCount ?? 0,
             failedCount: c.stats?.failedCount ?? 0,
+            skippedUnsubscribedCount: c.stats?.skippedUnsubscribedCount ?? 0,
             openedCount: c.stats?.deliveredCount ?? 0,
-            clickedCount: Math.max(0, (c.stats?.deliveredCount ?? 0) - 1)
+            clickedCount: c.stats?.clickedCount ?? 0
           }
         })),
         templates: [
@@ -1158,14 +1436,17 @@ const ApiClient = {
     },
 
     async preview(payload) {
-      const replaceVars = (str = '') =>
-        String(str)
+      const promoSafe = escapeHtmlClient(payload.promoCode || 'SIGMAVIP2026');
+      const replaceVarsEscaped = (str = '') =>
+        escapeHtmlClient(String(str))
           .replace(/\{\{\s*customer_name\s*\}\}/g, 'Minh Hoàng')
           .replace(/\{\{\s*birth_date\s*\}\}/g, '29/10/1992')
-          .replace(/\{\{\s*promo_code\s*\}\}/g, payload.promoCode || 'SIGMAVIP2026')
-          .replace(/\{\{\s*vehicle_name\s*\}\}/g, 'SIGMA Model E');
-      const renderedSubject = replaceVars(payload.subject || '');
-      const renderedBody = replaceVars(payload.bodyHtml || '');
+          .replace(/\{\{\s*promo_code\s*\}\}/g, promoSafe)
+          .replace(/\{\{\s*vehicle_name\s*\}\}/g, 'Toyota Camry 2.5Q');
+      const renderedSubject = replaceVarsEscaped(payload.subject || '');
+      const renderedBody = replaceVarsEscaped(payload.bodyHtml || '').replace(/\n/g, '<br>');
+      const safeCtaUrl = sanitizeSafeUrlClient(payload.ctaUrl, '#profile');
+      const safeCtaLabel = escapeHtmlClient(payload.ctaLabel || 'Khám phá ngay');
       return {
         renderedSubject,
         renderedHtml: `
@@ -1178,10 +1459,10 @@ const ApiClient = {
               <p style="font-size:13.5px; line-height:1.6;">${renderedBody}</p>
               <div style="margin:14px 0; padding:12px; background:#EFF6FF; border:1px dashed #2563EB; border-radius:8px; text-align:center;">
                 <span style="font-size:11px; color:#64748B;">MÃ ƯU ĐÃI ĐẶC QUYỀN:</span>
-                <div style="font-size:18px; font-weight:800; color:#1D4ED8;">${payload.promoCode || 'SIGMAVIP2026'}</div>
+                <div style="font-size:18px; font-weight:800; color:#1D4ED8;">${promoSafe}</div>
               </div>
               <div style="text-align:center; margin-top:14px;">
-                <a href="${payload.ctaUrl || '#profile'}" style="display:inline-block; background:#2563EB; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:13px; padding:10px 22px; border-radius:8px;">${payload.ctaLabel || 'Khám phá ngay'}</a>
+                <a href="${escapeHtmlClient(safeCtaUrl)}" style="display:inline-block; background:#2563EB; color:#FFFFFF; text-decoration:none; font-weight:700; font-size:13px; padding:10px 22px; border-radius:8px;">${safeCtaLabel}</a>
               </div>
               <hr style="border:none; border-top:1px solid #E2E8F0; margin:16px 0;">
               <div style="font-size:11px; color:#64748B; text-align:center;">
@@ -1238,6 +1519,538 @@ const ApiClient = {
         ...(res.data || {}),
         message: res.message || 'Đã hủy đăng ký nhận Email tiếp thị thành công!'
       };
+    }
+  },
+
+  // Per-Branch Inventory Ledger
+  inventory: {
+    async getByVehicle(vehicleId) {
+      const res = await ApiClient.request(`/inventory/${encodeURIComponent(vehicleId)}`);
+      return res.data;
+    },
+    async getAll(params = {}) {
+      const qs = new URLSearchParams();
+      if (params.branchId) qs.set('branchId', params.branchId);
+      if (params.vehicleId) qs.set('vehicleId', params.vehicleId);
+      const qStr = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/inventory${qStr}`);
+      return res.data || [];
+    },
+    async adjust(vehicleId, payload) {
+      const res = await ApiClient.request(`/inventory/${encodeURIComponent(vehicleId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  // Promotions & Pricing Quotes
+  promotions: {
+    async list(activeOnly = true) {
+      const res = await ApiClient.request(`/promotions?activeOnly=${activeOnly ? 'true' : 'false'}`);
+      return res.data || [];
+    },
+    async validate(payload) {
+      const res = await ApiClient.request('/promotions/validate', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async create(payload) {
+      const res = await ApiClient.request('/promotions', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  quotes: {
+    async create(payload) {
+      const res = await ApiClient.request('/quotes', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  // Persistent Cart + Guest LocalStorage Draft Helpers
+  cart: {
+    GUEST_DRAFT_KEY: 'sigmacar_guest_cart_draft_v1',
+
+    getGuestDraft() {
+      try {
+        const raw = localStorage.getItem(this.GUEST_DRAFT_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    },
+
+    saveGuestDraft(items) {
+      try {
+        localStorage.setItem(this.GUEST_DRAFT_KEY, JSON.stringify(Array.isArray(items) ? items : []));
+      } catch (e) {}
+      return items;
+    },
+
+    clearGuestDraft() {
+      try { localStorage.removeItem(this.GUEST_DRAFT_KEY); } catch (e) {}
+    },
+
+    addGuestDraftItem(item) {
+      const draft = this.getGuestDraft();
+      const idx = draft.findIndex(d =>
+        (d.itemType || 'vehicle') === (item.itemType || 'vehicle') &&
+        d.itemId === item.itemId &&
+        (d.colorName || null) === (item.colorName || null) &&
+        (d.trimName || null) === (item.trimName || null)
+      );
+      if (idx >= 0) {
+        if ((item.itemType || 'vehicle') !== 'certified') {
+          draft[idx].quantity = Math.min(20, (draft[idx].quantity || 1) + (item.quantity || 1));
+        }
+      } else {
+        draft.push({ ...item, lineId: item.lineId || `guest_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, quantity: item.quantity || 1 });
+      }
+      this.saveGuestDraft(draft);
+      return draft;
+    },
+
+    async get() {
+      const res = await ApiClient.request('/cart');
+      return res.data;
+    },
+    async addItem(payload) {
+      const res = await ApiClient.request('/cart/items', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async addBundle(bundleQuoteId, expectedVersion = null) {
+      const payload = { bundleQuoteId };
+      if (expectedVersion !== undefined && expectedVersion !== null) payload.expectedVersion = expectedVersion;
+      const res = await ApiClient.request('/cart/bundle', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async updateItem(lineId, payload) {
+      const res = await ApiClient.request(`/cart/items/${encodeURIComponent(lineId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async updateMeta(payload) {
+      const res = await ApiClient.request('/cart', {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async removeItem(lineId, expectedVersion) {
+      const qs = expectedVersion !== undefined ? `?expectedVersion=${encodeURIComponent(expectedVersion)}` : '';
+      const res = await ApiClient.request(`/cart/items/${encodeURIComponent(lineId)}${qs}`, {
+        method: 'DELETE'
+      });
+      return res.data;
+    },
+    async applyPromo(code, expectedVersion) {
+      const res = await ApiClient.request('/cart/promo', {
+        method: 'POST',
+        body: JSON.stringify({ code, expectedVersion })
+      });
+      return res.data;
+    },
+    async mergeGuestDraftOnLogin() {
+      const draft = this.getGuestDraft();
+      if (!draft || draft.length === 0 || !ApiClient.getToken()) return null;
+      const res = await ApiClient.request('/cart/merge', {
+        method: 'POST',
+        body: JSON.stringify({ items: draft })
+      });
+      this.clearGuestDraft();
+      return res.data;
+    },
+    async clear() {
+      const res = await ApiClient.request('/cart', { method: 'DELETE' });
+      return res.data;
+    }
+  },
+
+  // Atomic Checkout & Payment Intents
+  checkout: {
+    async submit(payload, idempotencyKey) {
+      const headers = {};
+      if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+      const res = await ApiClient.request('/checkout', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...payload, idempotencyKey })
+      });
+      return res.data;
+    }
+  },
+
+  payments: {
+    async createIntent(payload, idempotencyKey) {
+      const headers = {};
+      if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+      const res = await ApiClient.request('/payments/intents', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...payload, idempotencyKey })
+      });
+      return res.data;
+    },
+    async getHistory(orderId) {
+      const res = await ApiClient.request(`/payments/intents/${encodeURIComponent(orderId)}`);
+      return res.data;
+    },
+    async simulateSandbox(payload) {
+      const res = await ApiClient.request('/payments/sandbox/simulate', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  // P2: Private Media, Policies, Order Timeline, Registration, Handover, Refunds, Contracts, Garage, Notifications & Support CSAT
+  media: {
+    async upload(payload) {
+      const res = await ApiClient.request('/media/upload', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async getSignedUrl(mediaId) {
+      const res = await ApiClient.request(`/media/${encodeURIComponent(mediaId)}/sign`);
+      return res.data;
+    },
+    async remove(mediaId) {
+      const res = await ApiClient.request(`/media/${encodeURIComponent(mediaId)}`, { method: 'DELETE' });
+      return res.data;
+    }
+  },
+
+  policies: {
+    async getActive() {
+      const res = await ApiClient.request('/policies');
+      return res.data;
+    }
+  },
+
+  registration: {
+    async estimate(payload) {
+      const res = await ApiClient.request('/registration/estimate', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async listCases() {
+      const res = await ApiClient.request('/registration/cases');
+      return res.data || [];
+    },
+    async saveCase(payload) {
+      const res = await ApiClient.request('/registration/cases', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async submitCase(caseId) {
+      const res = await ApiClient.request(`/registration/cases/${encodeURIComponent(caseId)}/submit`, {
+        method: 'POST'
+      });
+      return res.data;
+    },
+    async updateStatus(caseId, payload) {
+      const res = await ApiClient.request(`/registration/cases/${encodeURIComponent(caseId)}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  handovers: {
+    async execute(payload) {
+      const res = await ApiClient.request('/handovers', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async list() {
+      const res = await ApiClient.request('/handovers');
+      return res.data || [];
+    }
+  },
+
+  refunds: {
+    async list() {
+      const res = await ApiClient.request('/refunds');
+      return res.data || [];
+    },
+    async execute(payload, idempotencyKey = null) {
+      const headers = {};
+      if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey;
+      const res = await ApiClient.request('/refunds', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...payload, idempotencyKey })
+      });
+      return res.data;
+    }
+  },
+
+  garage: {
+    async get() {
+      const res = await ApiClient.request('/garage');
+      return res.data;
+    }
+  },
+
+  contracts: {
+    async generate(orderId, revisionNote = '') {
+      const res = await ApiClient.request('/contracts/generate', {
+        method: 'POST',
+        body: JSON.stringify({ orderId, revisionNote })
+      });
+      return res.data;
+    },
+    async list(orderId = null) {
+      const qs = orderId ? `?orderId=${encodeURIComponent(orderId)}` : '';
+      const res = await ApiClient.request(`/contracts${qs}`);
+      return res.data || [];
+    },
+    async acknowledge(contractId, payload) {
+      const res = await ApiClient.request(`/contracts/${encodeURIComponent(contractId)}/acknowledge`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async getDocument(contractId) {
+      const res = await ApiClient.request(`/contracts/${encodeURIComponent(contractId)}/document`);
+      return res.data;
+    }
+  },
+
+  notifications: {
+    async list() {
+      const res = await ApiClient.request('/notifications');
+      return res.data || [];
+    },
+    async markRead(notifId) {
+      const res = await ApiClient.request(`/notifications/${encodeURIComponent(notifId)}/read`, { method: 'PATCH' });
+      return res.data;
+    }
+  },
+
+  tco: {
+    async getAssumptions(region = 'vietnam') {
+      const res = await ApiClient.request(`/cost-estimates/assumptions?region=${encodeURIComponent(region)}`);
+      return res.data;
+    },
+    async estimate(payload) {
+      const res = await ApiClient.request('/cost-estimates/tco', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  configurations: {
+    async list() {
+      const res = await ApiClient.request('/configurations');
+      return res.data || [];
+    },
+    async getById(id) {
+      const res = await ApiClient.request(`/configurations/${encodeURIComponent(id)}`);
+      return res.data;
+    },
+    async save(payload, existingId = null) {
+      const url = existingId ? `/configurations/${encodeURIComponent(existingId)}` : '/configurations';
+      const res = await ApiClient.request(url, {
+        method: existingId ? 'PATCH' : 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async remove(id) {
+      const res = await ApiClient.request(`/configurations/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+      return res.data;
+    }
+  },
+
+  accessories: {
+    async list(filters = {}) {
+      const qs = new URLSearchParams();
+      ['vehicleId', 'category', 'kind', 'inStockOnly', 'compatibleOnly', 'q'].forEach(k => {
+        if (filters[k] !== undefined && filters[k] !== null && filters[k] !== '' && filters[k] !== 'all') {
+          qs.set(k, String(filters[k]));
+        }
+      });
+      const q = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/accessories${q}`);
+      return res.data;
+    },
+    async getBySku(sku, vehicleId = null) {
+      const qs = vehicleId ? `?vehicleId=${encodeURIComponent(vehicleId)}` : '';
+      const res = await ApiClient.request(`/accessories/${encodeURIComponent(sku)}${qs}`);
+      return res.data;
+    }
+  },
+
+  bundles: {
+    async recommend(vehicleId, usage = 'family') {
+      const qs = new URLSearchParams();
+      if (vehicleId) qs.set('vehicleId', vehicleId);
+      if (usage) qs.set('usage', usage);
+      const res = await ApiClient.request(`/bundles/recommend?${qs.toString()}`);
+      return res.data;
+    },
+    async createQuote(payload) {
+      const res = await ApiClient.request('/bundles/quote', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  workshop: {
+    async listResources(branchId = null) {
+      const qs = branchId && branchId !== 'all' ? `?branchId=${encodeURIComponent(branchId)}` : '';
+      const res = await ApiClient.request(`/workshop/resources${qs}`);
+      return res.data;
+    },
+    async getAvailability(serviceCenterId, date) {
+      const res = await ApiClient.request(`/workshop/availability?serviceCenterId=${encodeURIComponent(serviceCenterId)}&date=${encodeURIComponent(date)}`);
+      return res.data;
+    },
+    async listJobs(filters = {}) {
+      const qs = new URLSearchParams();
+      ['serviceCenterId', 'date', 'status'].forEach(k => {
+        if (filters[k] && filters[k] !== 'all') qs.set(k, String(filters[k]));
+      });
+      const q = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/workshop/jobs${q}`);
+      return res.data || [];
+    },
+    async createJob(payload) {
+      const res = await ApiClient.request('/workshop/jobs', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async reassignJob(jobId, payload) {
+      const res = await ApiClient.request(`/workshop/jobs/${encodeURIComponent(jobId)}/reassign`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async cancelJob(jobId, reason = '') {
+      const res = await ApiClient.request(`/workshop/jobs/${encodeURIComponent(jobId)}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      return res.data;
+    },
+    async completeJob(jobId, payload) {
+      const res = await ApiClient.request(`/workshop/jobs/${encodeURIComponent(jobId)}/complete`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  warrantyClaims: {
+    async list(filters = {}) {
+      const qs = filters.status && filters.status !== 'all' ? `?status=${encodeURIComponent(filters.status)}` : '';
+      const res = await ApiClient.request(`/warranty-claims${qs}`);
+      return res.data || [];
+    },
+    async submit(payload) {
+      const res = await ApiClient.request('/warranty-claims', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async review(claimId, payload) {
+      const res = await ApiClient.request(`/warranty-claims/${encodeURIComponent(claimId)}/review`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  cms: {
+    async getPublic(params = {}) {
+      const qs = new URLSearchParams();
+      if (params.contentType) qs.set('contentType', params.contentType);
+      if (params.slot) qs.set('slot', params.slot);
+      const q = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/cms/public${q}`);
+      return res.data || [];
+    },
+    async listStaff() {
+      const res = await ApiClient.request('/cms');
+      return res.data || { items: [], auditLogs: [] };
+    },
+    async saveDraft(payload) {
+      const res = await ApiClient.request('/cms', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async publish(contentId, payload = {}) {
+      const res = await ApiClient.request(`/cms/${encodeURIComponent(contentId)}/publish`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    },
+    async rollback(contentId, payload) {
+      const res = await ApiClient.request(`/cms/${encodeURIComponent(contentId)}/rollback`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      return res.data;
+    }
+  },
+
+  charging: {
+    async findStations(params = {}) {
+      const qs = new URLSearchParams();
+      ['lat', 'lng', 'province', 'connectorType', 'minPowerKw', 'q', 'forceRefresh'].forEach(k => {
+        if (params[k] !== undefined && params[k] !== null && params[k] !== '' && params[k] !== 'all') {
+          qs.set(k, String(params[k]));
+        }
+      });
+      const qStr = qs.toString() ? `?${qs.toString()}` : '';
+      const res = await ApiClient.request(`/charging/stations${qStr}`);
+      return res.data;
     }
   }
 };

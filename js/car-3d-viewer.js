@@ -887,13 +887,25 @@
                 mat.color &&
                 !mat.transparent &&
                 !matName.includes('glass') &&
+                !matName.includes('windshield') &&
                 !matName.includes('window') &&
                 !matName.includes('tire') &&
                 !matName.includes('tyre') &&
+                !matName.includes('pneus') &&
                 !matName.includes('rubber') &&
                 !matName.includes('interior') &&
+                !matName.includes('leather') &&
+                !matName.includes('seat') &&
                 !matName.includes('light') &&
+                !matName.includes('lamp') &&
                 !matName.includes('chrome') &&
+                !matName.includes('brake') &&
+                !matName.includes('disk') &&
+                !matName.includes('disc') &&
+                !matName.includes('caliper') &&
+                !matName.includes('badge') &&
+                !matName.includes('emblem') &&
+                !matName.includes('shadow') &&
                 !matName.includes('black') &&
                 !fallbackBodyCandidates.includes(mat)
               ) {
@@ -917,6 +929,24 @@
         if (this.bodyMaterials.length === 0 && fallbackBodyCandidates.length > 0) {
           this.bodyMaterials = fallbackBodyCandidates;
         }
+
+        // Capture verified sub-mesh entries for reversible Explode inspection
+        this._explodeEntries = [];
+        const modelCenter = new THREE.Vector3();
+        try {
+          const b = this.computeTightModelBox(model);
+          b.getCenter(modelCenter);
+        } catch (e) {}
+        model.traverse((child) => {
+          if (child.isMesh && child.visible && child.geometry) {
+            this._explodeEntries.push({
+              mesh: child,
+              origPos: child.position.clone()
+            });
+          }
+        });
+        this._explodeSupported = this._explodeEntries.length >= 4;
+        this._explodedRatio = 0;
 
         this.scene.add(this.carGroup);
         this.handleResize();
@@ -1944,37 +1974,144 @@
       }
     }
 
+    getCapabilities() {
+      return {
+        webglActive: !!(this.renderer && !this.isDisposed),
+        supportsExplode: !!this._explodeSupported,
+        explodedRatio: Number(this._explodedRatio || 0),
+        meshCount: Array.isArray(this._explodeEntries) ? this._explodeEntries.length : 0,
+        hasPaintMaterials: Array.isArray(this.bodyMaterials) && this.bodyMaterials.length > 0,
+        hasRimMaterials: Array.isArray(this.rimMaterials) && this.rimMaterials.length > 0,
+        webxrSupported: Boolean(typeof navigator !== 'undefined' && navigator.xr && typeof navigator.xr.isSessionSupported === 'function'),
+        vrActive: !!(this._xrSession && this._xrSessionMode === 'immersive-vr'),
+        arActive: !!(this._xrSession && this._xrSessionMode === 'immersive-ar') || !!this.isCameraActive
+      };
+    }
+
+    setExploded(ratio = 0) {
+      const r = Math.max(0, Math.min(1, Number(ratio) || 0));
+      if (!Array.isArray(this._explodeEntries) || this._explodeEntries.length === 0) {
+        return { supported: false, explodedRatio: 0, message: 'Chưa nạp xong mô hình 3D để bóc tách.' };
+      }
+      if (!this._explodeSupported && r > 0) {
+        return { supported: false, explodedRatio: 0, message: 'Mô hình 1 khối liền, không hỗ trợ bóc tách chi tiết.' };
+      }
+      this._explodedRatio = r;
+      if (r === 0) {
+        this._explodeEntries.forEach((entry) => {
+          entry.mesh.position.copy(entry.origPos);
+        });
+        return { supported: true, explodedRatio: 0 };
+      }
+
+      const carCenter = new THREE.Vector3();
+      if (this.carGroup) {
+        try {
+          new THREE.Box3().setFromObject(this.carGroup).getCenter(carCenter);
+        } catch (e) {}
+      }
+
+      const wp = new THREE.Vector3();
+      const invParent = new THREE.Matrix4();
+      this._explodeEntries.forEach((entry) => {
+        const mesh = entry.mesh;
+        mesh.position.copy(entry.origPos);
+        mesh.updateMatrixWorld(true);
+        mesh.getWorldPosition(wp);
+        const dir = wp.sub(carCenter);
+        dir.y += 0.25;
+        if (dir.lengthSq() < 0.0001) dir.set(0, 1, 0);
+        dir.normalize().multiplyScalar(0.45 * r);
+        if (mesh.parent) {
+          invParent.copy(mesh.parent.matrixWorld).invert();
+          const localCenter = new THREE.Vector3().copy(entry.origPos);
+          const worldOrig = localCenter.clone().applyMatrix4(mesh.parent.matrixWorld);
+          const targetLocal = worldOrig.add(dir).applyMatrix4(invParent);
+          mesh.position.copy(targetLocal);
+        } else {
+          mesh.position.copy(entry.origPos).add(dir);
+        }
+      });
+      return { supported: true, explodedRatio: r };
+    }
+
+    _handleXrSessionEnd() {
+      this._xrSession = null;
+      this._xrSessionMode = null;
+      if (this.renderer && this.renderer.xr && typeof this.renderer.setAnimationLoop === 'function') {
+        try {
+          this.renderer.setAnimationLoop(null);
+          this.renderer.xr.enabled = false;
+        } catch (e) {}
+      }
+      if (!this.isDisposed && !this.animId) {
+        this.animate();
+      }
+    }
+
+    async exitWebXR() {
+      if (this._xrSession) {
+        const sess = this._xrSession;
+        try {
+          if (typeof sess.end === 'function') await sess.end();
+        } catch (e) {}
+        this._handleXrSessionEnd();
+      }
+      return { active: false };
+    }
+
     async enterWebXR(opts = {}) {
       const preferAR = opts.ar !== undefined ? !!opts.ar : !!(this.options.arMode || this.options.transparent || this.isCameraActive);
       if (!preferAR) {
         this.setVRStudioMode(true);
       }
-      if (navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
+      if (typeof navigator !== 'undefined' && navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
+        const sessionMode = preferAR ? 'immersive-ar' : 'immersive-vr';
         try {
-          if (preferAR) {
-            const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-            if (arSupported && this.renderer && this.renderer.xr) {
-              const session = await navigator.xr.requestSession('immersive-ar', {
-                optionalFeatures: ['local-floor', 'hit-test', 'dom-overlay']
-              });
-              this.setTransparentMode(true);
-              await this.renderer.xr.setSession(session);
-              return { mode: 'webxr-ar', active: true };
-            }
-          }
-          const supported = await navigator.xr.isSessionSupported('immersive-vr');
+          const supported = await navigator.xr.isSessionSupported(sessionMode);
           if (supported && this.renderer && this.renderer.xr) {
-            const session = await navigator.xr.requestSession('immersive-vr', {
-              optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+            const session = await navigator.xr.requestSession(sessionMode, {
+              optionalFeatures: preferAR
+                ? ['local-floor', 'hit-test', 'dom-overlay']
+                : ['local-floor', 'bounded-floor', 'hand-tracking']
             });
+            if (preferAR) this.setTransparentMode(true);
+            this._xrSession = session;
+            this._xrSessionMode = sessionMode;
+            this.renderer.xr.enabled = true;
+            if (typeof session.addEventListener === 'function') {
+              session.addEventListener('end', () => this._handleXrSessionEnd());
+            }
+            if (this.animId) {
+              cancelAnimationFrame(this.animId);
+              this.animId = null;
+            }
             await this.renderer.xr.setSession(session);
-            return { mode: 'webxr-headset', active: true };
+            if (typeof this.renderer.setAnimationLoop === 'function') {
+              this.renderer.setAnimationLoop(() => {
+                if (!this.isDisposed && this.renderer && this.scene && this.camera) {
+                  this.renderer.render(this.scene, this.camera);
+                }
+              });
+            }
+            return {
+              mode: preferAR ? 'webxr-ar' : 'webxr-headset',
+              supported: true,
+              immersiveActive: true,
+              active: true
+            };
           }
         } catch (err) {
           console.warn('[Car3DViewer] WebXR session fallback to virtual viewer:', err.message);
         }
       }
-      return { mode: preferAR ? 'ar-world-lock' : 'virtual-studio', active: true };
+      return {
+        mode: preferAR ? 'ar-world-lock' : 'virtual-studio',
+        supported: false,
+        immersiveActive: false,
+        active: !preferAR,
+        message: 'Trình duyệt/thiết bị hiện chưa có WebXR Headset; hiển thị chế độ 3D Studio tương tác.'
+      };
     }
 
     handleResize() {
@@ -2824,6 +2961,19 @@
 
     dispose() {
       this.isDisposed = true;
+      if (this._xrSession) {
+        try {
+          if (typeof this._xrSession.end === 'function') this._xrSession.end().catch(() => {});
+        } catch (e) {}
+        this._xrSession = null;
+        this._xrSessionMode = null;
+      }
+      if (this.renderer && typeof this.renderer.setAnimationLoop === 'function') {
+        try {
+          this.renderer.setAnimationLoop(null);
+        } catch (e) {}
+      }
+      this._explodeEntries = [];
       if (this.animId) {
         cancelAnimationFrame(this.animId);
         this.animId = null;

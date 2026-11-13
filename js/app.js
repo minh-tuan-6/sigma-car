@@ -6,19 +6,27 @@
 const AppState = {
   currentRoute: 'home',
   currentDetailCar: 'toyota-camry',
-  compareCars: ['toyota-camry', 'vinfast-vf8', 'mercedes-glc300'],
+  compareCars: ['toyota-camry', 'vinfast-vf9', 'tesla-cybertruck'],
   activeFuelFilter: 'all', // Default 'all' so all 32 vehicles (including CAR-001..CAR-010 from Data-xe.xlsx & VinFast EVs) appear immediately
   activeBrandFilter: 'all',
   activeBodyCategory: 'all',
   activePriceRange: 'all',
   activeMinPrice: '', // in million VNĐ
   activeMaxPrice: '', // in million VNĐ
+  activeMinRange: '',
+  activeMinBatteryKwh: '',
+  activeMaxMonthlyPayment: '', // in million VNĐ/tháng
+  activeUsageFilter: 'all',
+  activeInStockOnly: false,
+  activeCatalogPage: 1,
+  activeCatalogSearch: '',
   activeSort: 'default',
   activeCertifiedCategory: 'all',
   activeCertifiedPrice: 'all',
   activeCertifiedSort: 'default',
   activeProfileTab: 'profile-personal',
   activeSellerTab: 'dash-overview',
+  activeCheckoutParams: {},
   preselectedTestDriveCar: '',
   pendingAuthAction: null,
   savedCarIds: new Set(),
@@ -125,6 +133,26 @@ const AppState = {
     }
   }
 
+  function parseCarBatteryKwh(car) {
+    if (!car) return 0;
+    if (typeof car.batteryKwh === 'number' && Number.isFinite(car.batteryKwh)) return car.batteryKwh;
+    const raw = `${car.evSpecs?.batteryCapacity || ''} ${car.battery || ''}`;
+    const m = raw.match(/(\d+(?:[.,]\d+)?)\s*kwh/i);
+    if (!m) return 0;
+    const val = parseFloat(m[1].replace(',', '.'));
+    return Number.isFinite(val) ? val : 0;
+  }
+
+  function estimateCarMonthlyPaymentVnd(car) {
+    const price = getVehicleNumericPrice(car);
+    if (!price || price <= 0) return 0;
+    const principal = price * 0.7; // 30% down matching VehicleRepository/FinancingService default
+    const monthlyRate = 0.079 / 12;
+    const n = 60;
+    const factor = Math.pow(1 + monthlyRate, n);
+    return Math.round(principal * ((monthlyRate * factor) / (factor - 1)));
+  }
+
   function filterAndSortVehicles(list, {
     category = 'all',
     fuel = 'all',
@@ -132,10 +160,19 @@ const AppState = {
     priceRange = 'all',
     minPrice = '',
     maxPrice = '',
+    minRange = '',
+    minBatteryKwh = '',
+    maxMonthlyPayment = '',
+    usage = 'all',
+    inStock = false,
     sort = 'default',
     search = ''
   } = {}) {
     if (!Array.isArray(list)) return [];
+
+    const parsedMinRange = (minRange !== '' && minRange !== null && !isNaN(minRange)) ? parseFloat(minRange) : null;
+    const parsedMinBattery = (minBatteryKwh !== '' && minBatteryKwh !== null && !isNaN(minBatteryKwh)) ? parseFloat(minBatteryKwh) : null;
+    const parsedMaxMonthlyVnd = (maxMonthlyPayment !== '' && maxMonthlyPayment !== null && !isNaN(maxMonthlyPayment)) ? parseFloat(maxMonthlyPayment) * 1000000 : null;
 
     let result = list.filter(car => {
       if (!car) return false;
@@ -188,6 +225,29 @@ const AppState = {
         return false;
       }
 
+      // 3b. PHẠM VI HOẠT ĐỘNG, PIN, TRẢ GÓP, MỤC ĐÍCH & TỒN KHO
+      if (parsedMinRange !== null) {
+        const carRange = typeof car.range === 'number' ? car.range : parseFloat(String(car.range || '0').replace(/[^\d.]/g, ''));
+        if (!Number.isFinite(carRange) || carRange < parsedMinRange) return false;
+      }
+      if (parsedMinBattery !== null) {
+        if (parseCarBatteryKwh(car) < parsedMinBattery) return false;
+      }
+      if (parsedMaxMonthlyVnd !== null) {
+        if (estimateCarMonthlyPaymentVnd(car) > parsedMaxMonthlyVnd) return false;
+      }
+      if (usage && usage !== 'all') {
+        const hay = `${car.category || ''} ${car.subCategory || ''} ${car.subtitle || ''} ${car.description || ''} ${(car.features || []).join(' ')}`.toLowerCase();
+        if (usage === 'family' && !(hay.includes('suv') || hay.includes('mpv') || (car.seats || 5) >= 5)) return false;
+        if (usage === 'city' && !(hay.includes('compact') || hay.includes('sedan') || hay.includes('đô thị'))) return false;
+        if (usage === 'sport' && !((car.hp || 0) >= 350 || hay.includes('sport') || hay.includes('thể thao') || hay.includes('type r'))) return false;
+        if (usage === 'business' && !(numPrice >= 1500000000 || hay.includes('lux') || hay.includes('vip'))) return false;
+      }
+      if (inStock) {
+        const avail = car.stock !== undefined ? car.stock : (car.excelStock !== undefined ? car.excelStock : 5);
+        if (avail <= 0) return false;
+      }
+
       // 4. TỪ KHÓA (Search)
       if (search && search.trim()) {
         const q = search.toLowerCase().trim();
@@ -211,6 +271,8 @@ const AppState = {
       result.sort((a, b) => getVehicleNumericPrice(a) - getVehicleNumericPrice(b));
     } else if (sort === 'price-desc') {
       result.sort((a, b) => getVehicleNumericPrice(b) - getVehicleNumericPrice(a));
+    } else if (sort === 'hp-desc') {
+      result.sort((a, b) => (b.hp || 0) - (a.hp || 0));
     } else if (sort === 'name-asc') {
       result.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'vi', { sensitivity: 'base' }));
     } else if (sort === 'name-desc') {
@@ -249,10 +311,18 @@ const AppState = {
       parts.push('Mức giá: Tất cả');
     }
 
+    if (state.activeMinRange) parts.push(`Quãng đường >= ${state.activeMinRange} km`);
+    if (state.activeMinBatteryKwh) parts.push(`Pin >= ${state.activeMinBatteryKwh} kWh`);
+    if (state.activeMaxMonthlyPayment) parts.push(`Trả góp <= ${state.activeMaxMonthlyPayment} tr/tháng`);
+    if (state.activeUsageFilter && state.activeUsageFilter !== 'all') parts.push(`Mục đích: ${state.activeUsageFilter}`);
+    if (state.activeInStockOnly) parts.push('Chỉ xe còn hàng');
+    if (state.activeCatalogSearch) parts.push(`Từ khóa: "${state.activeCatalogSearch}"`);
+
     if (state.activeSort !== 'default') {
       const sortLabels = {
         'price-asc': 'Giá tăng dần',
         'price-desc': 'Giá giảm dần',
+        'hp-desc': 'Công suất cao nhất',
         'name-asc': 'Tên A-Z',
         'name-desc': 'Tên Z-A'
       };
@@ -493,6 +563,34 @@ const AppState = {
   // =================================================================
   // ROUTER
   // =================================================================
+  function buildNewCarsQueryString() {
+    const q = new URLSearchParams();
+    if (AppState.activeBodyCategory && AppState.activeBodyCategory !== 'all') q.set('cat', AppState.activeBodyCategory);
+    if (AppState.activeBrandFilter && AppState.activeBrandFilter !== 'all') q.set('brand', AppState.activeBrandFilter);
+    if (AppState.activeFuelFilter && AppState.activeFuelFilter !== 'all') q.set('fuel', AppState.activeFuelFilter);
+    if (AppState.activePriceRange && AppState.activePriceRange !== 'all') q.set('priceRange', AppState.activePriceRange);
+    if (AppState.activeMinPrice) q.set('minPrice', AppState.activeMinPrice);
+    if (AppState.activeMaxPrice) q.set('maxPrice', AppState.activeMaxPrice);
+    if (AppState.activeMinRange) q.set('minRange', AppState.activeMinRange);
+    if (AppState.activeMinBatteryKwh) q.set('minBatteryKwh', AppState.activeMinBatteryKwh);
+    if (AppState.activeMaxMonthlyPayment) q.set('maxMonthlyPayment', AppState.activeMaxMonthlyPayment);
+    if (AppState.activeUsageFilter && AppState.activeUsageFilter !== 'all') q.set('usage', AppState.activeUsageFilter);
+    if (AppState.activeInStockOnly) q.set('inStock', '1');
+    if (AppState.activeCatalogSearch) q.set('q', AppState.activeCatalogSearch);
+    if (AppState.activeSort && AppState.activeSort !== 'default') q.set('sort', AppState.activeSort);
+    if (AppState.activeCatalogPage && AppState.activeCatalogPage > 1) q.set('page', String(AppState.activeCatalogPage));
+    return q.toString();
+  }
+
+  function syncNewCarsHashInUrl() {
+    if (AppState.currentRoute !== 'new-cars') return;
+    const qs = buildNewCarsQueryString();
+    const targetHash = qs ? `new-cars?${qs}` : 'new-cars';
+    if (window.location.hash.replace(/^#\/?/, '') !== targetHash) {
+      history.replaceState(null, '', `#${targetHash}`);
+    }
+  }
+
   function parseHashRoute(rawHash) {
     const clean = (rawHash || '').replace(/^#\/?/, '') || 'home';
     const [route, queryStr] = clean.split('?');
@@ -504,6 +602,42 @@ const AppState = {
         if (route === 'profile') params.profileTab = q.get('tab');
       }
       if (q.has('carId')) params.carId = q.get('carId');
+      if (q.has('colorIdx')) {
+        const cIdx = parseInt(q.get('colorIdx'), 10);
+        if (!Number.isNaN(cIdx) && cIdx >= 0) params.colorIdx = cIdx;
+      }
+      if (q.has('ids')) {
+        params.compareCars = q.get('ids').split(',').map(s => s.trim()).filter(Boolean);
+      }
+      if (route === 'checkout') {
+        params.checkoutParams = {
+          source: q.get('source') || undefined,
+          vehicleId: q.get('vehicleId') || undefined,
+          orderId: q.get('orderId') || undefined,
+          branchId: q.get('branchId') || undefined,
+          deliveryMethod: q.get('deliveryMethod') || undefined,
+          promoCode: q.get('promoCode') || undefined,
+          itemType: q.get('itemType') || undefined,
+          colorName: q.get('colorName') || undefined,
+          trimName: q.get('trimName') || undefined
+        };
+      }
+      if (route === 'new-cars') {
+        if (q.has('cat')) AppState.activeBodyCategory = q.get('cat') || 'all';
+        if (q.has('brand')) AppState.activeBrandFilter = q.get('brand') || 'all';
+        if (q.has('fuel')) AppState.activeFuelFilter = q.get('fuel') || 'all';
+        if (q.has('priceRange')) AppState.activePriceRange = q.get('priceRange') || 'all';
+        if (q.has('minPrice')) AppState.activeMinPrice = q.get('minPrice') || '';
+        if (q.has('maxPrice')) AppState.activeMaxPrice = q.get('maxPrice') || '';
+        if (q.has('minRange')) AppState.activeMinRange = q.get('minRange') || '';
+        if (q.has('minBatteryKwh')) AppState.activeMinBatteryKwh = q.get('minBatteryKwh') || '';
+        if (q.has('maxMonthlyPayment')) AppState.activeMaxMonthlyPayment = q.get('maxMonthlyPayment') || '';
+        if (q.has('usage')) AppState.activeUsageFilter = q.get('usage') || 'all';
+        if (q.has('inStock')) AppState.activeInStockOnly = q.get('inStock') === '1' || q.get('inStock') === 'true';
+        if (q.has('q')) AppState.activeCatalogSearch = q.get('q') || '';
+        if (q.has('sort')) AppState.activeSort = q.get('sort') || 'default';
+        if (q.has('page')) AppState.activeCatalogPage = Math.max(1, parseInt(q.get('page'), 10) || 1);
+      }
     }
     return { route: route || 'home', params };
   }
@@ -514,9 +648,32 @@ const AppState = {
     const mergedParams = { ...parsed.params, ...params };
 
     if (mergedParams.carId) AppState.currentDetailCar = mergedParams.carId;
+    if (mergedParams.colorIdx !== undefined && mergedParams.carId) {
+      const targetCar = getVehicleById(mergedParams.carId);
+      const col = targetCar?.colors?.[mergedParams.colorIdx];
+      setVehicleConfig(mergedParams.carId, {
+        colorIdx: mergedParams.colorIdx,
+        colorHex: col?.hex,
+        colorName: col?.name
+      });
+    }
     if (mergedParams.compareCars) AppState.compareCars = mergedParams.compareCars;
     if (mergedParams.profileTab) AppState.activeProfileTab = mergedParams.profileTab;
     if (mergedParams.sellerTab) AppState.activeSellerTab = mergedParams.sellerTab;
+    if (route === 'checkout') {
+      AppState.activeCheckoutParams = {
+        ...(mergedParams.checkoutParams || {}),
+        ...(params.source !== undefined ? { source: params.source } : {}),
+        ...(params.vehicleId !== undefined ? { vehicleId: params.vehicleId } : {}),
+        ...(params.orderId !== undefined ? { orderId: params.orderId } : {}),
+        ...(params.branchId !== undefined ? { branchId: params.branchId } : {}),
+        ...(params.deliveryMethod !== undefined ? { deliveryMethod: params.deliveryMethod } : {}),
+        ...(params.promoCode !== undefined ? { promoCode: params.promoCode } : {}),
+        ...(params.itemType !== undefined ? { itemType: params.itemType } : {}),
+        ...(params.colorName !== undefined ? { colorName: params.colorName } : {}),
+        ...(params.trimName !== undefined ? { trimName: params.trimName } : {})
+      };
+    }
 
     AppState.currentRoute = route;
 
@@ -525,8 +682,19 @@ const AppState = {
       targetHash += `?tab=${AppState.activeSellerTab}`;
     } else if (route === 'profile' && AppState.activeProfileTab) {
       targetHash += `?tab=${AppState.activeProfileTab}`;
-    } else if ((route === 'detail' || route === 'vehicle-detail' || route === 'vr-ar' || route === 'ar-live' || route === 'ar-home') && AppState.currentDetailCar) {
+    } else if ((route === 'detail' || route === 'vehicle-detail' || route === 'vr-ar' || route === 'ar-live' || route === 'ar-home' || route === 'tco') && AppState.currentDetailCar) {
       targetHash += `?carId=${AppState.currentDetailCar}`;
+    } else if (route === 'new-cars') {
+      const qs = buildNewCarsQueryString();
+      if (qs) targetHash += `?${qs}`;
+    } else if (route === 'checkout') {
+      const cq = new URLSearchParams();
+      const cp = AppState.activeCheckoutParams || {};
+      ['orderId', 'source', 'vehicleId', 'branchId', 'deliveryMethod', 'promoCode', 'itemType', 'colorName', 'trimName'].forEach(k => {
+        if (cp[k]) cq.set(k, cp[k]);
+      });
+      const qs = cq.toString();
+      if (qs) targetHash += `?${qs}`;
     }
 
     if (window.location.hash.replace(/^#\/?/, '') !== targetHash) {
@@ -553,7 +721,13 @@ const AppState = {
   window.addEventListener('hashchange', () => {
     const hash = window.location.hash || 'home';
     const parsed = parseHashRoute(hash);
-    if (parsed.route !== AppState.currentRoute || (parsed.params.sellerTab && parsed.params.sellerTab !== AppState.activeSellerTab) || (parsed.params.profileTab && parsed.params.profileTab !== AppState.activeProfileTab)) {
+    if (
+      parsed.route !== AppState.currentRoute ||
+      parsed.route === 'checkout' ||
+      (parsed.params.carId && parsed.params.carId !== AppState.currentDetailCar) ||
+      (parsed.params.sellerTab && parsed.params.sellerTab !== AppState.activeSellerTab) ||
+      (parsed.params.profileTab && parsed.params.profileTab !== AppState.activeProfileTab)
+    ) {
       navigateTo(hash);
     }
   });
@@ -585,13 +759,15 @@ const AppState = {
       }
       AppState.compareCars.push(carId);
     }
-    const car = AppState.vehiclesList.find(c => c.id === carId);
+    const car = getVehicleById(carId);
     showToast(`Đã thêm ${car ? car.name : carId} vào bảng so sánh! ⚖️`, '⚖️');
     navigateTo('compare');
   };
 
   window.bookCarTestDrive = function(carIdOrName) {
-    const car = AppState.vehiclesList.find(c => c.id === carIdOrName || c.name === carIdOrName);
+    const car = getVehicleById(carIdOrName) ||
+      (AppState.vehiclesList || []).find(c => c.name === carIdOrName) ||
+      (AppState.certifiedList || []).find(c => c.name === carIdOrName);
     AppState.preselectedTestDriveCar = car ? car.name : (carIdOrName || '');
     requireAuth('đăng ký lái thử', () => navigateTo('test-drive'));
   };
@@ -616,6 +792,9 @@ const AppState = {
   function renderCurrentRoute() {
     if (AppState.currentRoute !== 'vr-ar' && window._activeCar3DViewer) {
       try {
+        if (typeof window._activeCar3DViewer.exitWebXR === 'function') {
+          window._activeCar3DViewer.exitWebXR().catch(() => {});
+        }
         window._activeCar3DViewer.dispose();
       } catch (e) {}
       window._activeCar3DViewer = null;
@@ -642,7 +821,27 @@ const AppState = {
         renderCertifiedCars();
         break;
       case 'accessories':
-        renderAccessories();
+        if (window.SigmaP3Views && typeof window.SigmaP3Views.renderAccessoriesPage === 'function') {
+          window.SigmaP3Views.renderAccessoriesPage(viewsContainer, {
+            AppState,
+            vehiclesList: AppState.vehiclesList || [],
+            showToast,
+            navigateTo,
+            requireAuth
+          });
+        } else {
+          renderAccessories();
+        }
+        break;
+      case 'cart':
+        if (window.SigmaCartView && typeof window.SigmaCartView.renderCartView === 'function') {
+          window.SigmaCartView.renderCartView(viewsContainer, { navigateTo, requireAuth, showToast });
+        }
+        break;
+      case 'checkout':
+        if (window.SigmaCheckoutView && typeof window.SigmaCheckoutView.renderCheckoutView === 'function') {
+          window.SigmaCheckoutView.renderCheckoutView(viewsContainer, AppState.activeCheckoutParams || {}, { navigateTo, requireAuth, showToast });
+        }
         break;
       case 'vr-ar':
         renderVrArShowroomPage();
@@ -657,7 +856,33 @@ const AppState = {
         renderVehicleDetail(AppState.currentDetailCar);
         break;
       case 'compare':
-        renderCompare();
+        if (window.SigmaP3Views && typeof window.SigmaP3Views.renderComparePage === 'function') {
+          window.SigmaP3Views.renderComparePage(viewsContainer, {
+            AppState,
+            openCarDetail: window.openCarDetail,
+            bookCarTestDrive: window.bookCarTestDrive,
+            navigateTo,
+            showToast
+          });
+        } else {
+          renderCompare();
+        }
+        break;
+      case 'tco':
+        if (window.SigmaTcoView && typeof window.SigmaTcoView.renderTcoPage === 'function') {
+          window.SigmaTcoView.renderTcoPage(viewsContainer, {
+            vehiclesList: AppState.vehiclesList || [],
+            certifiedList: AppState.certifiedList || [],
+            initialCarId: AppState.currentDetailCar,
+            navigateTo,
+            showToast
+          });
+        }
+        break;
+      case 'charging':
+        if (window.SigmaChargingView && typeof window.SigmaChargingView.renderChargingPage === 'function') {
+          window.SigmaChargingView.renderChargingPage(viewsContainer);
+        }
         break;
       case 'ai-advisor':
         renderAIAdvisor();
@@ -672,10 +897,32 @@ const AppState = {
         renderSellerDashboard(AppState.activeSellerTab);
         break;
       case 'profile':
-        renderProfile(AppState.activeProfileTab);
+        {
+          const hashQsIdx = window.location.hash.indexOf('?');
+          if (hashQsIdx !== -1) {
+            const hp = new URLSearchParams(window.location.hash.slice(hashQsIdx + 1));
+            const unsubTok = hp.get('unsubscribeToken');
+            if (unsubTok && window.ApiClient?.campaigns?.unsubscribe) {
+              window.ApiClient.campaigns.unsubscribe({ token: unsubTok })
+                .then((r) => showToast(r?.message || 'Đã hủy đăng ký nhận email tiếp thị thành công!', '🛡️'))
+                .catch((err) => showToast(err?.message || 'Liên kết hủy đăng ký không hợp lệ hoặc đã hết hạn.', '⚠️'));
+            }
+          }
+          renderProfile(AppState.activeProfileTab);
+        }
         break;
       default:
-        renderHome();
+        viewsContainer.innerHTML = `
+          <section class="container" style="padding: 80px 20px; text-align: center; max-width: 620px; margin: 0 auto;">
+            <div style="font-size: 52px; margin-bottom: 14px;">🧭</div>
+            <h2 style="font-size: 26px; font-weight: 800; color: var(--text-dark); margin-bottom: 8px;">Không tìm thấy trang "#${escapeHtml(AppState.currentRoute)}"</h2>
+            <p style="color: var(--text-muted); margin-bottom: 24px;">Đường dẫn bạn truy cập không tồn tại hoặc đã được thay đổi trong hệ thống SIGMACAR.</p>
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+              <button class="btn-primary" onclick="window.location.hash='home'">Về trang chủ</button>
+              <button class="btn-secondary" onclick="window.location.hash='new-cars'">Xem danh mục xe</button>
+            </div>
+          </section>
+        `;
     }
   }
 
@@ -840,6 +1087,8 @@ const AppState = {
         </div>
       </section>
 
+      <div id="home-cms-strip-mount"></div>
+
       <!-- CERTIFIED PRE-OWNED: XE QUA SỬ DỤNG CHÍNH HÃNG -->
       <section class="section" style="background:#FFFFFF; border-top:1px solid var(--border-subtle); border-bottom:1px solid var(--border-subtle);">
         <div class="container">
@@ -951,13 +1200,13 @@ const AppState = {
                 <div class="ai-msg-bubble bot-bubble">
                   Dựa trên yêu cầu của bạn, tôi đề xuất 2 mẫu xe:
                   <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px;">
-                    <div style="background:#FFFFFF; color:var(--text-dark); padding:10px; border-radius:8px; cursor:pointer;" onclick="window.openCarDetail('grand-7')">
-                      <div style="font-weight:700; font-size:13px;">SIGMA Grand 7</div>
-                      <div style="font-size:11px; color:var(--text-muted);">7 Chỗ SUV • 1.790 tỷ</div>
+                    <div style="background:#FFFFFF; color:var(--text-dark); padding:10px; border-radius:8px; cursor:pointer;" onclick="window.openCarDetail('vinfast-vf9')">
+                      <div style="font-weight:700; font-size:13px;">VinFast VF 9</div>
+                      <div style="font-size:11px; color:var(--text-muted);">SUV Điện 7 Chỗ • 1.491 tỷ</div>
                     </div>
-                    <div style="background:#FFFFFF; color:var(--text-dark); padding:10px; border-radius:8px; cursor:pointer;" onclick="window.openCarDetail('model-e')">
-                      <div style="font-weight:700; font-size:13px;">SIGMA Model E</div>
-                      <div style="font-size:11px; color:var(--text-muted);">Xe mới • Từ 1.290 tỷ</div>
+                    <div style="background:#FFFFFF; color:var(--text-dark); padding:10px; border-radius:8px; cursor:pointer;" onclick="window.openCarDetail('toyota-camry')">
+                      <div style="font-weight:700; font-size:13px;">Toyota Camry 2.5Q</div>
+                      <div style="font-size:11px; color:var(--text-muted);">Sedan D • Từ 1.405 tỷ</div>
                     </div>
                   </div>
                   <div style="margin-top:10px; font-size:13px;">Bạn muốn tìm hiểu kỹ hơn về mẫu xe nào?</div>
@@ -1210,6 +1459,7 @@ const AppState = {
     });
 
     bindCardEvents();
+    window.SigmaContentAdmin?.renderHomeCmsStrip(document.getElementById('home-cms-strip-mount'));
   }
 
   // =================================================================
@@ -1218,6 +1468,7 @@ const AppState = {
   // VIEW 2: DÒNG XE MỚI
   // =================================================================
   function renderNewCars() {
+    syncNewCarsHashInUrl();
     const filtered = filterAndSortVehicles(AppState.vehiclesList, {
       category: AppState.activeBodyCategory,
       brand: AppState.activeBrandFilter,
@@ -1225,10 +1476,37 @@ const AppState = {
       priceRange: AppState.activePriceRange,
       minPrice: AppState.activeMinPrice,
       maxPrice: AppState.activeMaxPrice,
-      sort: AppState.activeSort
+      minRange: AppState.activeMinRange,
+      minBatteryKwh: AppState.activeMinBatteryKwh,
+      maxMonthlyPayment: AppState.activeMaxMonthlyPayment,
+      usage: AppState.activeUsageFilter,
+      inStock: AppState.activeInStockOnly,
+      sort: AppState.activeSort,
+      search: AppState.activeCatalogSearch
     });
 
-    const isFiltered = (AppState.activeBodyCategory !== 'all' || AppState.activeBrandFilter !== 'all' || AppState.activeFuelFilter !== 'all' || AppState.activePriceRange !== 'all' || AppState.activeSort !== 'default' || AppState.activeMinPrice || AppState.activeMaxPrice);
+    const pageSize = 12;
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    if (AppState.activeCatalogPage > totalPages) AppState.activeCatalogPage = totalPages;
+    if (AppState.activeCatalogPage < 1) AppState.activeCatalogPage = 1;
+    const currentPage = AppState.activeCatalogPage;
+    const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    const isFiltered = (
+      AppState.activeBodyCategory !== 'all' ||
+      AppState.activeBrandFilter !== 'all' ||
+      AppState.activeFuelFilter !== 'all' ||
+      AppState.activePriceRange !== 'all' ||
+      AppState.activeSort !== 'default' ||
+      AppState.activeMinPrice ||
+      AppState.activeMaxPrice ||
+      AppState.activeMinRange ||
+      AppState.activeMinBatteryKwh ||
+      AppState.activeMaxMonthlyPayment ||
+      AppState.activeUsageFilter !== 'all' ||
+      AppState.activeInStockOnly ||
+      AppState.activeCatalogSearch
+    );
 
     viewsContainer.innerHTML = `
       <section class="section" style="padding-top:40px;">
@@ -1255,7 +1533,7 @@ const AppState = {
                 <span style="color:var(--accent-cyan);">KIẾN TẠO TƯƠNG LAI XANH</span>
               </h1>
               <p style="color:#CBD5E1; max-width:500px; font-size:15px; line-height:1.6; margin:0 0 22px;">
-                Khám phá đầy đủ 32 dòng xe chính hãng: 10 dòng xe từ Data-xe.xlsx (CAR-001 đến CAR-010: Toyota, Honda, Ford, Hyundai, Mazda, VinFast, Mercedes-Benz, BMW, Kia, Mitsubishi), 15 mẫu xe điện VinFast và 7 mẫu SIGMACAR.
+                Khám phá <strong>${AppState.vehiclesList.length} dòng xe chính hãng</strong> tại hệ thống showroom SIGMACAR — lọc theo tầm hoạt động, dung lượng pin, mức trả góp hàng tháng và tồn kho thời gian thực.
               </p>
               <div style="display:flex; gap:12px; flex-wrap:wrap;">
                 <button class="btn-primary" id="btn-nc-hero-explore" style="padding:10px 24px; font-size:14px;">
@@ -1270,6 +1548,13 @@ const AppState = {
 
           <!-- Integrated Filter Card on New Cars -->
           <div class="search-filter-card" style="margin-top:0; margin-bottom:32px; box-shadow:var(--shadow-md);">
+            <div style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <input type="search" class="filter-input" id="nc-filter-search-text" placeholder="🔍 Tìm theo tên xe, mã xe, thương hiệu hoặc thông số..." value="${escapeHtml(AppState.activeCatalogSearch || '')}" style="flex:1; min-width:220px;">
+              <label style="display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:var(--text-dark); cursor:pointer; background:#F8FAFC; border:1px solid var(--border-subtle); padding:8px 12px; border-radius:var(--radius-sm);">
+                <input type="checkbox" id="nc-filter-instock" ${AppState.activeInStockOnly ? 'checked' : ''}>
+                Chỉ xe còn sẵn kho
+              </label>
+            </div>
             <div class="filter-grid">
               <div class="filter-item">
                 <label class="filter-label" for="nc-filter-category">Dòng xe</label>
@@ -1315,6 +1600,7 @@ const AppState = {
                   <option value="default" ${AppState.activeSort === 'default' ? 'selected' : ''}>Mặc định / Liên quan</option>
                   <option value="price-asc" ${AppState.activeSort === 'price-asc' ? 'selected' : ''}>Giá thấp đến cao</option>
                   <option value="price-desc" ${AppState.activeSort === 'price-desc' ? 'selected' : ''}>Giá cao đến thấp</option>
+                  <option value="hp-desc" ${AppState.activeSort === 'hp-desc' ? 'selected' : ''}>Công suất cao nhất</option>
                   <option value="name-asc" ${AppState.activeSort === 'name-asc' ? 'selected' : ''}>Tên xe A–Z</option>
                   <option value="name-desc" ${AppState.activeSort === 'name-desc' ? 'selected' : ''}>Tên xe Z–A</option>
                 </select>
@@ -1332,6 +1618,32 @@ const AppState = {
               </div>
             </div>
 
+            <!-- Advanced EV, Monthly Installment & Usage Filters -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(175px, 1fr)); gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border-subtle);">
+              <div>
+                <label class="filter-label" for="nc-filter-min-range">Tầm hoạt động tối thiểu (km)</label>
+                <input type="number" class="filter-input" id="nc-filter-min-range" min="0" placeholder="VD: 400" value="${escapeHtml(AppState.activeMinRange || '')}">
+              </div>
+              <div>
+                <label class="filter-label" for="nc-filter-min-battery">Pin tối thiểu (kWh)</label>
+                <input type="number" class="filter-input" id="nc-filter-min-battery" min="0" placeholder="VD: 60" value="${escapeHtml(AppState.activeMinBatteryKwh || '')}">
+              </div>
+              <div>
+                <label class="filter-label" for="nc-filter-max-monthly">Trả góp tối đa (triệu/tháng)</label>
+                <input type="number" class="filter-input" id="nc-filter-max-monthly" min="0" placeholder="VD: 25" value="${escapeHtml(AppState.activeMaxMonthlyPayment || '')}">
+              </div>
+              <div>
+                <label class="filter-label" for="nc-filter-usage">Nhu cầu sử dụng</label>
+                <select class="filter-select" id="nc-filter-usage">
+                  <option value="all" ${AppState.activeUsageFilter === 'all' ? 'selected' : ''}>Tất cả nhu cầu</option>
+                  <option value="family" ${AppState.activeUsageFilter === 'family' ? 'selected' : ''}>Gia đình (SUV / MPV)</option>
+                  <option value="city" ${AppState.activeUsageFilter === 'city' ? 'selected' : ''}>Đô thị (Compact / Sedan)</option>
+                  <option value="sport" ${AppState.activeUsageFilter === 'sport' ? 'selected' : ''}>Hiệu suất cao (&gt;= 350 HP)</option>
+                  <option value="business" ${AppState.activeUsageFilter === 'business' ? 'selected' : ''}>Doanh nhân / VIP</option>
+                </select>
+              </div>
+            </div>
+
             <!-- Brand Filter Bar on New Cars -->
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:16px; padding-top:14px; border-top:1px solid var(--border-subtle);">
               <span style="font-size:12px; font-weight:800; color:var(--text-muted); margin-right:4px;">HÃNG XE:</span>
@@ -1344,7 +1656,7 @@ const AppState = {
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; flex-wrap:wrap; gap:16px;">
             <div>
               <h3 style="font-size:24px; font-weight:800; color:var(--text-dark);">Danh sách xe (${filtered.length} mẫu)</h3>
-              <p style="font-size:14px; color:var(--text-muted);">${getActiveFiltersDescription()}</p>
+              <p style="font-size:14px; color:var(--text-muted);">${getActiveFiltersDescription()} • Trang ${currentPage}/${totalPages}</p>
             </div>
 
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -1358,8 +1670,8 @@ const AppState = {
           </div>
 
           <div class="car-grid">
-            ${filtered.length > 0 
-              ? filtered.map(car => createNewCarListingCardHTML(car)).join('') 
+            ${paginated.length > 0 
+              ? paginated.map(car => createNewCarListingCardHTML(car)).join('') 
               : `
                 <div style="grid-column:1/-1; text-align:center; padding:60px 24px; background:#F8FAFC; border-radius:16px; border:1px dashed #CBD5E1;">
                   <div style="font-size:52px; margin-bottom:14px;">🔍</div>
@@ -1369,6 +1681,16 @@ const AppState = {
                 </div>
               `}
           </div>
+
+          ${totalPages > 1 ? `
+          <div style="display:flex; justify-content:center; align-items:center; gap:8px; margin-top:32px; flex-wrap:wrap;">
+            <button type="button" class="chip-btn btn-nc-page" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled style="opacity:0.45;"' : ''}>← Trước</button>
+            ${Array.from({ length: totalPages }, (_, idx) => idx + 1).map(p => `
+              <button type="button" class="chip-btn btn-nc-page ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>
+            `).join('')}
+            <button type="button" class="chip-btn btn-nc-page" data-page="${currentPage + 1}" ${currentPage >= totalPages ? 'disabled style="opacity:0.45;"' : ''}>Sau →</button>
+          </div>
+          ` : ''}
 
           <!-- Promotional Showcase Banner from Figma Dòng xe mới.pdf -->
           <div style="margin-top:48px; border-radius:var(--radius-xl); overflow:hidden; box-shadow:var(--shadow-md);">
@@ -1486,7 +1808,62 @@ const AppState = {
       const sortEl = document.getElementById('nc-filter-sort');
       if (catEl) AppState.activeBodyCategory = catEl.value;
       if (sortEl) AppState.activeSort = sortEl.value;
+      AppState.activeCatalogSearch = document.getElementById('nc-filter-search-text')?.value.trim() || '';
+      AppState.activeMinRange = document.getElementById('nc-filter-min-range')?.value.trim() || '';
+      AppState.activeMinBatteryKwh = document.getElementById('nc-filter-min-battery')?.value.trim() || '';
+      AppState.activeMaxMonthlyPayment = document.getElementById('nc-filter-max-monthly')?.value.trim() || '';
+      AppState.activeUsageFilter = document.getElementById('nc-filter-usage')?.value || 'all';
+      AppState.activeInStockOnly = Boolean(document.getElementById('nc-filter-instock')?.checked);
+      AppState.activeCatalogPage = 1;
       renderNewCars();
+    });
+
+    // Debounced live text/advanced filter inputs
+    let ncDebounceTimer = null;
+    const triggerNcFilterRefresh = () => {
+      clearTimeout(ncDebounceTimer);
+      ncDebounceTimer = setTimeout(() => {
+        AppState.activeCatalogPage = 1;
+        renderNewCars();
+      }, 240);
+    };
+    document.getElementById('nc-filter-search-text')?.addEventListener('input', (e) => {
+      AppState.activeCatalogSearch = e.target.value.trim();
+      triggerNcFilterRefresh();
+    });
+    document.getElementById('nc-filter-min-range')?.addEventListener('input', (e) => {
+      AppState.activeMinRange = e.target.value.trim();
+      triggerNcFilterRefresh();
+    });
+    document.getElementById('nc-filter-min-battery')?.addEventListener('input', (e) => {
+      AppState.activeMinBatteryKwh = e.target.value.trim();
+      triggerNcFilterRefresh();
+    });
+    document.getElementById('nc-filter-max-monthly')?.addEventListener('input', (e) => {
+      AppState.activeMaxMonthlyPayment = e.target.value.trim();
+      triggerNcFilterRefresh();
+    });
+    document.getElementById('nc-filter-usage')?.addEventListener('change', (e) => {
+      AppState.activeUsageFilter = e.target.value;
+      AppState.activeCatalogPage = 1;
+      renderNewCars();
+    });
+    document.getElementById('nc-filter-instock')?.addEventListener('change', (e) => {
+      AppState.activeInStockOnly = Boolean(e.target.checked);
+      AppState.activeCatalogPage = 1;
+      renderNewCars();
+    });
+
+    // Pagination buttons
+    document.querySelectorAll('.btn-nc-page').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = parseInt(btn.getAttribute('data-page'), 10);
+        if (Number.isFinite(p) && p >= 1) {
+          AppState.activeCatalogPage = p;
+          renderNewCars();
+          document.getElementById('nc-filter-category')?.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
     });
 
     // Reset button on New Cars
@@ -1496,6 +1873,13 @@ const AppState = {
       AppState.activePriceRange = 'all';
       AppState.activeMinPrice = '';
       AppState.activeMaxPrice = '';
+      AppState.activeMinRange = '';
+      AppState.activeMinBatteryKwh = '';
+      AppState.activeMaxMonthlyPayment = '';
+      AppState.activeUsageFilter = 'all';
+      AppState.activeInStockOnly = false;
+      AppState.activeCatalogSearch = '';
+      AppState.activeCatalogPage = 1;
       AppState.activeFuelFilter = 'all';
       AppState.activeSort = 'default';
       renderNewCars();
@@ -1773,7 +2157,7 @@ const AppState = {
                 </div>
               </div>
 
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:24px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px;">
                 <div>
                   <label class="filter-label">CHỌN ĐẠI LÝ</label>
                   <select class="filter-select" id="book-branch" required>
@@ -1786,7 +2170,35 @@ const AppState = {
                 </div>
                 <div>
                   <label class="filter-label">NGÀY DỰ KIẾN</label>
-                  <input type="date" class="filter-input" id="book-date" value="${new Date(Date.now() + 86400000).toISOString().split('T')[0]}" required>
+                  <input type="date" class="filter-input" id="book-date" min="${new Date().toISOString().split('T')[0]}" value="${new Date(Date.now() + 86400000).toISOString().split('T')[0]}" required>
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:20px; align-items:end;">
+                <div>
+                  <label class="filter-label">KHUNG GIỜ TRỐNG THEO ĐẠI LÝ</label>
+                  <select class="filter-select" id="book-timeslot" required>
+                    <option value="" disabled selected>-- Chọn showroom & ngày để tải khung giờ --</option>
+                  </select>
+                  <div id="book-slot-hint" style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Tải tự động từ lịch showroom thực tế.</div>
+                </div>
+                <div style="padding:10px 12px; background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:10px;">
+                  <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:700; color:var(--text-dark);">
+                    <input type="checkbox" id="book-home-service">
+                    🚗 Yêu cầu mang xe lái thử tận nhà
+                  </label>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:3px;">Hỗ trợ một số quận nội thành gần showroom đã chọn.</div>
+                </div>
+              </div>
+
+              <div id="book-home-fields" style="display:none; grid-template-columns:1fr 1.6fr; gap:16px; margin-bottom:20px; padding:14px; background:#F0F9FF; border:1px solid #BAE6FD; border-radius:10px;">
+                <div>
+                  <label class="filter-label">QUẬN / HUYỆN</label>
+                  <input type="text" class="filter-input" id="book-district" placeholder="VD: Cầu Giấy, Quận 7, Hải Châu">
+                </div>
+                <div>
+                  <label class="filter-label">ĐỊA CHỈ CHI TIẾT</label>
+                  <input type="text" class="filter-input" id="book-home-address" placeholder="Số nhà, tên đường, tòa nhà...">
                 </div>
               </div>
 
@@ -1818,7 +2230,7 @@ const AppState = {
 
             <div class="booking-support-card">
               <div style="font-size:24px; margin-bottom:6px;">🎧</div>
-              <h5 style="font-size:15px; font-weight:700;">Hỗ trợ trực tuyến 24/7</h5>
+              <h5 style="font-size:15px; font-weight:700;">Tổng đài tư vấn 08:00 - 20:00 (GMT+7)</h5>
               <div style="font-size:18px; font-weight:800; color:var(--primary); margin-top:8px;">1800-SIGMA-CAR</div>
             </div>
           </div>
@@ -1833,9 +2245,57 @@ const AppState = {
       navigateTo('new-cars');
     });
 
+    const branchSel = document.getElementById('book-branch');
+    const dateInput = document.getElementById('book-date');
+    const slotSel = document.getElementById('book-timeslot');
+    const slotHint = document.getElementById('book-slot-hint');
+    const homeCb = document.getElementById('book-home-service');
+    const homeFields = document.getElementById('book-home-fields');
+
+    const loadBookingSlots = async () => {
+      if (!branchSel?.value || !dateInput?.value || !slotSel) return;
+      slotSel.innerHTML = '<option value="" disabled selected>Đang kiểm tra khung giờ...</option>';
+      try {
+        const res = await ApiClient.appointments.getSlots({
+          branchId: branchSel.value,
+          date: dateInput.value,
+          category: 'test_drive'
+        });
+        const slots = Array.isArray(res.slots) ? res.slots : [];
+        if (slots.length === 0) {
+          slotSel.innerHTML = '<option value="" disabled selected>Không có lịch trống</option>';
+          return;
+        }
+        slotSel.innerHTML = slots.map(s => {
+          const disabled = s.remaining <= 0 ? 'disabled' : '';
+          const label = s.remaining > 0 ? `${s.timeSlot} (Còn ${s.remaining} chỗ)` : `${s.timeSlot} (Đã kín)`;
+          return `<option value="${escapeHtml(s.timeSlot)}" ${disabled}>${escapeHtml(label)}</option>`;
+        }).join('');
+        const firstOpen = slots.find(s => s.remaining > 0);
+        if (firstOpen) slotSel.value = firstOpen.timeSlot;
+        if (slotHint) {
+          const branchMeta = res.branch;
+          const homeText = branchMeta?.homeServiceDistricts?.length
+            ? `Lái thử tận nhà hỗ trợ: ${branchMeta.homeServiceDistricts.join(', ')}.`
+            : 'Vui lòng liên hệ đại lý để kiểm tra hỗ trợ tận nhà.';
+          slotHint.textContent = homeText;
+        }
+      } catch (err) {
+        slotSel.innerHTML = '<option value="" disabled selected>Không tải được khung giờ</option>';
+        if (slotHint) slotHint.textContent = err.message || 'Lỗi tải lịch showroom.';
+      }
+    };
+
+    branchSel?.addEventListener('change', loadBookingSlots);
+    dateInput?.addEventListener('change', loadBookingSlots);
+    homeCb?.addEventListener('change', () => {
+      if (homeFields) homeFields.style.display = homeCb.checked ? 'grid' : 'none';
+    });
+
     document.getElementById('dedicated-booking-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       try {
+        const isHome = Boolean(homeCb?.checked);
         const payload = {
           carName: document.getElementById('book-car-select').value,
           customerName: document.getElementById('book-name').value,
@@ -1843,7 +2303,10 @@ const AppState = {
           email: document.getElementById('book-email').value,
           branchId: document.getElementById('book-branch').value,
           preferredDate: document.getElementById('book-date').value,
-          timeSlot: '14:30'
+          timeSlot: document.getElementById('book-timeslot')?.value || '',
+          isHomeService: isHome,
+          district: isHome ? (document.getElementById('book-district')?.value || '') : '',
+          homeAddress: isHome ? (document.getElementById('book-home-address')?.value || '') : ''
         };
 
         const res = await ApiClient.appointments.create(payload);
@@ -1906,6 +2369,8 @@ const AppState = {
             </button>` : ''}
           </div>
 
+          <div id="ai-consultation-panel-mount"></div>
+
           <div class="ai-chat-messages-container" id="ai-messages-list">
             <div class="chat-turn assistant-turn">
               <div class="chat-avatar bot" style="overflow:hidden; border-radius:50%; width:38px; height:38px; flex-shrink:0;"><img src="assets/avatar-ai.jpg" alt="Sigma AI" style="width:100%; height:100%; object-fit:cover;"></div>
@@ -1924,7 +2389,7 @@ const AppState = {
               <button class="chip-btn ai-chip" data-query="Tìm xe gia đình 7 chỗ dưới 1 tỷ">Tìm xe gia đình 7 chỗ dưới 1 tỷ</button>
               <button class="chip-btn ai-chip" data-query="Tư vấn xe điện ngân sách dưới 1 tỷ">Ngân sách dưới 1 tỷ</button>
               <button class="chip-btn ai-chip" data-query="Thời tiết hôm nay thế nào?">Thời tiết hôm nay</button>
-              <button class="chip-btn ai-chip" data-query="So sánh Model E và Vision S">So sánh Model E vs Vision S</button>
+              <button class="chip-btn ai-chip" data-query="So sánh Tesla Cybertruck và Toyota Camry">So sánh Cybertruck vs Camry</button>
               <button class="chip-btn ai-chip" data-query="Bây giờ là mấy giờ ở Tokyo?">Giờ tại Tokyo</button>
             </div>
 
@@ -1983,8 +2448,44 @@ const AppState = {
 
     bindHistoryItemEvents();
 
+    const welcomeTurnHtml = `
+      <div class="chat-turn assistant-turn">
+        <div class="chat-avatar bot" style="overflow:hidden; border-radius:50%; width:38px; height:38px; flex-shrink:0;"><img src="assets/avatar-ai.jpg" alt="Sigma AI" style="width:100%; height:100%; object-fit:cover;"></div>
+        <div class="chat-bubble-content">
+          <div class="chat-text">
+            ${renderMarkdownSafe("Xin chào! Tôi là **Sigma AI** - Trợ lý thông minh của SIGMACAR Việt Nam.\n\nTôi sẵn sàng tư vấn thông số kỹ thuật, so sánh các dòng xe trên hệ thống, hoặc hỗ trợ giải đáp các câu hỏi về mọi chủ đề mà bạn quan tâm!")}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const consultationMount = document.getElementById('ai-consultation-panel-mount');
+    if (consultationMount && window.SigmaConsultationView && typeof window.SigmaConsultationView.mount === 'function') {
+      window.SigmaConsultationView.mount({
+        containerEl: consultationMount,
+        showToast,
+        renderThreadCallback: (messages) => {
+          if (!messagesContainer) return;
+          const items = Array.isArray(messages) ? messages : [];
+          messagesContainer.innerHTML = welcomeTurnHtml + items.map(m => renderChatMessageHTML({
+            role: m.role,
+            text: m.text,
+            top3: m.meta?.top3 || m.top3,
+            flaggedAlternatives: m.meta?.flaggedAlternatives || m.flaggedAlternatives,
+            fitContext: m.meta?.fitContext || m.fitContext,
+            recommendation: m.recommendation,
+            arScan: m.arScan
+          })).join('');
+          messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+      });
+    }
+
     document.getElementById('btn-ai-new-chat')?.addEventListener('click', () => {
       AppState.activeAiSession = null;
+      if (window.SigmaConsultationView?.state) {
+        window.SigmaConsultationView.state.activeConversationId = null;
+      }
       renderAIAdvisor();
       showToast('Đã mở cuộc hội thoại mới! 💬', '💬');
     });
@@ -2031,15 +2532,37 @@ const AppState = {
       const streamingTextElem = document.getElementById('streaming-ai-text');
 
       try {
-        const response = await AutomotiveLLM.queryLLM(q, (currentStreamedText) => {
-          if (streamingTextElem) streamingTextElem.innerHTML = renderMarkdownSafe(currentStreamedText);
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }, curSession.messages);
+        let response = null;
+        if (window.SigmaConsultationView && typeof window.SigmaConsultationView.sendConsultationMessage === 'function') {
+          try {
+            response = await window.SigmaConsultationView.sendConsultationMessage({
+              text: q,
+              history: curSession.messages,
+              showToast
+            });
+          } catch (consultErr) {
+            if (consultErr?.code === 'CONSENT_REQUIRED' || consultErr?.code === 'UNAUTHORIZED' || (consultErr?.statusCode && consultErr.statusCode >= 400 && consultErr.statusCode < 500)) {
+              throw consultErr;
+            }
+            // Offline/static fallback when backend AI API is unavailable
+            response = null;
+          }
+        }
+
+        if (!response) {
+          response = await AutomotiveLLM.queryLLM(q, (currentStreamedText) => {
+            if (streamingTextElem) streamingTextElem.innerHTML = renderMarkdownSafe(currentStreamedText);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          }, curSession.messages);
+        }
 
         streamDiv.remove();
         const botMsg = {
           role: 'assistant',
-          text: response.text,
+          text: response.text || response.reply || '',
+          top3: response.top3,
+          flaggedAlternatives: response.flaggedAlternatives,
+          fitContext: response.fitContext,
           recommendation: response.recommendation,
           arScan: response.arScan
         };
@@ -2048,7 +2571,7 @@ const AppState = {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       } catch (err) {
         streamDiv.remove();
-        showToast('Lỗi truy vấn AI!', '⚠️');
+        showToast(err?.message || 'Lỗi truy vấn AI!', '⚠️');
       }
     };
 
@@ -2065,7 +2588,14 @@ const AppState = {
     });
 
     document.getElementById('btn-ar-scan-action')?.addEventListener('click', () => {
-      executeAiQuery('Gara nhà mình dài 5.2m rộng 2.4m có vừa Model E không?');
+      const spaceDetails = document.querySelector('#ai-consultation-panel-mount details');
+      if (spaceDetails) {
+        spaceDetails.open = true;
+        spaceDetails.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById('ai-space-len')?.focus();
+      } else {
+        executeAiQuery('Gara nhà mình dài 5.2m rộng 2.4m có vừa VinFast VF9 không?');
+      }
     });
 
     document.getElementById('btn-open-llm-config')?.addEventListener('click', async () => {
@@ -2199,6 +2729,15 @@ const AppState = {
       `;
     }
 
+    if (window.SigmaConsultationView) {
+      if ((Array.isArray(msg.top3) && msg.top3.length > 0) || (Array.isArray(msg.flaggedAlternatives) && msg.flaggedAlternatives.length > 0)) {
+        extraHTML += window.SigmaConsultationView.renderRecommendationCardsHtml(msg.top3 || [], msg.flaggedAlternatives || []);
+      }
+      if (msg.fitContext && typeof window.SigmaConsultationView.renderFitContextHtml === 'function') {
+        extraHTML += window.SigmaConsultationView.renderFitContextHtml(msg.fitContext);
+      }
+    }
+
     return `
       <div class="chat-turn assistant-turn">
         <div class="chat-avatar bot" style="overflow:hidden; border-radius:50%; width:38px; height:38px; flex-shrink:0;"><img src="assets/avatar-ai.jpg" alt="Sigma AI" style="width:100%; height:100%; object-fit:cover;"></div>
@@ -2214,9 +2753,9 @@ const AppState = {
   // VIEW 5: VEHICLE DETAIL PAGE
   // =================================================================
   function renderVehicleDetail(carId) {
-    const car = AppState.vehiclesList.find(c => c.id === carId) || 
-                AppState.certifiedList.find(c => c.id === carId) || 
-                AppState.vehiclesList[0];
+    const car = AppState.vehiclesList.find(c => c.id === carId) ||
+                AppState.certifiedList.find(c => c.id === carId) ||
+                null;
 
     // Dispose any inline detail 3D viewer before re-rendering
     if (window._activeDetail3DViewer) {
@@ -2237,14 +2776,16 @@ const AppState = {
     }
 
     const isElectric = !!(car.battery || (car.range && car.range > 0) || getVehicleFuel(car) === 'ev');
+    window.ApiClient?.analytics?.recordEvent({ eventType: 'vehicle_view', targetId: car.id, branchId: car.branchId || null });
+    const detailStockCount = car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : (car.isCertified ? 1 : 0));
     const spec1Title = isElectric ? "Quãng đường (WLTP/EPA)" : "Động cơ / Dung tích";
-    const spec1Val = isElectric ? `${car.range || 500} km` : (car.engine || car.power?.split(',')[0] || 'Xăng / DOHC');
+    const spec1Val = isElectric ? (car.range ? `${car.range} km` : 'Đang cập nhật') : (car.engine || car.power?.split(',')[0] || 'Đang cập nhật');
     const spec2Title = "Công suất tối đa";
-    const spec2Val = `${car.hp || 200} HP`;
+    const spec2Val = car.hp ? `${car.hp} HP` : 'Đang cập nhật';
     const spec3Title = isElectric ? "Dung lượng Pin / Kiến trúc" : "Hộp số";
-    const spec3Val = isElectric ? (car.battery || 'Pin thế hệ mới') : (car.transmission || 'Tự động');
+    const spec3Val = isElectric ? (car.battery || 'Đang cập nhật') : (car.transmission || 'Đang cập nhật');
     const spec4Title = car.acceleration ? "Tăng tốc (0 - 100 km/h)" : "Vận tốc tối đa";
-    const spec4Val = car.acceleration ? `${car.acceleration}` : (car.topSpeed || '210 km/h');
+    const spec4Val = car.acceleration ? `${car.acceleration}` : (car.topSpeed || 'Đang cập nhật');
 
     // Build categorized gallery items strictly from data (NO FAKE / DUMMY PLACEHOLDERS)
     const catImgs = car.categorizedImages || {};
@@ -2477,12 +3018,21 @@ const AppState = {
               <button class="btn-detail-cta outline-cta" id="btn-detail-calc">
                 📊 Dự toán trả góp
               </button>
+              <button class="btn-detail-cta outline-cta" style="border-color:#0284C7; color:#0284C7;" onclick="navigateTo('tco', { carId: '${car.id}' })">
+                ⚡ Dự toán TCO 5 năm
+              </button>
               <button class="btn-detail-cta outline-cta" onclick="window.addCarToCompare('${car.id}')">
                 ⚖️ Đưa vào bảng so sánh
               </button>
-              <button class="btn-detail-cta dark-cta" id="btn-detail-deposit">
-                ⚡ Đặt cọc ngay (50 triệu)
+              <button class="btn-detail-cta outline-cta" id="btn-detail-add-cart" ${detailStockCount <= 0 ? 'disabled style="opacity:0.55; cursor:not-allowed;"' : 'style="border-color:#059669; color:#059669; font-weight:700;"'}>
+                ${detailStockCount <= 0 ? '❌ Tạm hết hàng' : '🛒 Thêm vào giỏ hàng'}
               </button>
+              <button class="btn-detail-cta dark-cta" id="btn-detail-deposit" ${detailStockCount <= 0 ? 'disabled style="opacity:0.55; cursor:not-allowed; background:#64748B;"' : ''}>
+                ${detailStockCount <= 0 ? '❌ Hết hàng — Chọn mẫu khác' : '⚡ Đặt cọc & Checkout ngay'}
+              </button>
+              <div id="detail-branch-stock-mount" style="margin-top:8px; padding:12px; background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:10px; font-size:12px; color:var(--text-secondary);">
+                ⏳ Đang kiểm tra tồn kho từng chi nhánh...
+              </div>
             </div>
           </div>
 
@@ -2555,19 +3105,19 @@ const AppState = {
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Màu sắc & Tồn kho</td>
-                  <td>Màu sắc: <strong>${escapeHtml(car.colorsSummary || (car.colors ? car.colors.map(c => c.name).join(', ') : 'Tiêu chuẩn'))}</strong> • Số lượng kho: <strong>${car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : 5)} xe</strong></td>
+                  <td>Màu sắc: <strong>${escapeHtml(car.colorsSummary || (car.colors ? car.colors.map(c => c.name).join(', ') : 'Tiêu chuẩn'))}</strong> • Số lượng kho: <strong>${detailStockCount > 0 ? `${detailStockCount} xe` : '0 xe (Tạm hết hàng)'}</strong></td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Động cơ & Hệ truyền động</td>
-                  <td>${escapeHtml(car.engine || car.powertrain || car.power || 'Động cơ hiệu năng cao thế hệ mới')}</td>
+                  <td>${escapeHtml(car.engine || car.powertrain || car.power || 'Đang cập nhật')}</td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Hộp số & Hệ dẫn động</td>
-                  <td>${escapeHtml(car.transmission || 'Tự động')} • ${escapeHtml(car.drive || 'Cầu trước FWD / 2 cầu AWD')}</td>
+                  <td>${escapeHtml(car.transmission || 'Đang cập nhật')} • ${escapeHtml(car.drive || 'Đang cập nhật')}</td>
                 </tr>
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Công suất & Mô-men xoắn</td>
-                  <td><strong>${car.hp ? `${car.hp} HP` : ''}</strong> ${car.power ? `(${escapeHtml(car.power)})` : ''} ${car.torque ? `• Mô-men xoắn: <strong>${escapeHtml(car.torque)}</strong>` : ''}</td>
+                  <td><strong>${car.hp ? `${car.hp} HP` : 'Đang cập nhật'}</strong> ${car.power ? `(${escapeHtml(car.power)})` : ''} ${car.torque ? `• Mô-men xoắn: <strong>${escapeHtml(car.torque)}</strong>` : ''}</td>
                 </tr>
                 ${isElectric ? `
                 <tr>
@@ -2575,20 +3125,20 @@ const AppState = {
                   <td>
                     Dung lượng/Loại pin: <strong>${escapeHtml(car.battery || 'Đang cập nhật')}</strong>
                     ${car.evSpecs?.architecture ? ` • Kiến trúc điện: <strong>${escapeHtml(car.evSpecs.architecture)}</strong>` : ''}
-                    • Sạc nhanh (DC): <strong>${escapeHtml(car.fastCharge || '25-30 phút (10-80%)')}</strong>
+                    • Sạc nhanh (DC): <strong>${escapeHtml(car.fastCharge || 'Đang cập nhật')}</strong>
                     ${car.evSpecs?.v2x ? `<br><span style="color:#0284C7; font-weight:600;">⚡ Cấp điện hai chiều (V2L/V2H/V2V): ${escapeHtml(car.evSpecs.v2x)}</span>` : ''}
                   </td>
                 </tr>
                 ` : `
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Mức tiêu thụ nhiên liệu</td>
-                  <td>${escapeHtml(car.fuelConsumption?.combined || car.fuelConsumption?.city || 'Tiết kiệm nhiên liệu tối ưu')}</td>
+                  <td>${escapeHtml(car.fuelConsumption?.combined || car.fuelConsumption?.city || 'Đang cập nhật')}</td>
                 </tr>
                 `}
                 <tr>
                   <td style="font-weight:700; color:var(--text-muted);">Kích thước (D x R x C) & Khoảng sáng gầm</td>
                   <td>
-                    <strong>${escapeHtml(car.dimensions || '4.800 x 1.880 x 1.650 mm')}</strong>
+                    <strong>${escapeHtml(car.dimensions || 'Đang cập nhật')}</strong>
                     ${car.wheelbase ? ` • Chiều dài cơ sở: <strong>${escapeHtml(car.wheelbase)}</strong>` : ''}
                     ${car.groundClearance ? ` • Khoảng sáng gầm: <strong>${escapeHtml(car.groundClearance)}</strong>` : ''}
                   </td>
@@ -2677,12 +3227,22 @@ const AppState = {
                       <div style="font-size:15px; font-weight:800; color:var(--primary); margin-bottom:6px;">${acc.priceFormatted}</div>
                       <p style="font-size:12px; color:var(--text-muted); line-height:1.4;">${escapeHtml(acc.specs)}</p>
                     </div>
-                    <button class="btn-primary" style="margin-top:12px; padding:8px 12px; font-size:12px; width:100%; justify-content:center;" onclick="showToast('Đã thêm ${escapeHtml(acc.name)} vào đơn đặt hàng phụ kiện!', '🛒')">
-                      + Đặt mua kèm xe
+                    <button class="btn-primary btn-detail-acc-add" data-acc-id="${acc.id}" data-acc-name="${escapeHtml(acc.name)}" data-acc-img="${acc.image}" style="margin-top:12px; padding:8px 12px; font-size:12px; width:100%; justify-content:center;">
+                      + Thêm phụ kiện vào giỏ
                     </button>
                   </div>
                 `).join('')}
               </div>
+            </div>
+          </div>
+
+          <!-- Registration & Rolling Cost Estimator (SIG-P2-007) -->
+          <div id="detail-registration-estimator-mount" style="margin-top:36px;"></div>
+
+          <!-- Related Vehicles Recommendation Section (SIG-P1-003) -->
+          <div id="detail-related-cars-mount" style="margin-top:36px;">
+            <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-xl); padding:24px; text-align:center; color:var(--text-muted); font-size:13.5px;">
+              ⏳ Đang tải các mẫu xe liên quan cùng phân khúc & tầm giá...
             </div>
           </div>
 
@@ -2840,13 +3400,115 @@ const AppState = {
     document.getElementById('btn-detail-book-testdrive')?.addEventListener('click', bookHandler);
     document.getElementById('btn-detail-cta-testdrive')?.addEventListener('click', bookHandler);
 
-    document.getElementById('btn-detail-deposit')?.addEventListener('click', () => {
-      requireAuth('đặt cọc giữ xe', () => {
-        document.getElementById('deposit-car-title').textContent = car.name;
-        document.getElementById('deposit-car-price').textContent = car.priceFormatted;
-        depositModal.classList.add('active');
+    const getSelectedColorObj = () => {
+      const activeBtn = document.querySelector('.color-swatch-btn.active');
+      return {
+        colorName: activeBtn?.getAttribute('data-name') || car.colors?.[0]?.name || undefined,
+        colorHex: activeBtn?.getAttribute('data-hex') || car.colors?.[0]?.hex || undefined
+      };
+    };
+
+    document.getElementById('btn-detail-add-cart')?.addEventListener('click', async () => {
+      if (detailStockCount <= 0) {
+        showToast('Mẫu xe hiện tạm hết hàng tại hệ thống.', '⚠️');
+        return;
+      }
+      const { colorName, colorHex } = getSelectedColorObj();
+      try {
+        await window.SigmaCartView?.addItemToCart({
+          itemType: car.isCertified ? 'certified' : 'vehicle',
+          itemId: car.id,
+          quantity: 1,
+          colorName,
+          colorHex,
+          branchId: 'hn-caugiay',
+          name: car.name,
+          image: car.image
+        }, { showToast });
+      } catch (err) {
+        showToast(err.message || 'Không thể thêm xe vào giỏ hàng.', '⚠️');
+      }
+    });
+
+    document.querySelectorAll('.btn-detail-acc-add').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const accId = btn.getAttribute('data-acc-id');
+        const accName = btn.getAttribute('data-acc-name');
+        const accImg = btn.getAttribute('data-acc-img');
+        try {
+          await window.SigmaCartView?.addItemToCart({
+            itemType: 'accessory',
+            itemId: accId,
+            quantity: 1,
+            name: accName,
+            image: accImg
+          }, { showToast });
+        } catch (err) {
+          showToast(err.message || 'Không thể thêm phụ kiện.', '⚠️');
+        }
       });
     });
+
+    document.getElementById('btn-detail-deposit')?.addEventListener('click', () => {
+      if (detailStockCount <= 0) {
+        showToast('Xe hiện tạm hết hàng.', '⚠️');
+        return;
+      }
+      const { colorName } = getSelectedColorObj();
+      requireAuth('đặt cọc giữ xe & thanh toán', () => {
+        navigateTo('checkout', {
+          source: 'direct',
+          vehicleId: car.id,
+          itemType: car.isCertified ? 'certified' : 'vehicle',
+          colorName,
+          branchId: 'hn-caugiay'
+        });
+      });
+    });
+
+    // Load real branch availability & related vehicles asynchronously
+    (async () => {
+      const branchMount = document.getElementById('detail-branch-stock-mount');
+      if (branchMount && ApiClient.inventory?.getByVehicle) {
+        try {
+          const inv = await ApiClient.inventory.getByVehicle(car.id);
+          const branches = inv?.branches || [];
+          const totalAvail = branches.reduce((s, b) => s + Math.max(0, b.available || 0), 0);
+          branchMount.innerHTML = branches.length > 0
+            ? `<div style="font-weight:800; color:var(--text-dark); margin-bottom:6px;">📍 Tồn kho tại Showroom (Tổng khả dụng: ${totalAvail} xe)</div>` +
+              branches.map(b => `<div style="display:flex; justify-content:space-between; padding:2px 0;"><span>${escapeHtml(b.branchName || b.branchId)}</span><strong style="color:${b.available > 0 ? '#059669' : '#DC2626'};">${b.available} xe</strong></div>`).join('')
+            : `<span style="color:var(--text-muted);">Chưa có dữ liệu tồn kho theo chi nhánh.</span>`;
+        } catch (_) {
+          branchMount.innerHTML = `<span style="color:var(--text-muted);">Tồn kho hệ thống: <strong>${detailStockCount} xe</strong></span>`;
+        }
+      }
+
+      const relMount = document.getElementById('detail-related-cars-mount');
+      if (relMount && ApiClient.vehicles?.getRelated) {
+        try {
+          const related = await ApiClient.vehicles.getRelated(car.id, car);
+          if (Array.isArray(related) && related.length > 0) {
+            relMount.innerHTML = `
+              <div style="margin-bottom:16px;">
+                <h3 style="font-size:20px; font-weight:800; color:var(--text-dark);">Xe liên quan cùng phân khúc & tầm giá</h3>
+                <p style="font-size:13.5px; color:var(--text-muted);">Gợi ý dựa trên kích thước, hệ truyền động và ngân sách tương đương</p>
+              </div>
+              <div class="car-grid">${related.map(r => createNewCarListingCardHTML(r)).join('')}</div>
+            `;
+            bindCardEvents();
+          } else {
+            relMount.innerHTML = '';
+          }
+        } catch (_) {
+          relMount.innerHTML = '';
+        }
+      }
+
+      const regEstMount = document.getElementById('detail-registration-estimator-mount');
+      if (regEstMount && window.SigmaRegistrationView?.renderEstimatorWidget) {
+        window.SigmaRegistrationView.renderEstimatorWidget(regEstMount, car);
+      }
+    })();
 
     // Interactive Loan Calculator (replaces ugly alert!)
     document.getElementById('btn-detail-calc')?.addEventListener('click', () => {
@@ -2902,14 +3564,14 @@ const AppState = {
             <!-- Column 1: Big Score & CTA -->
             <div style="text-align:center; padding-right:16px; border-right:1px solid #E2E8F0;">
               <div style="font-size:52px; font-weight:800; color:var(--text-dark); line-height:1;">
-                ${stats.totalReviews > 0 ? stats.averageRating.toFixed(1) : '4.8'}
+                ${stats.totalReviews > 0 ? stats.averageRating.toFixed(1) : '0.0'}
                 <span style="font-size:22px; color:var(--text-muted); font-weight:600;">/5</span>
               </div>
               <div style="color:#F59E0B; font-size:22px; letter-spacing:2px; margin:8px 0 6px;">
-                ${stats.totalReviews > 0 ? renderStars(stats.averageRating) : '★★★★★'}
+                ${stats.totalReviews > 0 ? renderStars(stats.averageRating) : '☆☆☆☆☆'}
               </div>
               <div style="font-size:13px; color:var(--text-secondary); font-weight:600; margin-bottom:12px;">
-                Dựa trên ${stats.totalReviews > 0 ? stats.totalReviews.toLocaleString('vi-VN') : '1.248'} đánh giá thực tế
+                ${stats.totalReviews > 0 ? `Dựa trên ${stats.totalReviews.toLocaleString('vi-VN')} đánh giá thực tế` : 'Chưa có đánh giá nào được duyệt'}
               </div>
               <button class="btn-primary" id="btn-toggle-review-form" style="padding:10px 18px; font-size:13px; font-weight:700;">
                 ✍️ ${ReviewViewState.showForm ? 'Đóng biểu mẫu' : 'Viết đánh giá của bạn'}
@@ -2920,9 +3582,9 @@ const AppState = {
             <div style="padding:0 8px;">
               <div style="font-size:11.5px; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px; letter-spacing:0.5px;">PHÂN BỐ ĐÁNH GIÁ SAO</div>
               ${[5, 4, 3, 2, 1].map(starNum => {
-                const count = stats.starDistribution?.[starNum] || (starNum === 5 ? 890 : (starNum === 4 ? 260 : 30));
-                const total = stats.totalReviews > 0 ? stats.totalReviews : 1248;
-                const pct = Math.round((count / total) * 100);
+                const count = stats.starDistribution?.[starNum] || 0;
+                const total = stats.totalReviews > 0 ? stats.totalReviews : 0;
+                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
                 return `
                   <div class="star-bar-row" style="margin-bottom:6px;">
                     <span style="width:42px; font-weight:700; color:var(--text-dark); font-size:12px;">${starNum} ★</span>
@@ -2933,7 +3595,7 @@ const AppState = {
               }).join('')}
             </div>
 
-            <!-- Column 3: Prominent Highlights Tags & Stacked Avatars -->
+            <!-- Column 3: Prominent Highlights Tags & Verified Count -->
             <div style="padding-left:16px; border-left:1px solid #E2E8F0;">
               <div style="font-size:11.5px; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:10px; letter-spacing:0.5px;">ĐẶC ĐIỂM NỔI BẬT</div>
               <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;">
@@ -2948,7 +3610,7 @@ const AppState = {
                   <img src="assets/avatar-sales.jpg" alt="User 2">
                   <img src="assets/avatar-driver.jpg" alt="User 3">
                 </div>
-                <span style="font-size:12px; color:var(--text-secondary); font-weight:700;">+1.2k Người dùng thật đã đánh giá</span>
+                <span style="font-size:12px; color:var(--text-secondary); font-weight:700;">${stats.verifiedCount || 0} Chủ xe đã bàn giao xác thực</span>
               </div>
             </div>
           </div>
@@ -3502,8 +4164,8 @@ const AppState = {
                 </div>
 
                 <div style="padding:0 20px 20px;">
-                  <button class="btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="showToast('Đặt mua phụ kiện ${acc.name} (${acc.id}) thành công! Đại lý sẽ liên hệ giao hàng.', '🛒')">
-                    🛒 Đặt mua phụ kiện
+                  <button class="btn-primary btn-acc-add-cart" data-acc-id="${acc.id}" data-acc-name="${escapeHtml(acc.name)}" data-acc-img="${acc.image}" ${((acc.quantity ?? 1) <= 0) ? 'disabled style="width:100%; justify-content:center; padding:12px; opacity:0.5; cursor:not-allowed;"' : 'style="width:100%; justify-content:center; padding:12px;"'}>
+                    ${((acc.quantity ?? 1) <= 0) ? '❌ Tạm hết hàng' : '🛒 Thêm vào giỏ hàng'}
                   </button>
                 </div>
               </div>
@@ -3532,8 +4194,8 @@ const AppState = {
                     <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">🚗 <strong>Tương thích:</strong> ${cmp.compatibleModels}</div>
                     <div style="font-size:12px; color:#059669; font-weight:600;">🛡️ Bảo hành: ${cmp.warranty} • Sẵn kho: ${cmp.stock} bộ</div>
                   </div>
-                  <button class="btn-secondary" style="margin-top:14px; width:100%; justify-content:center; padding:10px; font-weight:700;" onclick="showToast('Đã gửi yêu cầu đặt linh kiện ${cmp.name} (${cmp.id})!', '🔧')">
-                    🔧 Đặt linh kiện / Tư vấn lắp đặt
+                  <button class="btn-secondary btn-cmp-support" data-cmp-name="${escapeHtml(cmp.name)}" data-cmp-id="${cmp.id}" style="margin-top:14px; width:100%; justify-content:center; padding:10px; font-weight:700;">
+                    🔧 Liên hệ kỹ thuật & Đặt linh kiện
                   </button>
                 </div>
               `).join('')}
@@ -3543,6 +4205,31 @@ const AppState = {
         </div>
       </section>
     `;
+
+    document.querySelectorAll('.btn-acc-add-cart').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const accId = btn.getAttribute('data-acc-id');
+        const accName = btn.getAttribute('data-acc-name');
+        const accImg = btn.getAttribute('data-acc-img');
+        try {
+          await window.SigmaCartView?.addItemToCart({
+            itemType: 'accessory',
+            itemId: accId,
+            quantity: 1,
+            name: accName,
+            image: accImg
+          }, { showToast });
+        } catch (err) {
+          showToast(err.message || 'Không thể thêm phụ kiện vào giỏ.', '⚠️');
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-cmp-support').forEach(btn => {
+      btn.addEventListener('click', () => {
+        navigateTo('support');
+      });
+    });
 
     document.querySelectorAll('.chip-btn[data-acc-cat]').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -3558,11 +4245,14 @@ const AppState = {
   // =================================================================
   function renderCompare() {
     if (!AppState.compareCars || AppState.compareCars.length === 0) {
-      AppState.compareCars = ['toyota-camry-25q', 'vinfast-vf-8-plus', 'model-e'];
+      AppState.compareCars = ['toyota-camry', 'vinfast-vf9', 'tesla-cybertruck'];
     }
-    const cars = AppState.compareCars.map(id => 
-      AppState.vehiclesList.find(c => c.id === id) || AppState.vehiclesList[0]
-    );
+    const allComparable = [...(AppState.vehiclesList || []), ...(AppState.certifiedList || [])];
+    const resolvedCars = AppState.compareCars
+      .map(id => allComparable.find(c => c.id === id))
+      .filter(Boolean);
+    const cars = resolvedCars.length > 0 ? resolvedCars : allComparable.slice(0, 3);
+    AppState.compareCars = cars.map(c => c.id);
 
     viewsContainer.innerHTML = `
       <section class="compare-section">
@@ -3969,6 +4659,7 @@ const AppState = {
     }
 
     const isElectric = !!(car.battery || (car.range && car.range > 0) || getVehicleFuel(car) === 'ev');
+    window.ApiClient?.analytics?.recordEvent({ eventType: 'vehicle_view', targetId: car.id, branchId: car.branchId || null });
     const modelUrl = (car.model3d && car.model3d.glbPath)
       ? car.model3d.glbPath
       : 'assets/models/tesla_cybertruck.glb';
@@ -4203,6 +4894,8 @@ const AppState = {
                   🛡️ Hoàn cọc 100% nếu hủy trong 7 ngày theo chính sách
                 </div>
               </div>
+
+              <div id="vr-p3-inspector-mount"></div>
             </div>
           </div>
 
@@ -4364,6 +5057,7 @@ const AppState = {
     // Initialize Real 3D Automotive WebGL Viewer with car-specific modelUrl
     let viewer = null;
     let vrGyroCtrl = null;
+    let vrP3Panel = null;
     if (window.Car3DViewer && window.Car3DViewer.isSupported() && viewerContainer) {
       viewer = window.Car3DViewer.init(viewerContainer, {
         modelUrl: modelUrl,
@@ -4393,6 +5087,7 @@ const AppState = {
         },
         onReady: () => {
           hideLoadingOverlay();
+          vrP3Panel?.refreshCapabilities?.();
         },
         onError: (err) => {
           console.warn('[Car3DViewer] Falling back:', err);
@@ -4401,6 +5096,69 @@ const AppState = {
       });
       window._activeCar3DViewer = viewer;
       setTimeout(hideLoadingOverlay, 5000); // Fail-safe auto dismiss
+    }
+
+    const p3Mount = document.getElementById('vr-p3-inspector-mount');
+    if (p3Mount && window.SigmaP3Views && typeof window.SigmaP3Views.mountVrP3Panel === 'function') {
+      vrP3Panel = window.SigmaP3Views.mountVrP3Panel({
+        containerEl: p3Mount,
+        viewer,
+        car,
+        requireAuth,
+        showToast,
+        getConfig: () => ({
+          colorIdx: selectedColorIdx,
+          colorName: carColors[selectedColorIdx]?.name || 'Tiêu chuẩn',
+          colorHex: carColors[selectedColorIdx]?.hex || '#0284C7',
+          wheelId: selectedWheel?.id || 'wheel-21-sport',
+          trimName: null
+        }),
+        applySavedConfig: (saved) => {
+          if (!saved) return;
+          if (saved.vehicleId && saved.vehicleId !== car.id) {
+            setVehicleConfig(saved.vehicleId, {
+              colorIdx: saved.colorIdx || 0,
+              colorHex: saved.colorHex,
+              colorName: saved.colorName,
+              wheelId: saved.wheelId
+            });
+            window.openVrArShowroom(saved.vehicleId);
+            return;
+          }
+          if (typeof saved.colorIdx === 'number' && carColors[saved.colorIdx]) {
+            selectedColorIdx = saved.colorIdx;
+          } else if (saved.colorHex) {
+            const idx = carColors.findIndex(c => String(c.hex).toLowerCase() === String(saved.colorHex).toLowerCase());
+            if (idx >= 0) selectedColorIdx = idx;
+          }
+          const matchedColor = carColors[selectedColorIdx] || { name: saved.colorName, hex: saved.colorHex };
+          document.querySelectorAll('.vr-color-dot').forEach((d, idx) => d.classList.toggle('active', idx === selectedColorIdx));
+          const colNameEl = document.getElementById('vr-selected-color-name');
+          if (colNameEl) colNameEl.textContent = matchedColor?.name || saved.colorName || 'Tiêu chuẩn';
+          if (viewer && (matchedColor?.hex || saved.colorHex)) {
+            viewer.setBodyColor(matchedColor?.hex || saved.colorHex);
+          }
+
+          if (saved.wheelId) {
+            const wObj = wheelsList.find(w => w.id === saved.wheelId);
+            if (wObj) {
+              selectedWheel = wObj;
+              document.querySelectorAll('.vr-wheel-card').forEach(c => c.classList.toggle('active', c.getAttribute('data-wheel-id') === wObj.id));
+              const totalWithWheel = (car.price || 1405000000) + wObj.price;
+              const priceEl = document.getElementById('vr-panel-price');
+              if (priceEl) priceEl.textContent = `${totalWithWheel.toLocaleString('vi-VN')} VNĐ`;
+              if (viewer) viewer.setWheelType(wObj.id);
+            }
+          }
+          setVehicleConfig(car.id, {
+            colorIdx: selectedColorIdx,
+            colorHex: matchedColor?.hex || saved.colorHex,
+            colorName: matchedColor?.name || saved.colorName,
+            wheelId: selectedWheel?.id
+          });
+          showToast(`Đã áp dụng cấu hình: ${saved.colorName} • ${saved.wheelName || ''}`, '✅');
+        }
+      });
     }
 
     vrGyroCtrl = bindGyroControlsUI({
@@ -4515,9 +5273,13 @@ const AppState = {
     });
     document.getElementById('btn-vr-hud-webxr')?.addEventListener('click', async () => {
       if (viewer && typeof viewer.enterWebXR === 'function') {
-        const res = await viewer.enterWebXR();
-        if (res?.mode === 'studio-vr') {
-          document.getElementById('modal-vr-stereo-view').style.display = 'flex';
+        const res = await viewer.enterWebXR({ ar: false });
+        if (res?.immersiveActive) {
+          showToast('🥽 Đã kích hoạt kính thực tế ảo WebXR Immersive VR!', '🥽');
+        } else {
+          showToast(res?.message || 'Trình duyệt chưa hỗ trợ Kính VR WebXR; đang dùng Chế độ 3D Studio.', 'ℹ️');
+          const modal = document.getElementById('modal-vr-stereo-view');
+          if (modal) modal.style.display = 'flex';
         }
       }
     });
@@ -4822,15 +5584,23 @@ const AppState = {
                 </button>
               </div>
 
+              <!-- Readiness & Capability Disclosure -->
+              <div style="padding:10px 12px; border-radius:10px; font-size:11.5px; line-height:1.45; border:1px solid ${isVerifiedAr ? '#86EFAC' : '#FDE68A'}; background:${isVerifiedAr ? '#F0FDF4' : '#FFFBEB'}; color:${isVerifiedAr ? '#166534' : '#92400E'};">
+                ${isVerifiedAr
+                  ? `<strong>✓ Chứng thực Tỉ lệ Vật lý 1:1:</strong> Mô hình ${escapeHtml(car.name)} đã kiểm chuẩn kích thước ngoài đời thực (${dims.length.toFixed(2)}m × ${dims.width.toFixed(2)}m).`
+                  : `<strong>ℹ️ Chế độ Mô phỏng Studio:</strong> Mẫu xe này chưa kiểm chuẩn WebAR 1:1 ngoài đời thực; kích thước hiển thị mang tính tham khảo trực quan.`}
+              </div>
+
               <!-- Gyroscope Motion Sensor Controls Card -->
               ${buildGyroControlsCardHtml('ar')}
 
               <!-- QR Card for Mobile Handoff -->
               <div style="display:flex; align-items:center; gap:12px; padding:12px; background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px;">
                 <span style="font-size:26px;">📱</span>
-                <div style="font-size:11.5px; color:#1E40AF; line-height:1.5;">
-                  <strong>Trải nghiệm camera trên Điện thoại</strong><br>
-                  Mở trực tiếp trên Safari / Chrome điện thoại để hướng camera vào phòng hoặc gara ngoài đời thực.
+                <div style="font-size:11.5px; color:#1E40AF; line-height:1.5; flex:1;">
+                  <strong>Mở nhanh trên Điện thoại (Deep-link & QR)</strong><br>
+                  <code id="ar-share-url-preview" style="display:block; word-break:break-all; font-size:10px; color:#334155; background:#FFFFFF; padding:3px 6px; border-radius:4px; margin:4px 0;">#ar-live?carId=${encodeURIComponent(car.id)}&colorIdx=${selectedColorIdx}</code>
+                  <button type="button" id="btn-ar-copy-deeplink" class="btn-secondary" style="padding:3px 9px; font-size:11px; margin-top:2px;">📋 Sao chép liên kết AR</button>
                 </div>
               </div>
 
@@ -5171,8 +5941,25 @@ const AppState = {
 
     // Native AR Launcher (Google Scene Viewer / Apple Quick Look / WebXR)
     document.getElementById('btn-ar-sidebar-native')?.addEventListener('click', async () => {
-      if (window.SigmaARAdapter) {
+      if (window.SigmaARAdapter && typeof window.SigmaARAdapter.launchNativeAR === 'function') {
+        const res = await window.SigmaARAdapter.launchNativeAR(car.id, selectedColorIdx);
+        if (res && res.message) {
+          showToast(res.message, res.launched ? '🚀' : '📱');
+        }
+      } else if (window.SigmaARAdapter) {
         await window.SigmaARAdapter.activateAR();
+      }
+    });
+
+    document.getElementById('btn-ar-copy-deeplink')?.addEventListener('click', async () => {
+      const url = (window.SigmaARAdapter && typeof window.SigmaARAdapter.getShareableArUrl === 'function')
+        ? window.SigmaARAdapter.getShareableArUrl()
+        : `${location.origin}${location.pathname}#ar-live?carId=${encodeURIComponent(car.id)}&colorIdx=${selectedColorIdx}`;
+      try {
+        await navigator.clipboard?.writeText(url);
+        showToast('Đã sao chép liên kết AR kèm cấu hình xe & màu sơn!', '📋');
+      } catch (e) {
+        showToast(url, '📱');
       }
     });
 
@@ -5393,7 +6180,7 @@ const AppState = {
             </div>
             <h1 style="font-size:32px; font-weight:800; color:var(--text-dark); margin:0 0 8px;">Xem xe AR ngay tại nhà bạn</h1>
             <p style="font-size:15px; color:var(--text-muted); max-width:680px; margin:0 auto;">
-              Chụp ảnh sân nhà hoặc gara của bạn, công nghệ AI sẽ tự động phân tích độ sâu mặt đất, ánh sáng và đặt chiếc ${escapeHtml(car.name)} vào chính xác 100% tỉ lệ thực tế.
+              Chụp hoặc chọn ảnh sân nhà/gara để mô phỏng ghép trực quan mẫu <strong>${escapeHtml(car.name)}</strong> lên khung cảnh thực (ước lượng tham khảo, không thay thế đo đạc kích thước đỗ xe thực tế).
             </p>
           </div>
 
@@ -5784,10 +6571,10 @@ const AppState = {
             <div class="support-cat-tile" data-cat="emergency" style="cursor:pointer; background:linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%); border:1px solid #FECACA; border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); transition:transform 0.2s, box-shadow 0.2s; border-left:4px solid var(--accent-rose);">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                 <span style="font-size:28px;">🚨</span>
-                <span style="font-size:11px; font-weight:700; background:#FEE2E2; color:var(--accent-rose); padding:2px 8px; border-radius:12px;">Hotline 24/7</span>
+                <span style="font-size:11px; font-weight:700; background:#FEE2E2; color:var(--accent-rose); padding:2px 8px; border-radius:12px;">Cứu hộ khẩn cấp</span>
               </div>
               <h4 style="font-size:16px; font-weight:700; color:#B91C1C; margin-bottom:4px;">Cứu hộ Khẩn cấp</h4>
-              <p style="font-size:12.5px; color:var(--text-muted); line-height:1.4;">Gọi ngay <strong>1900 888 888</strong> hoặc yêu cầu xe cứu hộ điều phối tức thì.</p>
+              <p style="font-size:12.5px; color:var(--text-muted); line-height:1.4;">Gọi ngay <strong>1900 888 888</strong> hoặc yêu cầu xe cứu hộ (CSKH: 08:00 - 20:00 GMT+7).</p>
             </div>
 
             <div class="support-cat-tile" data-cat="Hướng dẫn sử dụng xe" style="cursor:pointer; background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:20px; box-shadow:var(--shadow-sm); transition:transform 0.2s, box-shadow 0.2s; border-left:4px solid var(--accent-amber);">
@@ -5857,10 +6644,10 @@ const AppState = {
             <!-- Right Column: Submit New Support Request Form -->
             <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:28px; box-shadow:var(--shadow-sm); position:sticky; top:96px;">
               <div style="display:inline-flex; align-items:center; gap:6px; background:#EFF6FF; color:var(--primary); font-size:11px; font-weight:800; padding:4px 10px; border-radius:20px; margin-bottom:8px;">
-                ⚡ PHẢN HỒI TRONG 30 PHÚT
+                🕒 TIẾP NHẬN: 08:00 - 20:00 (GMT+7)
               </div>
               <h3 style="font-size:20px; font-weight:800; color:var(--text-dark); margin-bottom:6px;">Gửi Yêu cầu Hỗ trợ Chuyên sâu</h3>
-              <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Đội ngũ kỹ thuật và CSKH SIGMACAR luôn sẵn sàng giải đáp mọi thắc mắc trước và sau khi mua xe.</p>
+              <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px;">Đội ngũ kỹ thuật và CSKH SIGMACAR tiếp nhận và phản hồi có mã tra cứu SLA rõ ràng.</p>
 
               <form id="form-submit-support-ticket">
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
@@ -5937,9 +6724,13 @@ const AppState = {
                 </div>
 
                 <div style="margin-bottom:16px;">
-                  <label class="filter-label">Đính kèm hình ảnh / tài liệu (URL hợp lệ, cách nhau dấu phẩy)</label>
+                  <label class="filter-label">Đính kèm hình ảnh / tài liệu (Tải tệp lên kho bảo mật hoặc nhập URL)</label>
+                  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+                    <input type="file" id="sup-file-upload" accept="image/png,image/jpeg,image/webp,application/pdf" multiple style="font-size:12px;">
+                    <span id="sup-upload-status" style="font-size:11.5px; color:#059669; font-weight:700;"></span>
+                  </div>
                   <input type="text" id="sup-attachments" class="filter-input" placeholder="assets/Charging.png, assets/Battery.png">
-                  <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Hỗ trợ định dạng ảnh PNG, JPG, WEBP, PDF tối đa 5 tệp (&le; 5MB/tệp).</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">Hỗ trợ JPG, PNG, WEBP, PDF tối đa 5 tệp (&le; 5MB/tệp). Hệ thống kiểm tra định dạng thực và xóa EXIF trước khi lưu.</div>
                 </div>
 
                 <button type="submit" class="btn-primary" style="width:100%; justify-content:center; padding:12px;">
@@ -6025,9 +6816,21 @@ const AppState = {
           `).join('')}
         </div>
         ${t.status !== 'Đã đóng' ? `
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
             <input type="text" class="filter-input inp-reply-support-ticket" data-ticket-id="${t.id}" placeholder="Nhập phản hồi tiếp theo trong cùng yêu cầu..." style="padding:8px 12px; font-size:12.5px;">
             <button type="button" class="btn-primary btn-reply-support-ticket" data-ticket-id="${t.id}" style="padding:8px 14px; font-size:12.5px; white-space:nowrap;">Gửi phản hồi</button>
+          </div>
+        ` : ''}
+        ${(t.status === 'Đã giải quyết' || t.status === 'Đã đóng') ? `
+          <div style="margin-top:8px; padding:10px 12px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            ${(t.csatRating?.score ?? t.satisfactionRating) ? `
+              <span style="font-size:12.5px; color:#059669; font-weight:700;">⭐ Đánh giá hài lòng CSAT: ${t.csatRating?.score ?? t.satisfactionRating}/5</span>
+            ` : `
+              <span style="font-size:12px; color:var(--text-secondary); font-weight:600;">Đánh giá mức độ hài lòng xử lý (CSAT):</span>
+              <div style="display:flex; gap:4px;">
+                ${[1, 2, 3, 4, 5].map(star => `<button type="button" class="btn-card-outline btn-rate-ticket-star" data-ticket-id="${t.id}" data-rating="${star}" style="padding:4px 8px; font-size:12px;">⭐ ${star}</button>`).join('')}
+              </div>
+            `}
           </div>
         ` : ''}
       </div>
@@ -6088,6 +6891,19 @@ const AppState = {
           }
         };
       });
+      document.querySelectorAll('.btn-rate-ticket-star').forEach(btn => {
+        btn.onclick = async () => {
+          const ticketId = btn.getAttribute('data-ticket-id');
+          const rating = Number(btn.getAttribute('data-rating') || 5);
+          try {
+            await ApiClient.support.rate(ticketId, { rating });
+            showToast(`Cảm ơn bạn đã đánh giá ${rating}/5 sao cho dịch vụ CSKH!`, '⭐');
+            loadMyTickets();
+          } catch (err) {
+            showToast(err.message || 'Không thể gửi đánh giá.', '⚠️');
+          }
+        };
+      });
     };
 
     // Quick category tiles click handlers
@@ -6107,7 +6923,7 @@ const AppState = {
           const catSelect = document.getElementById('sup-category');
           if (catSelect) catSelect.value = 'Khiếu nại chất lượng dịch vụ';
           document.getElementById('sup-subject')?.focus();
-          showToast('Đã kích hoạt chế độ Cứu hộ khẩn cấp 24/7! Vui lòng gửi thông tin hoặc gọi 1900 888 888.', '🚨');
+          showToast('Đã chọn mức ưu tiên Khẩn cấp (Giờ CSKH: 08:00 - 20:00 GMT+7). Đường dây cứu hộ: 1900 888 888.', '🚨');
         } else if (cat) {
           const catSelect = document.getElementById('sup-category');
           if (catSelect) catSelect.value = cat;
@@ -6192,6 +7008,46 @@ const AppState = {
       }
     });
 
+    const supUploadedMediaUrls = [];
+    document.getElementById('sup-file-upload')?.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []).slice(0, 5);
+      const statusEl = document.getElementById('sup-upload-status');
+      const attInput = document.getElementById('sup-attachments');
+      if (files.length === 0) return;
+      if (!ApiClient.getCurrentUser()) {
+        showToast('Vui lòng đăng nhập để tải tệp nhị phân lên kho lưu trữ bảo mật (hoặc nhập URL tài liệu).', 'ℹ️');
+        return;
+      }
+      if (statusEl) statusEl.textContent = 'Đang kiểm tra định dạng & tải lên...';
+      try {
+        for (const f of files) {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const r = new FileReader();
+            r.onload = () => resolve(r.result);
+            r.onerror = () => reject(new Error('Không đọc được tệp.'));
+            r.readAsDataURL(f);
+          });
+          const uploaded = await ApiClient.media.upload({
+            fileName: f.name,
+            mimeType: f.type || 'image/png',
+            dataBase64: dataUrl,
+            purpose: 'support_ticket'
+          });
+          if (uploaded?.signedUrl) {
+            supUploadedMediaUrls.push(uploaded.signedUrl);
+          }
+        }
+        if (attInput) {
+          const existing = attInput.value.split(',').map(s => s.trim()).filter(Boolean);
+          attInput.value = [...existing, ...supUploadedMediaUrls].join(', ');
+        }
+        if (statusEl) statusEl.textContent = `✓ Đã tải ${supUploadedMediaUrls.length} tệp an toàn`;
+      } catch (err) {
+        if (statusEl) statusEl.textContent = `⚠️ ${err.message}`;
+        showToast(err.message || 'Tệp bị từ chối kiểm duyệt.', '⚠️');
+      }
+    });
+
     document.getElementById('form-submit-support-ticket')?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const attachmentsRaw = document.getElementById('sup-attachments')?.value.trim() || '';
@@ -6247,7 +7103,8 @@ const AppState = {
       return;
     }
 
-    let dashData = { monthlyRevenue: '14.580.000.000 đ', newDepositsCount: 3, todayTestDrives: 4, supportRequests: 2, appointments: [] };
+    const analyticsFilter = AppState._sellerAnalyticsFilter || { branchId: 'all', dateFrom: '', dateTo: '' };
+    let dashData = { monthlyRevenue: '0', newDepositsCount: 0, todayTestDrives: 0, supportRequests: 0, appointments: [], monthlySeries: [], _loadError: false };
     let ordersList = [];
     let apptsList = [];
     let returnsRes = { items: [], stats: {} };
@@ -6257,10 +7114,12 @@ const AppState = {
     let supportStats = {};
     let campaignsRes = { campaigns: [], templates: [], smtpConfigured: false, stats: {} };
     let usersList = [];
+    let promotionsList = [];
+    let inventoryRows = [];
 
     try {
       const results = await Promise.all([
-        ApiClient.analytics.getOverview().catch(() => dashData),
+        ApiClient.analytics.getOverview(analyticsFilter).catch(() => ({ ...dashData, _loadError: true })),
         ApiClient.orders.getAll().catch(() => []),
         ApiClient.appointments.getAll().catch(() => []),
         ApiClient.returns.getAll().catch(() => ({ items: [], stats: {} })),
@@ -6269,12 +7128,18 @@ const AppState = {
         ApiClient.support.getTickets().catch(() => []),
         ApiClient.support.getStats().catch(() => ({})),
         ApiClient.campaigns.getAll().catch(() => ({ campaigns: [], templates: [], smtpConfigured: false, stats: {} })),
-        curUser.role === 'admin' ? ApiClient.admin.getUsers().catch(() => []) : Promise.resolve([])
+        curUser.role === 'admin' ? ApiClient.admin.getUsers().catch(() => []) : Promise.resolve([]),
+        ApiClient.promotions?.list ? ApiClient.promotions.list().catch(() => []) : Promise.resolve([]),
+        ApiClient.inventory?.list ? ApiClient.inventory.list().catch(() => []) : Promise.resolve([]),
+        ApiClient.financing?.listApplications ? ApiClient.financing.listApplications().catch(() => []) : Promise.resolve([])
       ]);
-      [dashData, ordersList, apptsList, returnsRes, warOverview, modData, supportTickets, supportStats, campaignsRes, usersList] = results;
+      let financingAppsList = [];
+      [dashData, ordersList, apptsList, returnsRes, warOverview, modData, supportTickets, supportStats, campaignsRes, usersList, promotionsList, inventoryRows, financingAppsList] = results;
+      AppState._sellerFinancingApps = Array.isArray(financingAppsList) ? financingAppsList : [];
+      AppState._sellerReturnsItems = Array.isArray(returnsRes?.items) ? returnsRes.items : [];
     } catch (e) {}
 
-    AppState._sellerCache = { dashData, ordersList, apptsList, returnsRes, warOverview, modData, supportTickets, supportStats, campaignsRes, usersList };
+    AppState._sellerCache = { dashData, ordersList, apptsList, returnsRes, warOverview, modData, supportTickets, supportStats, campaignsRes, usersList, promotionsList, inventoryRows };
 
     viewsContainer.innerHTML = `
       <div class="dashboard-layout">
@@ -6312,6 +7177,9 @@ const AppState = {
             <li class="dash-nav-item ${activeTab === 'dash-campaigns' ? 'active' : ''}" data-dashtab="dash-campaigns">
               ✉️ Chiến dịch Email (${(campaignsRes.campaigns || []).length})
             </li>
+            <li class="dash-nav-item ${activeTab === 'dash-cms' ? 'active' : ''}" data-dashtab="dash-cms">
+              📰 Quản trị CMS & Banner
+            </li>
             <li class="dash-nav-item ${activeTab === 'dash-crm' ? 'active' : ''}" data-dashtab="dash-crm" style="cursor:pointer; position:relative; z-index:10;">
               👥 CRM & Phân quyền RBAC
             </li>
@@ -6346,6 +7214,29 @@ const AppState = {
     });
 
     bindSellerDashboardActions();
+
+    if (activeTab === 'dash-overview') {
+      window.SigmaContentAdmin?.mountOverviewInsights(
+        document.getElementById('seller-overview-insights-mount'),
+        dashData,
+        analyticsFilter,
+        (nextF) => {
+          AppState._sellerAnalyticsFilter = nextF;
+          renderSellerDashboard('dash-overview');
+        }
+      );
+    } else if (activeTab === 'dash-aftersales') {
+      window.SigmaContentAdmin?.mountWorkshopAndClaimsPanel(
+        document.getElementById('seller-workshop-claims-mount'),
+        curUser
+      );
+    } else if (activeTab === 'dash-cms') {
+      const cmsEl = document.getElementById('seller-cms-tab-mount');
+      if (cmsEl && window.SigmaContentAdmin) {
+        cmsEl.innerHTML = await window.SigmaContentAdmin.renderCmsTabHtml(curUser);
+        window.SigmaContentAdmin.bindCmsTabActions(() => renderSellerDashboard('dash-cms'));
+      }
+    }
   }
 
   function renderSellerSubView(tab, dashData, ordersList, apptsList) {
@@ -6360,48 +7251,111 @@ const AppState = {
     const usersList = cache.usersList || [];
 
     if (tab === 'dash-orders') {
+      const ORDER_STAGE_OPTS = ['Pending', 'Confirmed', 'Preparing', 'Shipped', 'Delivered', 'Cancelled'];
       return `
         <div class="dashboard-banner-header" style="background-image: linear-gradient(90deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 100%), url('assets/banner-seller-orders.jpg');">
-          <h3>Quản lý Đơn Đặt cọc & Mua xe</h3>
-          <p>Theo dõi tiến độ hợp đồng, thanh toán cọc và lịch bàn giao xe cho khách hàng toàn quốc.</p>
+          <h3>Quản lý Đơn Đặt cọc & Mua xe (${ordersList.length})</h3>
+          <p>Theo dõi tiến độ hợp đồng, thanh toán cọc, giữ chỗ tồn kho và lịch bàn giao xe toàn quốc.</p>
         </div>
 
         <div class="dash-table-card">
+          ${ordersList.length === 0 ? `
+            <div style="text-align:center; padding:42px 20px; color:var(--text-muted);">
+              <div style="font-size:36px; margin-bottom:8px;">📋</div>
+              <div style="font-weight:700; color:var(--text-dark);">Chưa có đơn hàng nào trong hệ thống.</div>
+            </div>
+          ` : `
           <table class="dash-data-table">
             <thead>
               <tr>
                 <th>Mã đơn</th>
                 <th>Khách hàng</th>
-                <th>Dòng xe / Số VIN</th>
-                <th>Giá trị / Cọc</th>
-                <th>Phương thức</th>
-                <th>Trạng thái</th>
-                <th style="text-align:right;">Thao tác</th>
+                <th>Dòng xe / Chi nhánh</th>
+                <th>Giá trị / Đã thanh toán</th>
+                <th>Thanh toán</th>
+                <th>Trạng thái đơn</th>
+                <th style="text-align:right;">Điều phối & Sổ cái</th>
               </tr>
             </thead>
             <tbody>
-              ${(ordersList.length > 0 ? ordersList : [
-                { id: 'ORD-9021', orderNumber: 'SG-2026-9021', buyerName: 'Minh Hoàng', buyerPhone: '0901 234 567', vehicleName: 'SIGMA Model E', depositAmount: 50000000, paymentMethod: 'Napas QR 24/7', orderStatus: 'confirmed' }
-              ]).map(o => `
+              ${ordersList.map(o => {
+                const paidVal = Number(o.paidAmount || 0);
+                const totalVal = Number(o.totalAmount || o.depositAmount || 0);
+                const curSt = o.orderStatus || 'Pending';
+                return `
                 <tr>
-                  <td><strong>${escapeHtml(o.orderNumber || o.id)}</strong></td>
-                  <td><strong>${escapeHtml(o.buyerName)}</strong><br><span style="font-size:11px; color:var(--text-muted);">${escapeHtml(o.buyerPhone)}</span></td>
-                  <td><strong>${escapeHtml(o.vehicleName || 'SIGMA EV')}</strong><br><span style="font-size:11px; color:var(--text-muted);">VIN: ${escapeHtml(o.vin || 'Đang cấp')}</span></td>
-                  <td><strong style="color:var(--primary);">${(o.depositAmount || 50000000).toLocaleString('vi-VN')} đ</strong></td>
-                  <td>${escapeHtml(o.paymentMethod || 'Chuyển khoản')}</td>
                   <td>
-                    <span class="status-badge ${o.orderStatus === 'confirmed' || o.orderStatus === 'delivered' || o.orderStatus === 'Đã giao' || o.orderStatus === 'Hoàn thành' ? 'confirmed' : 'pending'}">
-                      ● ${escapeHtml((o.orderStatus || 'CONFIRMED').toUpperCase())}
+                    <strong>${escapeHtml(o.orderNumber || o.id)}</strong><br>
+                    <span style="font-size:11px; color:var(--text-muted);">${o.createdAt ? escapeHtml(o.createdAt.slice(0, 10)) : ''}</span>
+                  </td>
+                  <td><strong>${escapeHtml(o.buyerName || 'Khách hàng')}</strong><br><span style="font-size:11px; color:var(--text-muted);">${escapeHtml(o.buyerPhone || '')}</span></td>
+                  <td>
+                    <strong>${escapeHtml(o.vehicleName || 'Đơn hàng SIGMACAR')}</strong><br>
+                    <span style="font-size:11px; color:var(--text-muted);">VIN: ${escapeHtml(o.vin || 'Chờ cấp')} • ${escapeHtml(o.branchId || 'hn-caugiay')}</span>
+                  </td>
+                  <td>
+                    <strong style="color:var(--primary);">${totalVal.toLocaleString('vi-VN')} đ</strong><br>
+                    <span style="font-size:11px; color:#059669;">Đã thu: ${paidVal.toLocaleString('vi-VN')} đ</span>
+                  </td>
+                  <td>
+                    <span class="status-badge ${o.paymentStatus === 'Paid' ? 'confirmed' : 'pending'}">${escapeHtml(o.paymentStatus || 'Unpaid')}</span>
+                  </td>
+                  <td>
+                    <span class="status-badge ${['Confirmed', 'Preparing', 'Shipped', 'Delivered', 'confirmed', 'delivered', 'Đã giao', 'Hoàn thành'].includes(curSt) ? 'confirmed' : 'pending'}">
+                      ● ${escapeHtml(curSt.toUpperCase())}
                     </span>
                   </td>
                   <td style="text-align:right;">
-                    <button class="btn-card-outline btn-order-action" data-id="${o.id}" data-action="confirm" style="padding:4px 8px; font-size:11.5px;">✓ Xác nhận</button>
-                    <button class="btn-card-primary btn-order-action" data-id="${o.id}" data-action="deliver" style="padding:4px 8px; font-size:11.5px;">🚗 Bàn giao</button>
+                    <div style="display:flex; gap:6px; justify-content:flex-end; align-items:center; flex-wrap:wrap;">
+                      <select class="filter-select sel-seller-order-status" data-id="${o.id}" style="width:130px; padding:4px 8px; font-size:11.5px;">
+                        ${ORDER_STAGE_OPTS.map(st => `<option value="${st}" ${curSt === st ? 'selected' : ''}>${st}</option>`).join('')}
+                      </select>
+                      <button class="btn-card-primary btn-seller-order-save" data-id="${o.id}" style="padding:4px 8px; font-size:11.5px;">Cập nhật</button>
+                      <button class="btn-card-outline btn-seller-order-ledger" data-id="${o.id}" data-num="${escapeHtml(o.orderNumber || o.id)}" style="padding:4px 8px; font-size:11.5px;">📜 Sổ cái</button>
+                      <button class="btn-card-outline btn-seller-order-timeline" data-id="${o.id}" data-num="${escapeHtml(o.orderNumber || o.id)}" style="padding:4px 8px; font-size:11.5px;">🕒 Tiến độ</button>
+                      <button class="btn-card-outline btn-seller-order-reg" data-id="${o.id}" style="padding:4px 8px; font-size:11.5px;">📝 Đăng ký biển</button>
+                      ${curSt !== 'Delivered' && curSt !== 'Cancelled' ? `<button class="btn-card-outline btn-seller-order-handover" data-id="${o.id}" data-num="${escapeHtml(o.orderNumber || o.id)}" data-car="${escapeHtml(o.vehicleName || 'SIGMACAR')}" style="padding:4px 8px; font-size:11.5px; color:#059669; border-color:#059669;">🤝 Bàn giao</button>` : ''}
+                    </div>
                   </td>
                 </tr>
-              `).join('')}
+              `; }).join('')}
             </tbody>
           </table>
+          `}
+        </div>
+
+        <div class="dash-table-card" style="margin-top:20px;">
+          <h4 style="font-size:16px; font-weight:800; margin-bottom:12px;">🏦 Hồ sơ Trả góp cần Thẩm định (${(AppState._sellerFinancingApps || []).length})</h4>
+          ${(AppState._sellerFinancingApps || []).length === 0 ? `<p style="font-size:13px; color:var(--text-muted); margin:0;">Chưa có hồ sơ vay trả góp nào gửi lên hệ thống.</p>` : `
+            <table class="dash-data-table">
+              <thead>
+                <tr>
+                  <th>Mã HS</th>
+                  <th>Xe / Khách hàng</th>
+                  <th>Khoản vay / Kỳ hạn</th>
+                  <th>Trạng thái</th>
+                  <th style="text-align:right;">Phê duyệt</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(AppState._sellerFinancingApps || []).map(fa => `
+                  <tr>
+                    <td><strong>${escapeHtml(fa.id)}</strong></td>
+                    <td><strong>${escapeHtml(fa.vehicleName || fa.vehicleId)}</strong><br><span style="font-size:11px; color:var(--text-muted);">${escapeHtml(fa.userName || fa.userId || '')}</span></td>
+                    <td>${Number(fa.loanPrincipal || 0).toLocaleString('vi-VN')} đ (${fa.termMonths || 60} tháng)</td>
+                    <td><span class="status-badge ${fa.status === 'Lender_Approved' ? 'confirmed' : 'pending'}">● ${escapeHtml(fa.status)}</span></td>
+                    <td style="text-align:right;">
+                      <div style="display:flex; gap:6px; justify-content:flex-end;">
+                        ${fa.status === 'Pending_Review' ? `<button class="btn-card-outline btn-fin-review" data-id="${fa.id}" data-ver="${fa.version || 1}" data-action="verify" style="padding:4px 8px; font-size:11.5px;">✓ Xác minh ĐL</button>` : ''}
+                        ${fa.status !== 'Lender_Approved' && fa.status !== 'Rejected' && fa.status !== 'Withdrawn' ? `<button class="btn-card-primary btn-fin-review" data-id="${fa.id}" data-ver="${fa.version || 1}" data-action="approve_lender" style="padding:4px 8px; font-size:11.5px;">🏦 Duyệt NH</button>` : ''}
+                        ${fa.status !== 'Rejected' && fa.status !== 'Withdrawn' ? `<button class="btn-card-outline btn-fin-review" data-id="${fa.id}" data-ver="${fa.version || 1}" data-action="reject" style="padding:4px 8px; font-size:11.5px; color:var(--accent-rose);">✕ Từ chối</button>` : ''}
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `}
         </div>
       `;
     }
@@ -6528,72 +7482,25 @@ const AppState = {
 
         <div class="dash-kpi-grid">
           <div class="kpi-card">
-            <div class="kpi-top-row"><span class="kpi-label">Xe đang tại Xưởng</span><span class="kpi-tag tag-success">+2 so với hôm qua</span></div>
-            <div class="kpi-val">${wStats.vehiclesInWorkshop ?? 14} xe</div>
+            <div class="kpi-top-row"><span class="kpi-label">Lệnh xưởng đang mở</span><span class="kpi-tag tag-success">Dữ liệu thực</span></div>
+            <div class="kpi-val">${wStats.vehiclesInWorkshop ?? (warOverview.workshopStatus?.totalActiveJobs || 0)} xe</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-top-row"><span class="kpi-label">Lịch hẹn chờ xác nhận</span><span class="kpi-tag tag-warning">Cần xử lý ngay</span></div>
-            <div class="kpi-val">0${wStats.pendingAppointments ?? 2} lịch</div>
+            <div class="kpi-top-row"><span class="kpi-label">Lịch hẹn chờ xác nhận</span><span class="kpi-tag tag-warning">Cần xử lý</span></div>
+            <div class="kpi-val">${wStats.pendingAppointments ?? srvAppts.filter(a => a.status === 'Chờ xác nhận').length} lịch</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-top-row"><span class="kpi-label">Yêu cầu Bảo hành Pin & Động cơ</span><span class="kpi-tag tag-success">${wStats.activeWarranties ?? warranties.length} Đang hiệu lực</span></div>
-            <div class="kpi-val">0${wStats.warrantyClaimsActive ?? 3} hồ sơ</div>
+            <div class="kpi-top-row"><span class="kpi-label">Hồ sơ Bảo hành Hiệu lực</span><span class="kpi-tag tag-success">${wStats.activeWarranties ?? warranties.length} Đang hiệu lực</span></div>
+            <div class="kpi-val">${wStats.warrantyClaimsActive ?? 0} yêu cầu</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-top-row"><span class="kpi-label">Chỉ số hài lòng (CSAT)</span><span class="kpi-tag tag-success">Vượt chỉ tiêu 4%</span></div>
-            <div class="kpi-val">${wStats.csatScore ?? '4.9/5'} ⭐</div>
+            <div class="kpi-top-row"><span class="kpi-label">Chỉ số hài lòng (CSAT)</span><span class="kpi-tag tag-success">Đo thực tế</span></div>
+            <div class="kpi-val">${wStats.csatScore ?? 'Chưa có đánh giá'}</div>
           </div>
         </div>
 
-        <!-- Workshop Bays + Inventory Alert matching Seller Dashboard - Service & After-sales.pdf -->
-        <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:20px; margin-bottom:24px;">
-          <div class="dash-table-card" style="margin-bottom:0;">
-            <h4 style="font-size:15.5px; font-weight:800; margin-bottom:14px;">🛠️ Tình trạng Khoang Dịch vụ Thời gian thực (Workshop Bays)</h4>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              <div style="border:1px solid #BFDBFE; background:#EFF6FF; border-radius:10px; padding:12px;">
-                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:var(--primary);"><span>KHOANG 01 • ĐANG XỬ LÝ</span><span>75%</span></div>
-                <div style="font-weight:800; font-size:14px; margin:4px 0;">SIGMA Model E (30K-889.99)</div>
-                <div style="font-size:12px; color:var(--text-secondary);">Hạng mục: Bảo dưỡng 10.000 km & Cân bằng cell pin • KTV: Lê Quang Vũ</div>
-              </div>
-              <div style="border:1px solid #FDE68A; background:#FFFBEB; border-radius:10px; padding:12px;">
-                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#D97706;"><span>KHOANG 02 • CHỜ PHỤ TÙNG</span><span>40%</span></div>
-                <div style="font-weight:800; font-size:14px; margin:4px 0;">SIGMA Vision S (30A-992.18)</div>
-                <div style="font-size:12px; color:var(--text-secondary);">Hạng mục: Kiểm tra cảm biến LiDAR cản trước • KTV: Trần Minh Đức</div>
-              </div>
-              <div style="border:1px solid #A7F3D0; background:#ECFDF5; border-radius:10px; padding:12px;">
-                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#059669;"><span>KHOANG 03 • SẴN SÀNG</span><span>TRỐNG</span></div>
-                <div style="font-weight:800; font-size:14px; margin:4px 0;">Khoang Chẩn đoán Điện cao áp</div>
-                <div style="font-size:12px; color:var(--text-secondary);">Sẵn sàng tiếp nhận lịch hẹn tiếp theo lúc 14:00</div>
-              </div>
-              <div style="border:1px solid #BFDBFE; background:#EFF6FF; border-radius:10px; padding:12px;">
-                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:var(--primary);"><span>KHOANG 04 • ĐANG XỬ LÝ</span><span>90%</span></div>
-                <div style="font-weight:800; font-size:14px; margin:4px 0;">SIGMA Grand 7 (29A-771.05)</div>
-                <div style="font-size:12px; color:var(--text-secondary);">Hạng mục: Cập nhật Firmware ADAS v2.6 • KTV: Phạm Quốc Khánh</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="dash-table-card" style="margin-bottom:0;">
-            <h4 style="font-size:15.5px; font-weight:800; margin-bottom:14px;">📦 Tồn kho Linh kiện Bảo hành Chính hãng</h4>
-            <div style="display:flex; flex-direction:column; gap:10px; font-size:13px;">
-              <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#FEF2F2; border-radius:8px; border:1px solid #FECACA;">
-                <span><strong>Module Pin LFP/NMC Dự phòng</strong></span>
-                <span style="color:#DC2626; font-weight:800;">Sắp hết (02 bộ)</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#FFFBEB; border-radius:8px; border:1px solid #FDE68A;">
-                <span><strong>Má phanh Gốm Carbon Hiệu suất cao</strong></span>
-                <span style="color:#D97706; font-weight:800;">Cần nhập (05 bộ)</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#ECFDF5; border-radius:8px; border:1px solid #A7F3D0;">
-                <span><strong>Lọc gió Điều hòa HEPA N95</strong></span>
-                <span style="color:#059669; font-weight:800;">Đủ tồn (48 chiếc)</span>
-              </div>
-              <div style="display:flex; justify-content:space-between; padding:8px 10px; background:#ECFDF5; border-radius:8px; border:1px solid #A7F3D0;">
-                <span><strong>Bộ sạc OBC 11kW & Cảm biến ADAS</strong></span>
-                <span style="color:#059669; font-weight:800;">Đủ tồn (19 bộ)</span>
-              </div>
-            </div>
-          </div>
+        <div id="seller-workshop-claims-mount">
+          <div class="dash-table-card" style="text-align:center; color:#64748B;">Đang tải dữ liệu khoang dịch vụ, phụ tùng & hồ sơ bảo hành...</div>
         </div>
 
         <!-- Service Appointments Management -->
@@ -6738,12 +7645,18 @@ const AppState = {
     }
 
     if (tab === 'dash-inventory') {
+      const invByVehicle = new Map();
+      (Array.isArray(inventoryRows) ? inventoryRows : []).forEach(r => {
+        if (!invByVehicle.has(r.vehicleId)) invByVehicle.set(r.vehicleId, []);
+        invByVehicle.get(r.vehicleId).push(r);
+      });
+      const promoRows = Array.isArray(promotionsList) ? promotionsList : [];
       return `
         <div class="dashboard-banner-header" style="background-image: linear-gradient(90deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 100%), url('assets/banner-seller-inventory.jpg');">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
             <div>
-              <h3>Quản lý Kho xe Chi nhánh (Inventory)</h3>
-              <p>Theo dõi xe mới, xe trưng bày và tồn kho thời gian thực với đồng bộ dữ liệu vào hệ thống AI.</p>
+              <h3>Quản lý Kho xe Chi nhánh & Khuyến mãi</h3>
+              <p>Điều chỉnh tồn kho theo showroom (có kiểm soát xung đột phiên bản), thêm xe mới vào API và tạo mã ưu đãi.</p>
             </div>
             <button id="btn-open-add-car-modal" class="btn-primary" style="display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:8px; font-weight:700; cursor:pointer; background:linear-gradient(135deg, #2563EB, #1D4ED8); color:#FFFFFF; border:none; box-shadow:0 4px 12px rgba(37,99,235,0.25);">
               <span>➕ Thêm xe mới & Tự động nạp vào AI</span>
@@ -6751,7 +7664,7 @@ const AppState = {
           </div>
         </div>
 
-        <div class="dash-table-card">
+        <div class="dash-table-card" style="margin-bottom:24px;">
           <table class="dash-data-table">
             <thead>
               <tr>
@@ -6759,24 +7672,88 @@ const AppState = {
                 <th>Tên dòng xe</th>
                 <th>Phân khúc</th>
                 <th>Giá niêm yết</th>
-                <th>Tồn kho khả dụng</th>
+                <th>Tồn kho khả dụng (Theo chi nhánh)</th>
                 <th>Trạng thái</th>
                 <th style="text-align:right;">Điều chỉnh</th>
               </tr>
             </thead>
             <tbody>
-              ${AppState.vehiclesList.map(v => `
+              ${AppState.vehiclesList.map(v => {
+                const branches = invByVehicle.get(v.id) || [];
+                const branchHtml = branches.slice(0, 3).map(b => `<span style="display:inline-block; background:#F1F5F9; padding:2px 6px; border-radius:4px; font-size:10.5px; margin-right:4px;">${escapeHtml(b.branchId)}: <strong>${b.available}</strong>/${b.stockOnHand}</span>`).join('');
+                return `
                 <tr>
                   <td><img src="${v.image}" style="width:64px; height:40px; object-fit:contain; border-radius:4px;"></td>
                   <td><strong>${escapeHtml(v.name)}</strong><br><span style="font-size:11px; color:var(--text-muted);">${escapeHtml(v.subtitle)}</span></td>
                   <td>${escapeHtml(v.category)}</td>
                   <td><strong>${escapeHtml(v.priceFormatted)}</strong></td>
-                  <td><span style="font-size:16px; font-weight:800; color:var(--primary);">${v.stock ?? 10}</span> xe</td>
-                  <td><span class="status-badge ${(v.stock ?? 10) > 0 ? 'confirmed' : 'pending'}">${(v.stock ?? 10) > 0 ? '● Có sẵn giao ngay' : '● Chờ nhập thêm'}</span></td>
+                  <td>
+                    <span style="font-size:16px; font-weight:800; color:var(--primary);">${v.stock ?? 0}</span> xe
+                    ${branchHtml ? `<div style="margin-top:4px;">${branchHtml}</div>` : ''}
+                  </td>
+                  <td><span class="status-badge ${(v.stock ?? 0) > 0 ? 'confirmed' : 'pending'}">${(v.stock ?? 0) > 0 ? '● Có sẵn giao ngay' : '● Hết hàng'}</span></td>
                   <td style="text-align:right;">
+                    <select class="filter-select sel-inv-branch" data-id="${v.id}" style="width:125px; padding:4px 6px; font-size:11px; margin-bottom:4px;">
+                      <option value="hn-caugiay">Cầu Giấy (HN)</option>
+                      <option value="hn-mydinh">Mỹ Đình (HN)</option>
+                      <option value="hcm-q7">Quận 7 (HCM)</option>
+                      <option value="hcm-thuduc">Thủ Đức (HCM)</option>
+                      <option value="dn-haichau">Đà Nẵng</option>
+                    </select><br>
                     <button class="btn-card-outline btn-stock-adjust" data-id="${v.id}" data-delta="1" style="padding:4px 8px; font-size:12px;">+1 Xe</button>
                     <button class="btn-card-outline btn-stock-adjust" data-id="${v.id}" data-delta="-1" style="padding:4px 8px; font-size:12px;">-1 Xe</button>
                   </td>
+                </tr>
+              `; }).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Promotions Management Panel (SIG-P1-005 / SIG-P1-010) -->
+        <div class="dash-table-card">
+          <h4 style="font-size:16px; font-weight:800; margin-bottom:12px;">🏷️ Quản lý Mã Khuyến mãi & Ưu đãi (${promoRows.length})</h4>
+          <form id="form-seller-create-promo" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; padding:14px; background:#F8FAFC; border:1px solid var(--border-subtle); border-radius:10px; margin-bottom:16px; align-items:end;">
+            <div>
+              <label class="filter-label">Mã Promo *</label>
+              <input type="text" id="promo-inp-code" class="filter-input" required placeholder="VD: SUMMER50">
+            </div>
+            <div>
+              <label class="filter-label">Loại giảm giá</label>
+              <select id="promo-inp-type" class="filter-select">
+                <option value="fixed">Giảm tiền cố định (VNĐ)</option>
+                <option value="percent">Giảm phần trăm (%)</option>
+              </select>
+            </div>
+            <div>
+              <label class="filter-label">Giá trị *</label>
+              <input type="number" id="promo-inp-value" class="filter-input" required min="1" placeholder="50000000 hoặc 5">
+            </div>
+            <div>
+              <label class="filter-label">Giới hạn lượt toàn hệ thống</label>
+              <input type="number" id="promo-inp-maxuses" class="filter-input" min="1" value="100">
+            </div>
+            <div>
+              <label class="filter-label">Nhiên liệu áp dụng</label>
+              <select id="promo-inp-fuel" class="filter-select">
+                <option value="all">Tất cả dòng xe</option>
+                <option value="ev">Chỉ xe điện (EV)</option>
+                <option value="gas">Xe xăng / hybrid</option>
+              </select>
+            </div>
+            <button type="submit" class="btn-primary" style="height:40px; justify-content:center;">+ Tạo mã ưu đãi</button>
+          </form>
+          <table class="dash-data-table">
+            <thead>
+              <tr><th>Mã</th><th>Tên chương trình</th><th>Ưu đãi</th><th>Đã dùng / Giới hạn</th><th>Trạng thái</th></tr>
+            </thead>
+            <tbody>
+              ${promoRows.map(p => `
+                <tr>
+                  <td><strong>${escapeHtml(p.code)}</strong></td>
+                  <td>${escapeHtml(p.name || p.code)}</td>
+                  <td>${p.discountType === 'percent' ? `${p.discountValue}%` : `${Number(p.discountValue || 0).toLocaleString('vi-VN')} đ`}</td>
+                  <td>${p.usedCount || 0} / ${p.maxUses || '∞'}</td>
+                  <td><span class="status-badge ${p.active !== false ? 'confirmed' : 'pending'}">${p.active !== false ? 'Đang hoạt động' : 'Tạm tắt'}</span></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -7321,35 +8298,37 @@ const AppState = {
       `;
     }
 
+    if (tab === 'dash-cms') {
+      return `<div id="seller-cms-tab-mount" class="dash-table-card">Đang tải trình biên tập CMS...</div>`;
+    }
+
     // DEFAULT TAB: DASHBOARD OVERVIEW
     return `
       <div class="dashboard-banner-header" style="background-image: linear-gradient(90deg, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 100%), url('assets/banner-seller-overview.jpg');">
-        <h3>Trung tâm Điều hành Bán hàng & Hậu mãi — Showroom Cầu Giấy</h3>
-        <p>Báo cáo doanh số thời gian thực, tiến độ đơn hàng, đổi trả 7 ngày, bảo hành số và chăm sóc khách hàng.</p>
+        <h3>Trung tâm Điều hành Bán hàng & Hậu mãi — Showroom SIGMACAR</h3>
+        <p>Báo cáo doanh số thực tế từ DB, đối soát hoàn tiền/cọc, phễu chuyển đổi & xuất CSV.</p>
       </div>
 
       <div class="dash-kpi-grid">
         <div class="kpi-card">
-          <div class="kpi-top-row"><span class="kpi-label">Doanh số thực tế (VND)</span><span class="kpi-tag tag-success">Active</span></div>
-          <div class="kpi-val">${dashData.monthlyRevenue}</div>
+          <div class="kpi-top-row"><span class="kpi-label">Doanh số Ghi nhận (VND)</span><span class="kpi-tag tag-success">${dashData._loadError ? 'Lỗi kết nối' : 'Từ DB'}</span></div>
+          <div class="kpi-val">${escapeHtml(String(dashData.monthlyRevenue || '0'))}</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-top-row"><span class="kpi-label">Đơn cọc & Mua xe</span><span class="kpi-tag tag-success">Đã lưu DB</span></div>
-          <div class="kpi-val">${ordersList.length || dashData.newDepositsCount} xe</div>
+          <div class="kpi-top-row"><span class="kpi-label">Đơn hàng Hợp lệ</span><span class="kpi-tag tag-success">Đã lưu DB</span></div>
+          <div class="kpi-val">${Number(dashData.unitsOrdered ?? ordersList.length ?? 0)} xe</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-top-row"><span class="kpi-label">Hồ sơ Bảo hành Số</span><span class="kpi-tag tag-warning">Đang hiệu lực</span></div>
-          <div class="kpi-val">0${(warOverview.warranties || []).length || 1} xe</div>
+          <div class="kpi-val">${(warOverview.warranties || []).length} xe</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-top-row"><span class="kpi-label">Yêu cầu CSKH & Đổi trả</span><span class="kpi-tag tag-danger">Cần xử lý</span></div>
-          <div class="kpi-val">0${supportTickets.length + (returnsRes.items || []).length} đơn</div>
+          <div class="kpi-val">${supportTickets.length + (returnsRes.items || []).length} đơn</div>
         </div>
       </div>
 
-      <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:24px; box-shadow:var(--shadow-sm);">
-        <img src="assets/seller-overview-chart.jpg" alt="Phân tích biểu đồ doanh thu và thị phần" style="width:100%; height:190px; object-fit:cover; display:block;">
-      </div>
+      <div id="seller-overview-insights-mount"></div>
 
       <div class="dash-table-card">
         <h4 style="font-size:16px; font-weight:700; margin-bottom:16px;">Lịch hẹn lái thử gần đây</h4>
@@ -7382,41 +8361,279 @@ const AppState = {
   }
 
   function bindSellerDashboardActions() {
-    // Inventory adjust
+    // Inventory adjust (branch ledger + optimistic lock when inventory API active)
     document.querySelectorAll('.btn-stock-adjust').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', async (e) => {
         const carId = e.currentTarget.getAttribute('data-id');
-        const delta = parseInt(e.currentTarget.getAttribute('data-delta'));
+        const delta = parseInt(e.currentTarget.getAttribute('data-delta'), 10);
+        const branchSel = document.querySelector(`.sel-inv-branch[data-id="${carId}"]`);
+        const branchId = branchSel ? branchSel.value : 'hn-caugiay';
         const car = AppState.vehiclesList.find(v => v.id === carId);
-        if (car) {
-          car.stock = Math.max(0, (car.stock ?? 10) + delta);
-          showToast(`Đã cập nhật tồn kho cho ${car.name}: ${car.stock} xe`, '📦');
+        if (!car || !Number.isFinite(delta)) return;
+        try {
+          if (ApiClient.inventory?.adjust) {
+            await ApiClient.inventory.adjust(carId, { branchId, delta, reason: `Điều chỉnh thủ công bởi đại lý (${delta > 0 ? '+' : ''}${delta})` });
+            await loadBackendData();
+            const refreshed = AppState.vehiclesList.find(v => v.id === carId);
+            showToast(`Đã điều chỉnh tồn kho ${branchId} cho ${car.name}: còn ${refreshed?.stock ?? car.stock} xe`, '📦');
+          } else {
+            const nextStock = Math.max(0, (car.stock ?? 10) + delta);
+            const updated = await ApiClient.vehicles.update(carId, { stock: nextStock });
+            car.stock = updated.stock;
+            showToast(`Đã cập nhật tồn kho cho ${car.name}: ${updated.stock} xe`, '📦');
+          }
           renderSellerDashboard('dash-inventory');
+        } catch (err) {
+          showToast(err.message || 'Không thể cập nhật tồn kho lên máy chủ.', '⚠️');
         }
       });
     });
 
-    // Order status update
+    // Seller Promotion Creation
+    document.getElementById('form-seller-create-promo')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = document.getElementById('promo-inp-code')?.value.trim();
+      const discountType = document.getElementById('promo-inp-type')?.value || 'fixed';
+      const discountValue = Number(document.getElementById('promo-inp-value')?.value || 0);
+      const maxUses = Number(document.getElementById('promo-inp-maxuses')?.value || 100);
+      const fuelType = document.getElementById('promo-inp-fuel')?.value || 'all';
+      try {
+        await ApiClient.promotions.create({
+          code,
+          name: `Ưu đãi ${code.toUpperCase()}`,
+          discountType,
+          discountValue,
+          maxUses,
+          fuelTypes: fuelType === 'all' ? [] : [fuelType]
+        });
+        showToast(`Đã tạo mã khuyến mãi ${code.toUpperCase()} thành công!`, '🏷️');
+        renderSellerDashboard('dash-inventory');
+      } catch (err) {
+        showToast(err.message || 'Không thể tạo mã khuyến mãi.', '⚠️');
+      }
+    });
+
+    // Order status transition via canonical backend enums
+    document.querySelectorAll('.btn-seller-order-save').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const orderId = btn.getAttribute('data-id');
+        const nextStatus = document.querySelector(`.sel-seller-order-status[data-id="${orderId}"]`)?.value;
+        if (!orderId || !nextStatus) return;
+        try {
+          await ApiClient.orders.updateStatus(orderId, nextStatus);
+          showToast(`Đơn hàng ${orderId} đã chuyển sang: ${nextStatus}`, '✓');
+          renderSellerDashboard('dash-orders');
+        } catch (err) {
+          showToast(err.message || `Không thể cập nhật đơn hàng sang ${nextStatus}.`, '⚠️');
+        }
+      });
+    });
+
+    // Order Payment Ledger modal viewer
+    document.querySelectorAll('.btn-seller-order-ledger').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const orderId = btn.getAttribute('data-id');
+        const orderNum = btn.getAttribute('data-num');
+        try {
+          const hist = await ApiClient.payments.getHistory(orderId);
+          const overlay = document.createElement('div');
+          overlay.className = 'modal-overlay active';
+          overlay.style.zIndex = '99999';
+          overlay.innerHTML = `
+            <div style="background:#FFFFFF; border-radius:16px; max-width:640px; width:92vw; padding:24px; max-height:85vh; overflow:auto;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <h3 style="margin:0; font-size:18px; font-weight:800;">📜 Sổ cái Thanh toán — ${escapeHtml(orderNum)}</h3>
+                <button type="button" id="btn-close-ledger-modal" class="btn-secondary" style="padding:6px 12px;">✕ Đóng</button>
+              </div>
+              <div style="font-size:13px; margin-bottom:12px;">
+                Tổng đơn: <strong>${Number(hist.totalAmount || 0).toLocaleString('vi-VN')} đ</strong> •
+                Đã thu: <strong style="color:#059669;">${Number(hist.paidAmount || 0).toLocaleString('vi-VN')} đ</strong> •
+                Trạng thái: <strong>${escapeHtml(hist.paymentStatus)}</strong>
+              </div>
+              ${(hist.ledger || []).length > 0 ? hist.ledger.map(l => `
+                <div style="border:1px solid #E2E8F0; border-radius:8px; padding:10px 12px; margin-bottom:8px; font-size:12.5px;">
+                  <strong>${escapeHtml(l.entryType)}</strong> — ${Number(l.amount || 0).toLocaleString('vi-VN')} đ • ${escapeHtml(l.provider)}
+                  <div style="color:#64748B; font-size:11px;">${escapeHtml(l.providerTxId || l.intentId)} • ${escapeHtml(l.createdAt)}</div>
+                </div>
+              `).join('') : '<p style="color:var(--text-muted); font-size:13px;">Chưa có bút toán thanh toán nào.</p>'}
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.querySelector('#btn-close-ledger-modal').onclick = () => overlay.remove();
+          overlay.onclick = (ev) => { if (ev.target === overlay) overlay.remove(); };
+        } catch (err) {
+          showToast(err.message || 'Không thể tải sổ cái thanh toán.', '⚠️');
+        }
+      });
+    });
+
+    // Order Timeline Viewer (SIG-P2-009)
+    document.querySelectorAll('.btn-seller-order-timeline').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const orderId = btn.getAttribute('data-id');
+        const orderNum = btn.getAttribute('data-num');
+        try {
+          const tl = await ApiClient.orders.getTimeline(orderId);
+          const events = tl?.events || [];
+          const overlay = document.createElement('div');
+          overlay.className = 'modal-overlay active';
+          overlay.style.zIndex = '99999';
+          overlay.innerHTML = `
+            <div style="background:#FFFFFF; border-radius:16px; max-width:600px; width:92vw; padding:24px; max-height:85vh; overflow:auto;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <h3 style="margin:0; font-size:18px; font-weight:800;">🕒 Dòng thời gian Đơn hàng — ${escapeHtml(orderNum)}</h3>
+                <button type="button" id="btn-close-tl-modal" class="btn-secondary" style="padding:6px 12px;">✕ Đóng</button>
+              </div>
+              ${events.length > 0 ? events.map(ev => `
+                <div style="border-left:3px solid #2563EB; padding:6px 12px; margin-bottom:10px; background:#F8FAFC; border-radius:0 8px 8px 0; font-size:12.5px;">
+                  <strong>${escapeHtml(ev.label || ev.type)}</strong>
+                  <div style="color:#475569; margin-top:2px;">${escapeHtml(ev.detail || '')}</div>
+                  <div style="color:#94A3B8; font-size:11px; margin-top:2px;">${escapeHtml(ev.at || '')}</div>
+                </div>
+              `).join('') : '<p style="font-size:13px; color:var(--text-muted);">Chưa có sự kiện nào được ghi nhận.</p>'}
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.querySelector('#btn-close-tl-modal').onclick = () => overlay.remove();
+          overlay.onclick = (ev) => { if (ev.target === overlay) overlay.remove(); };
+        } catch (err) {
+          showToast(err.message || 'Không thể tải tiến độ đơn hàng.', '⚠️');
+        }
+      });
+    });
+
+    // Order Registration & Plate Case Manager
+    document.querySelectorAll('.btn-seller-order-reg').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const orderId = btn.getAttribute('data-id');
+        const orderObj = ordersList.find(o => o.id === orderId) || { id: orderId };
+        window.SigmaRegistrationView?.openOrderRegistrationModal?.(orderObj, {
+          showToast,
+          onUpdated: () => renderSellerDashboard('dash-orders')
+        });
+      });
+    });
+
+    // Atomic Handover Modal (VIN + PDI + ODO) -> Ownership & Warranty & Garage (SIG-P2-010)
+    document.querySelectorAll('.btn-seller-order-handover').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const orderId = btn.getAttribute('data-id');
+        const orderNum = btn.getAttribute('data-num');
+        const carName = btn.getAttribute('data-car');
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay active';
+        overlay.style.zIndex = '99999';
+        overlay.innerHTML = `
+          <div style="background:#FFFFFF; border-radius:16px; max-width:520px; width:92vw; padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+              <h3 style="margin:0; font-size:18px; font-weight:800;">🤝 Bàn giao xe — ${escapeHtml(orderNum)}</h3>
+              <button type="button" id="btn-close-ho-modal" class="btn-secondary" style="padding:6px 12px;">✕</button>
+            </div>
+            <p style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px;">Xác nhận PDI, gán số VIN thật và chuyển quyền sở hữu xe <strong>${escapeHtml(carName)}</strong> vào Gara khách hàng + kích hoạt Bảo hành điện tử đồng thời.</p>
+            <form id="form-seller-handover" style="display:flex; flex-direction:column; gap:10px;">
+              <div>
+                <label class="filter-label">Số khung VIN (10-17 ký tự chữ/số chuẩn ISO) *</label>
+                <input type="text" id="ho-vin" class="filter-input" required minlength="10" maxlength="17" placeholder="VD: SGMA2026VN8881234">
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div>
+                  <label class="filter-label">Mã số máy (Motor Number)</label>
+                  <input type="text" id="ho-motor" class="filter-input" placeholder="VD: MTR-320KW-8881">
+                </div>
+                <div>
+                  <label class="filter-label">Số ODO khi giao (km)</label>
+                  <input type="number" id="ho-odo" class="filter-input" value="12" min="0" max="500">
+                </div>
+              </div>
+              <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:700;">
+                <input type="checkbox" id="ho-pdi" checked required> Đã hoàn tất kiểm định chất lượng xuất xưởng (PDI Passed)
+              </label>
+              <label style="display:flex; align-items:center; gap:8px; font-size:12.5px;">
+                <input type="checkbox" id="ho-buyer-ack" checked> Khách hàng đã kiểm tra xe thực tế và ký biên bản nhận xe
+              </label>
+              <button type="submit" class="btn-primary" style="justify-content:center; padding:10px;">✓ Xác nhận Bàn giao & Kích hoạt Bảo hành</button>
+            </form>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#btn-close-ho-modal').onclick = () => overlay.remove();
+        overlay.onclick = (ev) => { if (ev.target === overlay) overlay.remove(); };
+        overlay.querySelector('#form-seller-handover').onsubmit = async (ev) => {
+          ev.preventDefault();
+          try {
+            const hoRes = await ApiClient.handovers.execute({
+              orderId,
+              vin: overlay.querySelector('#ho-vin').value.trim().toUpperCase(),
+              motorNumber: overlay.querySelector('#ho-motor').value.trim() || undefined,
+              odoAtHandover: Number(overlay.querySelector('#ho-odo').value || 0),
+              pdiPassed: Boolean(overlay.querySelector('#ho-pdi').checked),
+              buyerAcknowledged: Boolean(overlay.querySelector('#ho-buyer-ack').checked)
+            });
+            overlay.remove();
+            showToast(`🤝 Bàn giao thành công! VIN ${hoRes.ownership?.vin} • Bảo hành ${hoRes.warranty?.warrantyCode}`, '🎉');
+            renderSellerDashboard('dash-orders');
+          } catch (err) {
+            showToast(err.message || 'Bàn giao xe không thành công.', '⚠️');
+          }
+        };
+      });
+    });
+
+    // Financing Application Review Actions
+    document.querySelectorAll('.btn-fin-review').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.getAttribute('data-id');
+        const expectedVersion = Number(btn.getAttribute('data-ver') || 1);
+        const action = btn.getAttribute('data-action');
+        let lenderRef = '';
+        let decisionNote = '';
+        if (action === 'approve_lender') {
+          lenderRef = prompt('Nhập Mã chứng từ phê duyệt từ Ngân hàng (Lender Ref) *:', `BANK-${Date.now()}`) || '';
+          if (!lenderRef.trim()) return;
+        } else if (action === 'reject') {
+          decisionNote = prompt('Nhập lý do từ chối hồ sơ vay *:', 'Không đạt điều kiện tín dụng') || '';
+          if (!decisionNote.trim()) return;
+        } else {
+          decisionNote = 'Đã kiểm tra thông tin tại Đại lý';
+        }
+        try {
+          await ApiClient.financing.reviewApplication(appId, { action, lenderRef, decisionNote, expectedVersion });
+          showToast(`Đã cập nhật hồ sơ vay ${appId} (${action})!`, '🏦');
+          renderSellerDashboard('dash-orders');
+        } catch (err) {
+          showToast(err.message || 'Không thể cập nhật hồ sơ vay.', '⚠️');
+        }
+      });
+    });
+
+    // Legacy single-action buttons (keep compatibility if rendered elsewhere)
     document.querySelectorAll('.btn-order-action').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const orderId = e.currentTarget.getAttribute('data-id');
         const action = e.currentTarget.getAttribute('data-action');
-        const newStatus = action === 'deliver' ? 'delivered' : 'confirmed';
+        const newStatus = action === 'deliver' ? 'Delivered' : 'Confirmed';
         try {
           await ApiClient.orders.updateStatus(orderId, newStatus);
-          showToast(`Đơn hàng đã cập nhật sang trạng thái: ${newStatus.toUpperCase()}`, '✓');
+          showToast(`Đơn hàng đã cập nhật sang trạng thái: ${newStatus}`, '✓');
           renderSellerDashboard('dash-orders');
         } catch (err) {
-          showToast(`Đã ghi nhận chuyển đổi trạng thái: ${newStatus.toUpperCase()}`, '✓');
-          renderSellerDashboard('dash-orders');
+          showToast(err.message || `Không thể cập nhật đơn hàng sang ${newStatus}.`, '⚠️');
         }
       });
     });
 
-    // Appointment complete
+    // Appointment complete (persisted to server)
     document.querySelectorAll('.btn-appt-complete').forEach(btn => {
-      btn.addEventListener('click', () => {
-        showToast('Đã hoàn thành phiên lái thử cho khách hàng!', '✓');
+      btn.addEventListener('click', async (e) => {
+        const apptId = e.currentTarget.getAttribute('data-id');
+        if (!apptId) return;
+        try {
+          await ApiClient.appointments.updateStatus(apptId, 'Đã hoàn thành');
+          showToast('Đã hoàn thành phiên lái thử cho khách hàng!', '✓');
+          renderSellerDashboard('dash-appointments');
+        } catch (err) {
+          showToast(err.message || 'Không thể cập nhật trạng thái lịch hẹn.', '⚠️');
+        }
       });
     });
 
@@ -7465,15 +8682,26 @@ const AppState = {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
         const code = btn.getAttribute('data-code');
-        const amount = btn.getAttribute('data-amount');
-        const txnRef = prompt(`Xác nhận hoàn tiền ${amount} VNĐ cho yêu cầu ${code}.\nNhập mã giao dịch ngân hàng (Transaction Ref):`, `TXN-REF-${Date.now()}`);
-        if (!txnRef) return;
+        const amountLabel = btn.getAttribute('data-amount');
+        const retItem = (AppState._sellerReturnsItems || []).find(x => x.id === id);
+        const defaultAmt = retItem?.financials?.estimatedRefundAmount || Number(String(amountLabel || '0').replace(/[^\d]/g, '')) || 0;
+        const rawAmt = prompt(`Xác nhận hoàn tiền cho yêu cầu ${code}.\nNhập số tiền hoàn thực tế (VNĐ, tối đa bằng số tiền đã quyết toán trên sổ cái):`, String(defaultAmt));
+        if (!rawAmt) return;
+        const amountNum = Number(rawAmt);
+        const note = prompt(`Nhập lý do / mã đối chiếu chuyển khoản cho yêu cầu ${code}:`, `Hoàn tiền đơn đổi trả ${code}`);
+        if (note === null) return;
         try {
-          await ApiClient.returns.processRefund(id, { transactionRef: txnRef, note: `Hoàn tiền qua chuyển khoản NH (${txnRef})` });
-          showToast(`💸 Đã hoàn tất hoàn tiền cho yêu cầu ${code}!`, '✓');
+          const refRes = await ApiClient.refunds.execute({
+            returnId: id,
+            orderId: retItem?.orderId,
+            amount: amountNum,
+            reason: note || `Hoàn tiền yêu cầu ${code}`,
+            idempotencyKey: `refund-${id}-${amountNum}`
+          });
+          showToast(`💸 Đã hoàn tiền ${Number(refRes?.refund?.amount || amountNum).toLocaleString('vi-VN')} đ cho yêu cầu ${code}!`, '✓');
           renderSellerDashboard('dash-returns');
         } catch (err) {
-          showToast(err.message, '⚠️');
+          showToast(err.message || 'Hoàn tiền thất bại.', '⚠️');
         }
       });
     });
@@ -8028,14 +9256,15 @@ const AppState = {
       if (e.target === overlay) overlay.remove();
     });
 
-    // Form submit handler
+    // Form submit handler (persists to server catalog & branch inventory)
     const form = document.getElementById('form-add-vehicle');
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const nameVal = document.getElementById('add-car-name').value.trim();
       const catVal = document.getElementById('add-car-category').value.trim();
       const priceVal = parseFloat(document.getElementById('add-car-price').value) || 1200000000;
-      const rangeVal = document.getElementById('add-car-range').value.trim();
+      const rangeRaw = document.getElementById('add-car-range').value.trim();
+      const rangeNum = parseInt(String(rangeRaw).replace(/[^\d]/g, ''), 10) || undefined;
       const powerVal = document.getElementById('add-car-power').value.trim() || '350 HP';
       const seatsVal = parseInt(document.getElementById('add-car-seats').value, 10) || 5;
       const accelVal = document.getElementById('add-car-accel').value.trim() || '4.2s';
@@ -8044,7 +9273,7 @@ const AppState = {
       const featVal = document.getElementById('add-car-features').value.trim();
 
       const slug = nameVal.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const newVehicle = {
+      const newVehiclePayload = {
         id: slug || ('car-' + Date.now()),
         name: nameVal,
         brand: 'SIGMACAR',
@@ -8053,14 +9282,13 @@ const AppState = {
         price: priceVal,
         priceFormatted: priceVal.toLocaleString('vi-VN') + ' VNĐ',
         priceShort: (priceVal / 1000000000).toFixed(2) + ' tỷ',
-        range: rangeVal,
-        rangeFormatted: rangeVal.includes('km') ? rangeVal : `${rangeVal} km`,
+        range: rangeNum,
+        rangeFormatted: rangeNum ? `${rangeNum} km` : rangeRaw,
         power: powerVal,
-        hp: parseInt(powerVal) || 350,
+        hp: parseInt(powerVal, 10) || 350,
         seats: seatsVal,
         acceleration: accelVal,
         battery: batteryVal,
-        fastCharge: '25 phút (10-80%)',
         dimensions: dimVal,
         image: 'assets/model-e.jpg',
         features: featVal ? featVal.split(',').map(s => s.trim()).filter(Boolean) : ['Hệ thống ADAS', 'Camera 360', 'Sạc siêu nhanh'],
@@ -8069,10 +9297,17 @@ const AppState = {
         badge: 'MỚI CẬP NHẬT'
       };
 
-      // Add to catalog & train AI
-      window.addNewCarToWebsite(newVehicle);
-      overlay.remove();
-      renderSellerDashboard('dash-inventory');
+      try {
+        const created = ApiClient.vehicles?.create
+          ? await ApiClient.vehicles.create(newVehiclePayload)
+          : newVehiclePayload;
+        window.addNewCarToWebsite(created || newVehiclePayload);
+        await loadBackendData();
+        overlay.remove();
+        renderSellerDashboard('dash-inventory');
+      } catch (err) {
+        showToast(err.message || 'Không thể lưu xe mới lên máy chủ.', '⚠️');
+      }
     });
   }
 
@@ -8138,24 +9373,36 @@ const AppState = {
     let myAppts = [];
     let myReturnsData = { requests: [], eligibleOrders: [], policy: {} };
     let myGarageData = { ownedVehicles: [], warranties: [], serviceRecords: [], serviceAppointments: [], serviceCenters: [], coveredComponents: [], maintenanceMilestones: [] };
+    let serverGarage = null;
+    let myNotifications = [];
+    let myContracts = [];
+    let myFinancingApps = [];
     let meProfile = cur;
 
     try {
-      const [ordersRes, apptsRes, retRes, garRes, meRes] = await Promise.all([
+      const [ordersRes, apptsRes, retRes, garRes, meRes, srvGarRes, notifRes, contractsRes, finAppsRes] = await Promise.all([
         ApiClient.orders.getAll().catch(() => []),
         ApiClient.appointments.getAll().catch(() => []),
         ApiClient.returns.getMyData().catch(() => ({ requests: [], eligibleOrders: [], policy: {} })),
         ApiClient.warranties.getMyGarage().catch(() => ({ ownedVehicles: [], warranties: [], serviceRecords: [], serviceAppointments: [], serviceCenters: [], coveredComponents: [], maintenanceMilestones: [] })),
-        ApiClient.auth.getMe().catch(() => cur)
+        ApiClient.auth.getMe().catch(() => cur),
+        ApiClient.garage?.get ? ApiClient.garage.get().catch(() => null) : Promise.resolve(null),
+        ApiClient.notifications?.list ? ApiClient.notifications.list().catch(() => ({ items: [] })) : Promise.resolve({ items: [] }),
+        ApiClient.contracts?.list ? ApiClient.contracts.list().catch(() => []) : Promise.resolve([]),
+        ApiClient.financing?.listApplications ? ApiClient.financing.listApplications().catch(() => []) : Promise.resolve([])
       ]);
       myOrders = ordersRes;
       myAppts = apptsRes;
       myReturnsData = retRes;
       myGarageData = garRes;
       meProfile = meRes || cur;
+      serverGarage = srvGarRes;
+      myNotifications = Array.isArray(notifRes?.items) ? notifRes.items : (Array.isArray(notifRes) ? notifRes : []);
+      myContracts = Array.isArray(contractsRes) ? contractsRes : [];
+      myFinancingApps = Array.isArray(finAppsRes) ? finAppsRes : [];
     } catch (e) {}
 
-    AppState._profileData = { meProfile, myOrders, myAppts, myReturnsData, myGarageData };
+    AppState._profileData = { meProfile, myOrders, myAppts, myReturnsData, myGarageData, serverGarage, myNotifications, myContracts, myFinancingApps };
 
     if (Array.isArray(meProfile.savedCarIds)) {
       meProfile.savedCarIds.forEach(id => AppState.savedCarIds.add(id));
@@ -8195,8 +9442,8 @@ const AppState = {
               <div style="font-size:11.5px; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin:20px 0 10px; letter-spacing:0.5px;">CÀI ĐẶT & BẢO MẬT</div>
               <ul class="profile-nav-list">
                 <li><button class="profile-nav-btn ${activeTab === 'profile-security' ? 'active' : ''}" data-proftab="profile-security">🛡️ Bảo mật & Quyền riêng tư</button></li>
-                <li><button class="profile-nav-btn ${activeTab === 'profile-notifications' ? 'active' : ''}" data-proftab="profile-notifications">🔔 Cài đặt thông báo</button></li>
-                <li><button class="profile-nav-btn" onclick="window.location.hash='support'">🎧 Trung tâm CSKH 24/7</button></li>
+                <li><button class="profile-nav-btn ${activeTab === 'profile-notifications' ? 'active' : ''}" data-proftab="profile-notifications">🔔 Thông báo${(myNotifications || []).filter(n => !n.readAt).length > 0 ? ` (${(myNotifications || []).filter(n => !n.readAt).length})` : ''}</button></li>
+                <li><button class="profile-nav-btn" onclick="window.location.hash='support'">🎧 Trung tâm CSKH</button></li>
                 <li><button class="profile-nav-btn" style="color:var(--accent-rose);" id="btn-profile-logout">🚪 Đăng xuất</button></li>
               </ul>
             </aside>
@@ -8216,9 +9463,20 @@ const AppState = {
       });
     });
 
+    if (activeTab === 'profile-garage') {
+      window.SigmaContentAdmin?.mountBuyerClaimsPanel(
+        document.getElementById('garage-warranty-claims-mount'),
+        myGarageData.warranties || [],
+        myGarageData.serviceCenters || []
+      );
+    }
+
     document.getElementById('btn-profile-logout')?.addEventListener('click', () => {
       ApiClient.auth.logout();
       AppState.currentUser = null;
+      AppState._profileData = null;
+      AppState._sellerFinancingApps = null;
+      AppState._sellerReturnsItems = null;
       updateDropdownUserUI();
       showToast('Đã đăng xuất tài khoản an toàn!');
       navigateTo('home');
@@ -8300,6 +9558,13 @@ const AppState = {
       };
     }
 
+    document.querySelectorAll('.btn-go-checkout-order').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const orderId = e.currentTarget.getAttribute('data-order-id');
+        if (orderId) navigateTo('checkout', { orderId });
+      });
+    });
+
     document.querySelectorAll('.btn-complete-payment-action').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const orderId = e.currentTarget.getAttribute('data-order-id');
@@ -8351,7 +9616,18 @@ const AppState = {
     const pData = AppState._profileData || {};
     const myReturnsData = pData.myReturnsData || { requests: [], eligibleOrders: [], policy: {} };
     const myGarageData = pData.myGarageData || { ownedVehicles: [], warranties: [], serviceRecords: [], serviceAppointments: [], serviceCenters: [], coveredComponents: [], maintenanceMilestones: [] };
-    const prefs = cur.preferences || {};
+    const notifPrefs = cur.notificationPrefs || {};
+    const secPrefs = cur.securityPrefs || {};
+    const prefs = {
+      twoFactorEnabled: false,
+      publicProfile: secPrefs.publicProfile === true,
+      marketingEmails: secPrefs.marketingConsent === true,
+      pushOrderUpdates: notifPrefs.pushOrder !== false,
+      pushAppointments: notifPrefs.pushPromo !== false,
+      emailMaintenanceReminders: notifPrefs.emailOrder !== false,
+      smsAlerts: notifPrefs.smsOrder === true || notifPrefs.smsConsent === true,
+      emailPromotions: notifPrefs.emailPromo === true
+    };
 
     const userAppts = (myAppts || []).filter(a => 
       (cur.email && a.email?.toLowerCase() === cur.email.toLowerCase()) || 
@@ -8431,8 +9707,14 @@ const AppState = {
                     <div style="font-size:13.5px; font-weight:700; color:var(--text-dark);">${escapeHtml(item.timeSlot || '')} ${escapeHtml(item.preferredDate || item.time)}</div>
                     <div style="font-size:12px; color:var(--text-secondary);">📍 ${escapeHtml(item.branchName || item.location)}</div>
                   </div>
-                  <span class="status-badge ${item.status === 'SẮP TỚI' || item.status === 'confirmed' || item.status === 'Đã xác nhận' ? 'confirmed' : 'pending'}">● ${escapeHtml(item.status?.toUpperCase() || 'SẮP TỚI')}</span>
-                  <button class="btn-card-outline" style="padding:6px 14px; font-size:12.5px;" onclick="showToast('Đang mở bản đồ Showroom ${escapeHtml(item.branchName || 'SIGMACAR')}...', '🗺️')">Xem bản đồ</button>
+                  <span class="status-badge ${item.status === 'SẮP TỚI' || item.status === 'confirmed' || item.status === 'Đã xác nhận' || item.status === 'Đã hoàn thành' ? 'confirmed' : 'pending'}">● ${escapeHtml(item.status?.toUpperCase() || 'SẮP TỚI')}</span>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn-card-outline" style="padding:6px 12px; font-size:12px;" onclick="showToast('Đang mở bản đồ Showroom ${escapeHtml(item.branchName || 'SIGMACAR')}...', '🗺️')">Xem bản đồ</button>
+                    ${item.status !== 'Đã hủy' && item.status !== 'Đã hoàn thành' ? `
+                      <button class="btn-card-outline btn-reschedule-testdrive" data-id="${item.id}" data-date="${escapeHtml(item.preferredDate || '')}" data-slot="${escapeHtml(item.timeSlot || '')}" style="padding:6px 12px; font-size:12px;">📅 Đổi lịch</button>
+                      <button class="btn-card-outline btn-cancel-testdrive" data-id="${item.id}" style="padding:6px 12px; font-size:12px; color:var(--accent-rose);">Hủy</button>
+                    ` : ''}
+                  </div>
                 </div>
               </div>
             `).join('') : `
@@ -8512,6 +9794,9 @@ const AppState = {
 
                     <div style="display:flex; gap:8px; justify-content:flex-end; align-items:center; flex-wrap:wrap;">
                       ${isPaid ? `
+                        <button class="btn-card-outline btn-go-checkout-order" data-order-id="${ord.id}" style="padding:8px 14px; font-size:12.5px; font-weight:700;">
+                          📜 Xem Sổ cái Thanh toán
+                        </button>
                         <button class="btn-card-outline" style="padding:8px 14px; font-size:12.5px; color:var(--primary); font-weight:700; border-color:var(--primary);" onclick="openProfileSubView('profile-garage')">
                           ⚡ Quản lý Xe & Bảo hành ›
                         </button>
@@ -8519,10 +9804,16 @@ const AppState = {
                           🔄 Đổi trả tự động (7 ngày)
                         </button>
                       ` : `
-                        <button class="btn-primary btn-complete-payment-action" data-order-id="${ord.id}" data-order-number="${ord.orderNumber || ord.id}" data-car-name="${ord.vehicleName || 'Xe SIGMACAR'}" data-car-img="${ord.img || 'assets/model-e.jpg'}" data-car-price="${priceDisplay} VNĐ" style="padding:8px 18px; font-size:13px; background:linear-gradient(135deg, #10B981, #059669); border:none; font-weight:700; cursor:pointer;">
-                          💳 Thanh toán hoàn tất
+                        <button class="btn-primary btn-go-checkout-order" data-order-id="${ord.id}" style="padding:8px 18px; font-size:13px; background:linear-gradient(135deg, #2563EB, #1D4ED8); border:none; font-weight:700; cursor:pointer;">
+                          ⚡ Thanh toán & Sổ cái
+                        </button>
+                        <button class="btn-secondary btn-complete-payment-action" data-order-id="${ord.id}" data-order-number="${ord.orderNumber || ord.id}" data-car-name="${ord.vehicleName || 'Xe SIGMACAR'}" data-car-img="${ord.img || 'assets/model-e.jpg'}" data-car-price="${priceDisplay} VNĐ" style="padding:8px 14px; font-size:12.5px; font-weight:700; cursor:pointer;">
+                          💳 Xác nhận nhanh
                         </button>
                       `}
+                      <button class="btn-card-outline btn-profile-order-timeline" data-order-id="${ord.id}" data-order-number="${escapeHtml(ord.orderNumber || ord.id)}" style="padding:7px 12px; font-size:12px;">🕒 Tiến độ</button>
+                      <button class="btn-card-outline btn-profile-order-reg" data-order-id="${ord.id}" style="padding:7px 12px; font-size:12px;">📝 Đăng ký biển</button>
+                      <button class="btn-card-outline btn-profile-order-contract" data-order-id="${ord.id}" style="padding:7px 12px; font-size:12px;">✍️ Hợp đồng điện tử</button>
                     </div>
                   </div>
                 </div>
@@ -8536,11 +9827,29 @@ const AppState = {
             `}
           </div>
 
+          ${(pData.myFinancingApps || []).length > 0 ? `
+          <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:20px 24px; margin-top:20px;">
+            <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin:0 0 12px;">🏦 Hồ sơ Vay Trả góp của tôi (${pData.myFinancingApps.length})</h4>
+            ${pData.myFinancingApps.map(fa => `
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding:10px 0; border-top:1px solid #E2E8F0; font-size:13px;">
+                <div>
+                  <strong>${escapeHtml(fa.id)}</strong> — ${escapeHtml(fa.vehicleName || fa.vehicleId)}
+                  <div style="font-size:12px; color:var(--text-muted);">Khoản vay: ${Number(fa.loanPrincipal || 0).toLocaleString('vi-VN')} đ • ${fa.termMonths || 60} tháng • Phương thức: ${escapeHtml(fa.repaymentMethod || 'equal_principal')}</div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="status-badge ${fa.status === 'Lender_Approved' ? 'confirmed' : 'pending'}">● ${escapeHtml(fa.status)}</span>
+                  ${fa.status !== 'Rejected' && fa.status !== 'Withdrawn' && fa.status !== 'Lender_Approved' ? `<button class="btn-card-outline btn-buyer-withdraw-fin" data-id="${fa.id}" data-ver="${fa.version || 1}" style="padding:4px 10px; font-size:11.5px; color:var(--accent-rose);">Rút hồ sơ</button>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+
           <!-- Support Banner matching Đơn hàng của tôi PDF -->
           <div style="background:linear-gradient(135deg, #0F172A, #1E293B); color:#FFFFFF; border-radius:var(--radius-lg); padding:20px 24px; margin-top:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
             <div>
               <div style="font-weight:800; font-size:16px;">Bạn cần hỗ trợ về hợp đồng, bàn giao xe hoặc thủ tục hoàn tiền?</div>
-              <div style="font-size:13px; color:#94A3B8; margin-top:2px;">Đội ngũ Chuyên viên Tư vấn Tài chính & Hậu mãi SIGMACAR hỗ trợ 24/7.</div>
+              <div style="font-size:13px; color:#94A3B8; margin-top:2px;">Đội ngũ Chuyên viên Tư vấn Tài chính & Hậu mãi SIGMACAR làm việc 08:00 - 20:00 (GMT+7).</div>
             </div>
             <button class="btn-primary" onclick="window.location.hash='support'" style="padding:10px 18px; font-size:13px;">🎧 Liên hệ Chuyên viên Tư vấn</button>
           </div>
@@ -8569,17 +9878,17 @@ const AppState = {
 
       return `
         <div>
-          <!-- Header Bar with 24/7 Support Box (Returns Center.pdf) -->
+          <!-- Header Bar with Support Hours Box -->
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
             <div>
               <h2 style="font-size:26px; font-weight:800; color:var(--text-dark); margin:0 0 4px;">Trung Tâm Đổi Trả Xe Tự Động (7 Ngày)</h2>
-              <p style="font-size:13.5px; color:var(--text-muted); margin:0;">Quy trình tự phục vụ minh bạch: thẩm định hồ sơ AI, xe tải thu hồi tận nơi và theo dõi hoàn tiền thời gian thực.</p>
+              <p style="font-size:13.5px; color:var(--text-muted); margin:0;">Quy trình tự phục vụ minh bạch: dự toán hoàn tiền chính xác từ máy chủ, xe tải thu hồi tận nơi và theo dõi hoàn tiền theo thời gian thực.</p>
             </div>
             <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:10px 18px; display:flex; align-items:center; gap:12px;">
               <span style="font-size:24px;">🎧</span>
               <div style="font-size:12px; color:#1E40AF;">
-                <strong>Hỗ trợ đổi trả 24/7:</strong> 1900 8888<br>
-                <span style="color:var(--primary); font-weight:700; cursor:pointer;" onclick="navigateTo('support')">Chat với chuyên viên CSKH →</span>
+                <strong>CSKH Đổi trả (08:00 - 20:00 GMT+7):</strong> 1900 8888<br>
+                <span style="color:var(--primary); font-weight:700; cursor:pointer;" onclick="navigateTo('support')">Gửi phiếu hỗ trợ CSKH →</span>
               </div>
             </div>
           </div>
@@ -8592,34 +9901,38 @@ const AppState = {
               <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:18px; padding:22px; margin-bottom:20px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
                   <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="width:10px; height:10px; border-radius:50%; background:#10B981; display:inline-block;"></span>
+                    <span style="width:10px; height:10px; border-radius:50%; background:${firstEligible?.eligibility?.eligible ? '#10B981' : '#94A3B8'}; display:inline-block;"></span>
                     <strong style="font-size:15px; color:var(--text-dark);">XE ĐỦ ĐIỀU KIỆN ĐỔI TRẢ CHÍNH HÃNG</strong>
                   </div>
+                  ${firstEligible?.eligibility?.remainingDays !== undefined ? `
                   <span class="badge-role" style="background:#FEF3C7; color:#B45309; font-weight:800; font-size:12px; padding:5px 12px;">
-                    ⏳ Còn lại: ${firstEligible?.eligibility?.remainingDays ? `0${firstEligible.eligibility.remainingDays} ngày ${firstEligible.eligibility.remainingHours || '14'} giờ` : '03 ngày 14 giờ'}
+                    ⏳ Còn lại: ${firstEligible.eligibility.remainingDays} ngày ${firstEligible.eligibility.remainingHours || 0} giờ
                   </span>
+                  ` : ''}
                 </div>
 
-                ${eligibleOrders.length > 0 ? `
+                ${eligibleOrders.length > 0 && firstEligible ? `
                   <div style="display:grid; grid-template-columns:140px 1fr; gap:18px; align-items:center; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:14px;">
-                    <img src="${firstEligible?.img || 'assets/model-e.jpg'}" alt="${escapeHtml(firstEligible?.vehicleName || 'Xe SIGMACAR')}" style="width:100%; height:90px; object-fit:contain; background:#FFFFFF; border-radius:8px; padding:4px;">
+                    <img src="${firstEligible.img || 'assets/model-e.jpg'}" alt="${escapeHtml(firstEligible.vehicleName || 'Xe SIGMACAR')}" style="width:100%; height:90px; object-fit:contain; background:#FFFFFF; border-radius:8px; padding:4px;">
                     <div>
-                      <h4 style="font-size:17px; font-weight:800; color:var(--text-dark); margin:0 0 6px;">${escapeHtml(firstEligible?.vehicleName || 'Xe SIGMACAR')}</h4>
+                      <h4 style="font-size:17px; font-weight:800; color:var(--text-dark); margin:0 0 6px;">${escapeHtml(firstEligible.vehicleName || 'Xe SIGMACAR')}</h4>
                       <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:12px; color:var(--text-secondary);">
-                        <div>Số khung (VIN): <strong style="color:var(--text-dark);">${escapeHtml(firstEligible?.vin || 'SGCG2026VN003310')}</strong></div>
-                        <div>Số ODO: <strong>${firstEligible?.currentOdoKm || 120} km</strong></div>
-                        <div>Ngày nhận xe: <strong>${firstEligible?.deliveredDate || '25/10/2026'}</strong></div>
-                        <div>Giá mua: <strong style="color:var(--primary);">${(firstEligible?.paidAmount || firstEligible?.unitPrice || 1405000000).toLocaleString('vi-VN')} đ</strong></div>
+                        <div>Số khung (VIN): <strong style="color:var(--text-dark);">${escapeHtml(firstEligible.vin || 'Chưa gắn VIN')}</strong></div>
+                        <div>Số ODO tham chiếu: <strong>${firstEligible.currentOdoKm ?? 'Chưa ghi nhận'} km</strong></div>
+                        <div>Ngày nhận xe: <strong>${firstEligible.deliveredDate || 'Chưa bàn giao'}</strong></div>
+                        <div>Đã thanh toán: <strong style="color:var(--primary);">${Number(firstEligible.paidAmount || firstEligible.unitPrice || 0).toLocaleString('vi-VN')} đ</strong></div>
                       </div>
                     </div>
                   </div>
                 ` : `
-                  <div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px;">Không có xe nào đang trong thời hạn đổi trả 7 ngày.</div>
+                  <div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px;">Chưa có xe nào đã bàn giao đang trong thời hạn đổi trả 7 ngày.</div>
                 `}
               </div>
 
               <!-- Main Return Request Form -->
               <form id="form-create-return-request" style="display:flex; flex-direction:column; gap:20px;">
+                <input type="hidden" id="ret-media-ids" value="">
+                <input type="hidden" id="ret-photos" value="">
                 <!-- Step 1 Card: Lý do & Tình trạng xe -->
                 <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:18px; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
                   <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;">
@@ -8632,7 +9945,7 @@ const AppState = {
                       <label class="filter-label">Chọn Đơn hàng đổi trả *</label>
                       <select id="ret-order-id" class="filter-select" required>
                         ${eligibleOrders.filter(e => e.eligibility.eligible && !e.existingReturnId).map(eo => `
-                          <option value="${eo.id}" data-paid="${eo.paidAmount || eo.unitPrice || 1405000000}">${escapeHtml(eo.orderNumber)} — ${escapeHtml(eo.vehicleName)}</option>
+                          <option value="${eo.id}" data-paid="${eo.paidAmount || eo.unitPrice || 0}">${escapeHtml(eo.orderNumber)} — ${escapeHtml(eo.vehicleName)}</option>
                         `).join('')}
                         ${eligibleOrders.filter(e => e.eligibility.eligible && !e.existingReturnId).length === 0 ? `<option value="">-- Không có đơn hàng đủ điều kiện --</option>` : ''}
                       </select>
@@ -8640,7 +9953,7 @@ const AppState = {
                     <div>
                       <label class="filter-label">Phương thức giải quyết *</label>
                       <select id="ret-resolution-type" class="filter-select" required>
-                        <option value="refund">Hoàn tiền 100% về tài khoản</option>
+                        <option value="refund">Hoàn tiền về tài khoản (theo quyết toán)</option>
                         <option value="exchange">Đổi sang xe mới tương đương</option>
                       </select>
                     </div>
@@ -8922,23 +10235,35 @@ const AppState = {
 
     // SUBVIEW 4: GARA CỦA TÔI & QUẢN LÝ BẢO HÀNH / BẢO DƯỠNG SỐ (Section 3 Complete Lifecycle)
     if (tab === 'profile-garage') {
-      const ownedVehicles = myGarageData.ownedVehicles || [];
+      const serverOwned = pData.serverGarage?.ownedVehicles;
+      const ownedVehicles = Array.isArray(serverOwned) ? serverOwned : (myGarageData.ownedVehicles || []);
       const warranties = myGarageData.warranties || [];
       const records = myGarageData.serviceRecords || [];
       const centers = myGarageData.serviceCenters || [];
       const covered = myGarageData.coveredComponents || [];
       const milestones = myGarageData.maintenanceMilestones || [];
 
-      const primaryVehicle = ownedVehicles[0] || {
-        vehicleName: 'SIGMA Model E Performance',
-        licensePlate: '51K-998.88',
-        vin: 'SGCG2026VN003310',
-        motorNumber: 'MTR-150KW-310',
-        img: 'assets/model-e.jpg',
-        orderNumber: 'SG-2026-9023',
-        invoiceNumber: 'INV-SG2026-9023'
-      };
-      const primaryWarranty = primaryVehicle.warranty || warranties[0];
+      if (ownedVehicles.length === 0) {
+        return `
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px;">
+              <div>
+                <h2 style="font-size:26px; font-weight:800; color:var(--text-dark); margin:0 0 4px;">Gara của tôi & Bảo hành Điện tử</h2>
+                <p style="font-size:13.5px; color:var(--text-muted); margin:0;">Xe sẽ tự động xuất hiện trong Gara sau khi hoàn tất thanh toán và ký biên bản bàn giao chính thức.</p>
+              </div>
+            </div>
+            <div style="background:#FFFFFF; border:1px dashed var(--border-subtle); border-radius:var(--radius-xl); padding:48px 24px; text-align:center;">
+              <div style="font-size:44px; margin-bottom:10px;">🚗</div>
+              <h3 style="font-size:20px; font-weight:800; color:var(--text-dark); margin-bottom:8px;">Bạn chưa sở hữu xe nào đã bàn giao</h3>
+              <p style="font-size:14px; color:var(--text-muted); max-width:520px; margin:0 auto 20px;">Chỉ các đơn hàng đã hoàn tất bàn giao (Delivered/Completed) với số khung VIN xác thực mới hiển thị tại đây.</p>
+              <button class="btn-primary" id="btn-garage-go-orders" style="padding:10px 22px;">📦 Kiểm tra Đơn hàng của tôi</button>
+            </div>
+          </div>
+        `;
+      }
+
+      const primaryVehicle = ownedVehicles[0];
+      const primaryWarranty = primaryVehicle.warranty || warranties.find(w => w.vin === primaryVehicle.vin) || warranties[0] || null;
 
       return `
         <div>
@@ -8977,7 +10302,7 @@ const AppState = {
                   </div>
                   <div>
                     <div style="font-size:10.5px; font-weight:700; color:#94A3B8;">SỐ KM HIỆN TẠI</div>
-                    <strong style="font-size:15px; color:#38BDF8;">${(primaryWarranty?.currentOdoKm || 12450).toLocaleString('vi-VN')} km</strong>
+                    <strong style="font-size:15px; color:#38BDF8;">${Number(primaryWarranty?.currentOdoKm ?? primaryVehicle.odoAtHandover ?? 0).toLocaleString('vi-VN')} km</strong>
                   </div>
                   <div>
                     <div style="font-size:10.5px; font-weight:700; color:#94A3B8;">TRẠNG THÁI</div>
@@ -9133,26 +10458,26 @@ const AppState = {
               <!-- Warranty Activation Box (if needed) -->
               <div id="garage-warranty-activate-box" style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:18px; padding:22px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
                 <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin:0 0 6px;">🛡️ Kích hoạt Bảo hành Điện tử cho Xe Mới</h4>
-                <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;">Hệ thống xác thực mã số khung VIN, số hóa đơn với kho cơ sở dữ liệu quốc gia.</p>
+                <p style="font-size:12px; color:var(--text-muted); margin:0 0 12px;">Hệ thống đối chiếu mã số khung VIN, hóa đơn GTGT và đơn hàng đã bàn giao trên máy chủ.</p>
                 <form id="form-activate-warranty" style="display:flex; flex-direction:column; gap:10px;">
                   <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                     <div>
                       <label class="filter-label">Mã đơn hàng *</label>
-                      <input type="text" id="war-act-order" class="filter-input" required value="${primaryVehicle.orderNumber || 'SG-2026-9023'}">
+                      <input type="text" id="war-act-order" class="filter-input" required value="${escapeHtml(primaryVehicle.orderNumber || '')}" placeholder="Nhập mã đơn đã bàn giao">
                     </div>
                     <div>
                       <label class="filter-label">Số hóa đơn GTGT *</label>
-                      <input type="text" id="war-act-invoice" class="filter-input" required value="${primaryVehicle.invoiceNumber || 'INV-SG2026-9023'}">
+                      <input type="text" id="war-act-invoice" class="filter-input" required value="${escapeHtml(primaryVehicle.invoiceNumber || '')}" placeholder="Nhập số hóa đơn">
                     </div>
                   </div>
                   <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                     <div>
                       <label class="filter-label">Số khung (VIN) *</label>
-                      <input type="text" id="war-act-vin" class="filter-input" required value="${primaryVehicle.vin || 'SGCG2026VN003310'}">
+                      <input type="text" id="war-act-vin" class="filter-input" required value="${escapeHtml(primaryVehicle.vin || '')}" placeholder="10-17 ký tự VIN">
                     </div>
                     <div>
                       <label class="filter-label">Mã máy *</label>
-                      <input type="text" id="war-act-motor" class="filter-input" required value="${primaryVehicle.motorNumber || 'MTR-150KW-310'}">
+                      <input type="text" id="war-act-motor" class="filter-input" required value="${escapeHtml(primaryVehicle.motorNumber || '')}" placeholder="Mã động cơ">
                     </div>
                   </div>
                   <div>
@@ -9218,39 +10543,30 @@ const AppState = {
                 <input type="text" placeholder="🔍 Tìm các chi nhánh khác..." class="filter-input" style="font-size:12px; padding:8px 12px;">
               </div>
 
-              <!-- Card 3: Chỉ số sức khỏe xe (Vehicle Health Card Nền tối #0F172A) -->
+              <!-- Card 3: Chỉ số sức khỏe & Hồ sơ kỹ thuật (Honest telemetry) -->
               <div style="background:#0F172A; border-radius:18px; padding:22px; color:#FFFFFF; margin-bottom:20px; border:1px solid rgba(255,255,255,0.08);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                  <h4 style="font-size:15px; font-weight:800; color:#FFFFFF; margin:0;">Chỉ số sức khỏe xe</h4>
-                  <span style="font-size:10.5px; color:#94A3B8;">Cảm biến Telemetry 10:45</span>
+                  <h4 style="font-size:15px; font-weight:800; color:#FFFFFF; margin:0;">Tình trạng Kỹ thuật Thực tế</h4>
+                  <span style="font-size:10.5px; color:#94A3B8;">${records.length > 0 ? 'Theo biên bản 3S gần nhất' : 'Chưa đo kiểm định kỳ'}</span>
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:12px;">
-                  <!-- Engine -->
-                  <div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                      <span style="color:#94A3B8;">TÌNH TRẠNG ĐỘNG CƠ:</span>
-                      <strong style="color:#34D399;">TỐT (98%)</strong>
+                  ${primaryVehicle.isEv && primaryVehicle.batterySoh != null ? `
+                    <div>
+                      <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                        <span style="color:#94A3B8;">ĐỘ BỀN PIN CAO ÁP (SoH):</span>
+                        <strong style="color:#34D399;">${Number(primaryVehicle.batterySoh)}%</strong>
+                      </div>
+                      <div class="vehicle-health-track"><div class="vehicle-health-fill" style="width:${Math.min(100, Number(primaryVehicle.batterySoh))}%; background:#10B981;"></div></div>
                     </div>
-                    <div class="vehicle-health-track"><div class="vehicle-health-fill" style="width:98%; background:#10B981;"></div></div>
-                  </div>
-
-                  <!-- Brakes -->
-                  <div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                      <span style="color:#94A3B8;">HỆ THỐNG PHANH:</span>
-                      <strong style="color:#F59E0B;">CẦN LƯU Ý (72%)</strong>
+                  ` : `
+                    <div style="font-size:12.5px; color:#CBD5E1; line-height:1.5; background:rgba(255,255,255,0.05); padding:12px; border-radius:10px;">
+                      Chưa ghi nhận dữ liệu cảm biến Pin/Động cơ trực tiếp. Vui lòng đặt lịch kiểm tra định kỳ tại Trung tâm 3S để cập nhật thông số đo thực tế.
                     </div>
-                    <div class="vehicle-health-track"><div class="vehicle-health-fill" style="width:72%; background:#F59E0B;"></div></div>
-                  </div>
-
-                  <!-- Electrical -->
-                  <div>
-                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
-                      <span style="color:#94A3B8;">HỆ THỐNG ĐIỆN & PIN:</span>
-                      <strong style="color:#34D399;">TỐT (95%)</strong>
-                    </div>
-                    <div class="vehicle-health-track"><div class="vehicle-health-fill" style="width:95%; background:#10B981;"></div></div>
+                  `}
+                  <div style="display:flex; justify-content:space-between; font-size:12px;">
+                    <span style="color:#94A3B8;">BIÊN BẢN BẢO DƯỠNG ĐÃ LƯU:</span>
+                    <strong style="color:#FFFFFF;">${records.length} lần</strong>
                   </div>
                 </div>
               </div>
@@ -9265,6 +10581,7 @@ const AppState = {
                   Duy trì mức pin từ 20% - 80% trong sử dụng hằng ngày để tối ưu hóa tuổi thọ Cell pin LFP/NMC và kích hoạt chế độ tái sinh năng lượng phanh để tiết kiệm bố phanh.
                 </p>
               </div>
+              <div id="garage-warranty-claims-mount"></div>
             </div>
           </div>
         </div>
@@ -9348,11 +10665,11 @@ const AppState = {
               <h4 style="font-size:16px; font-weight:800; margin-bottom:14px;">🛡️ Xác thực & Quyền riêng tư Dữ liệu</h4>
               <div class="pref-row-item">
                 <div>
-                  <div style="font-weight:700; font-size:14px;">Xác thực 2 yếu tố (2FA qua SMS/Authenticator)</div>
-                  <div style="font-size:12px; color:var(--text-muted);">Bảo vệ tài khoản và lệnh mở khóa xe từ xa trong Gara.</div>
+                  <div style="font-weight:700; font-size:14px;">Xác thực 2 yếu tố (2FA / Authenticator) <span style="font-size:11px; background:#FEF3C7; color:#92400E; padding:2px 8px; border-radius:999px; font-weight:700; margin-left:6px;">Sắp ra mắt</span></div>
+                  <div style="font-size:12px; color:var(--text-muted);">Hệ thống TOTP/SMS OTP đang trong lộ trình nâng cấp bảo mật; phiên đăng nhập hiện được bảo vệ bằng Token có phiên thu hồi tức thì khi đổi mật khẩu.</div>
                 </div>
-                <label class="sigma-switch">
-                  <input type="checkbox" class="pref-toggle-input" data-pref-key="twoFactorEnabled" ${prefs.twoFactorEnabled !== false ? 'checked' : ''}>
+                <label class="sigma-switch" title="Chức năng 2FA TOTP chưa kích hoạt" style="opacity:0.55; cursor:not-allowed;">
+                  <input type="checkbox" disabled aria-label="Xác thực 2 yếu tố hiện chưa kích hoạt">
                   <span class="sigma-slider"></span>
                 </label>
               </div>
@@ -9360,10 +10677,10 @@ const AppState = {
               <div class="pref-row-item">
                 <div>
                   <div style="font-weight:700; font-size:14px;">Hiển thị Hồ sơ Cộng đồng khi Đánh giá Xe</div>
-                  <div style="font-size:12px; color:var(--text-muted);">Hiển thị huy hiệu Thành viên Hạng Vàng trên các bài đánh giá xe.</div>
+                  <div style="font-size:12px; color:var(--text-muted);">Hiển thị huy hiệu thành viên trên các bài đánh giá xe.</div>
                 </div>
                 <label class="sigma-switch">
-                  <input type="checkbox" class="pref-toggle-input" data-pref-key="publicProfile" ${prefs.publicProfile !== false ? 'checked' : ''}>
+                  <input type="checkbox" class="pref-toggle-input" data-pref-group="securityPrefs" data-pref-key="publicProfile" ${prefs.publicProfile ? 'checked' : ''}>
                   <span class="sigma-slider"></span>
                 </label>
               </div>
@@ -9374,7 +10691,18 @@ const AppState = {
                   <div style="font-size:12px; color:var(--text-muted);">Bạn có thể hủy đăng ký (Unsubscribe) bất kỳ lúc nào chỉ với 1 chạm.</div>
                 </div>
                 <label class="sigma-switch">
-                  <input type="checkbox" id="chk-marketing-optin" class="pref-toggle-input" data-pref-key="marketingEmails" ${prefs.marketingEmails !== false ? 'checked' : ''}>
+                  <input type="checkbox" id="chk-marketing-optin" class="pref-toggle-input" data-pref-group="securityPrefs" data-pref-key="marketingConsent" ${prefs.marketingEmails ? 'checked' : ''}>
+                  <span class="sigma-slider"></span>
+                </label>
+              </div>
+
+              <div class="pref-row-item">
+                <div>
+                  <div style="font-weight:700; font-size:14px;">Chia sẻ Sự kiện Tương tác & Hành trình Xe (Analytics Opt-in)</div>
+                  <div style="font-size:12px; color:var(--text-muted);">Khi tắt, hệ thống chỉ ghi nhận giao dịch thiết yếu (đặt cọc / thanh toán), ngừng thu thập lượt xem xe và phễu chuyển đổi.</div>
+                </div>
+                <label class="sigma-switch">
+                  <input type="checkbox" id="chk-analytics-optin" ${(typeof localStorage !== 'undefined' ? localStorage.getItem('sigmacar_analytics_consent') !== 'false' : true) ? 'checked' : ''}>
                   <span class="sigma-slider"></span>
                 </label>
               </div>
@@ -9391,10 +10719,25 @@ const AppState = {
 
     // SUBVIEW 7: CÀI ĐẶT THÔNG BÁO (Matches Cài đặt Thông báo.pdf + Section 3 SMS/Email Reminder Channels)
     if (tab === 'profile-notifications') {
+      const notifItems = pData.myNotifications || [];
       return `
         <div>
-          <h2 style="font-size:26px; font-weight:800; color:var(--text-dark); margin-bottom:4px;">Cài đặt Thông báo & Nhắc lịch Bảo dưỡng</h2>
-          <p style="font-size:14px; color:var(--text-muted); margin-bottom:24px;">Tùy chỉnh kênh nhận thông báo qua Ứng dụng (Push), Email và Tin nhắn SMS khi sắp đến hạn bảo dưỡng, lịch hẹn thay đổi hoặc cập nhật bảo hành.</p>
+          <h2 style="font-size:26px; font-weight:800; color:var(--text-dark); margin-bottom:4px;">Hộp thư Thông báo & Cài đặt Kênh</h2>
+          <p style="font-size:14px; color:var(--text-muted); margin-bottom:24px;">Xem thông báo giao dịch thực tế (đặt cọc, thanh toán, đổi trả, bàn giao xe) và tùy chỉnh kênh Email/SMS.</p>
+
+          <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:24px; margin-bottom:22px;">
+            <h4 style="font-size:16px; font-weight:800; margin-bottom:12px;">📬 Hộp thư Thông báo Giao dịch (${notifItems.length})</h4>
+            ${notifItems.length === 0 ? `<p style="font-size:13px; color:var(--text-muted); margin:0;">Chưa có thông báo giao dịch mới.</p>` : notifItems.slice(0, 12).map(n => `
+              <div style="padding:12px; border:1px solid #E2E8F0; border-radius:10px; margin-bottom:8px; background:${n.readAt ? '#FFFFFF' : '#F0F9FF'}; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                <div>
+                  <strong style="font-size:13.5px; color:var(--text-dark);">${escapeHtml(n.subject || n.eventType)}</strong>
+                  <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">${escapeHtml(n.message || '')}</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${n.createdAt ? new Date(n.createdAt).toLocaleString('vi-VN') : ''} • Trạng thái gửi: ${escapeHtml(n.status || 'queued')}</div>
+                </div>
+                ${!n.readAt ? `<button class="btn-card-outline btn-mark-notif-read" data-id="${n.id}" style="padding:4px 10px; font-size:11.5px; white-space:nowrap;">✓ Đã đọc</button>` : `<span style="font-size:11px; color:#059669; font-weight:700;">✓ Đã đọc</span>`}
+              </div>
+            `).join('')}
+          </div>
 
           <div style="background:#FFFFFF; border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:24px; margin-bottom:22px;">
             <h4 style="font-size:16px; font-weight:800; margin-bottom:12px;">🔔 Thông báo Đẩy trên Hệ thống & Ứng dụng (Push Notifications)</h4>
@@ -9404,7 +10747,7 @@ const AppState = {
                 <div style="font-size:12px; color:var(--text-muted);">Thông báo tức thì khi trạng thái đơn hàng hoặc lịch xe tải thu hồi thay đổi.</div>
               </div>
               <label class="sigma-switch">
-                <input type="checkbox" class="pref-toggle-input" data-pref-key="pushOrderUpdates" ${prefs.pushOrderUpdates !== false ? 'checked' : ''}>
+                <input type="checkbox" class="pref-toggle-input" data-pref-group="notificationPrefs" data-pref-key="pushOrder" ${prefs.pushOrderUpdates ? 'checked' : ''}>
                 <span class="sigma-slider"></span>
               </label>
             </div>
@@ -9414,7 +10757,7 @@ const AppState = {
                 <div style="font-size:12px; color:var(--text-muted);">Nhắc nhở trực quan trước 7 ngày hoặc khi ODO chạm mốc bảo dưỡng.</div>
               </div>
               <label class="sigma-switch">
-                <input type="checkbox" class="pref-toggle-input" data-pref-key="pushAppointments" ${prefs.pushAppointments !== false ? 'checked' : ''}>
+                <input type="checkbox" class="pref-toggle-input" data-pref-group="notificationPrefs" data-pref-key="pushPromo" ${prefs.pushAppointments ? 'checked' : ''}>
                 <span class="sigma-slider"></span>
               </label>
             </div>
@@ -9428,7 +10771,7 @@ const AppState = {
                 <div style="font-size:12px; color:var(--text-muted);">Gửi biên bản kiểm tra kỹ thuật, hóa đơn điện tử và nhắc lịch bảo dưỡng qua Email.</div>
               </div>
               <label class="sigma-switch">
-                <input type="checkbox" class="pref-toggle-input" data-pref-key="emailMaintenanceReminders" ${prefs.emailMaintenanceReminders !== false ? 'checked' : ''}>
+                <input type="checkbox" class="pref-toggle-input" data-pref-group="notificationPrefs" data-pref-key="emailOrder" ${prefs.emailMaintenanceReminders ? 'checked' : ''}>
                 <span class="sigma-slider"></span>
               </label>
             </div>
@@ -9439,7 +10782,7 @@ const AppState = {
                 <div style="font-size:12px; color:var(--text-muted);">Chỉ gửi SMS tới số <strong>${escapeHtml(cur.phone || '')}</strong> khi nhà cung cấp SMS Gateway đã được cấu hình và bạn bật đồng ý tại đây.</div>
               </div>
               <label class="sigma-switch">
-                <input type="checkbox" class="pref-toggle-input" data-pref-key="smsAlerts" ${prefs.smsAlerts !== false ? 'checked' : ''}>
+                <input type="checkbox" class="pref-toggle-input" data-pref-group="notificationPrefs" data-pref-key="smsOrder" ${prefs.smsAlerts ? 'checked' : ''}>
                 <span class="sigma-slider"></span>
               </label>
             </div>
@@ -9450,7 +10793,7 @@ const AppState = {
                 <div style="font-size:12px; color:var(--text-muted);">Nhận voucher bảo dưỡng và quà tặng dịp đặc biệt từ SIGMACAR.</div>
               </div>
               <label class="sigma-switch">
-                <input type="checkbox" class="pref-toggle-input" data-pref-key="emailPromotions" ${prefs.emailPromotions !== false ? 'checked' : ''}>
+                <input type="checkbox" class="pref-toggle-input" data-pref-group="notificationPrefs" data-pref-key="emailPromo" ${prefs.emailPromotions ? 'checked' : ''}>
                 <span class="sigma-slider"></span>
               </label>
             </div>
@@ -9583,7 +10926,7 @@ const AppState = {
       });
     });
 
-    // 3. Returns Live Financial Preview & Submit (Returns Center.pdf)
+    // 3. Returns Live Financial Preview & Submit (Server Estimate + Private Media Upload)
     const updateReturnEstimate = async () => {
       const orderId = document.getElementById('ret-order-id')?.value;
       if (!orderId) return;
@@ -9597,9 +10940,9 @@ const AppState = {
         const baseEl = document.getElementById('ret-calc-base-price');
         const dedEl = document.getElementById('ret-calc-deduction');
         const refEl = document.getElementById('ret-calc-refund');
-        if (baseEl) baseEl.textContent = `${(fin.basePaidAmount || 1405000000).toLocaleString('vi-VN')} đ`;
-        if (dedEl) dedEl.textContent = `${(fin.totalDeductions || 0).toLocaleString('vi-VN')} đ`;
-        if (refEl) refEl.textContent = `${(fin.estimatedRefundAmount || 1403500000).toLocaleString('vi-VN')} đ`;
+        if (baseEl) baseEl.textContent = `${Number(fin.basePaidAmount || 0).toLocaleString('vi-VN')} đ`;
+        if (dedEl) dedEl.textContent = `${Number(fin.totalDeductions || 0).toLocaleString('vi-VN')} đ`;
+        if (refEl) refEl.textContent = `${Number(fin.estimatedRefundAmount || 0).toLocaleString('vi-VN')} đ`;
       } catch (e) {}
     };
 
@@ -9611,25 +10954,45 @@ const AppState = {
       });
     }
 
-    // 4 Photo upload boxes preview handlers
+    // 4 Photo upload boxes -> upload directly to private MediaService when authenticated
     ['front', 'rear', 'interior', 'odo'].forEach(side => {
       const input = document.getElementById(`ret-photo-${side}`);
       const prev = document.getElementById(`prev-photo-${side}`);
       input?.addEventListener('change', (e) => {
         if (e.target.files && e.target.files[0]) {
+          const fileObj = e.target.files[0];
           const reader = new FileReader();
-          reader.onload = (evt) => {
-            if (prev) {
-              prev.innerHTML = `<img src="${evt.target.result}" class="return-photo-preview" alt="${side}"><span style="font-size:9.5px; color:#10B981; font-weight:700;">✓ Đã chọn</span>`;
+          reader.onload = async (evt) => {
+            const dataUrl = evt.target.result;
+            try {
+              const orderId = document.getElementById('ret-order-id')?.value || '';
+              const uploaded = await ApiClient.media.upload({
+                fileName: fileObj.name || `${side}.jpg`,
+                mimeType: fileObj.type || 'image/jpeg',
+                dataBase64: dataUrl,
+                purpose: 'return_evidence',
+                linkedEntityId: orderId
+              });
+              const mediaIdsEl = document.getElementById('ret-media-ids');
+              if (mediaIdsEl && uploaded?.id) {
+                const ids = mediaIdsEl.value.split(',').map(s => s.trim()).filter(Boolean);
+                ids.push(uploaded.id);
+                mediaIdsEl.value = ids.join(',');
+              }
+              const currentPhotos = (document.getElementById('ret-photos')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
+              if (uploaded?.signedUrl) currentPhotos.push(uploaded.signedUrl);
+              if (document.getElementById('ret-photos')) {
+                document.getElementById('ret-photos').value = currentPhotos.join(', ');
+              }
+              if (prev) {
+                prev.innerHTML = `<img src="${dataUrl}" class="return-photo-preview" alt="${side}"><span style="font-size:9.5px; color:#10B981; font-weight:700;">✓ Đã tải lên bảo mật</span>`;
+              }
+              showToast(`Đã tải ảnh ${side.toUpperCase()} lên máy chủ an toàn!`, '📷');
+            } catch (err) {
+              showToast(err.message || `Ảnh ${side.toUpperCase()} không hợp lệ.`, '⚠️');
             }
-            const currentPhotos = (document.getElementById('ret-photos')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
-            currentPhotos.push(evt.target.result);
-            if (document.getElementById('ret-photos')) {
-              document.getElementById('ret-photos').value = currentPhotos.join(', ');
-            }
-            showToast(`Đã tải ảnh ${side.toUpperCase()} thành công!`, '📷');
           };
-          reader.readAsDataURL(e.target.files[0]);
+          reader.readAsDataURL(fileObj);
         }
       });
     });
@@ -9675,6 +11038,7 @@ const AppState = {
         return;
       }
       const photosRaw = document.getElementById('ret-photos')?.value.trim() || '';
+      const mediaIdsRaw = document.getElementById('ret-media-ids')?.value.trim() || '';
       try {
         const created = await ApiClient.returns.create({
           orderId,
@@ -9684,6 +11048,7 @@ const AppState = {
           description: document.getElementById('ret-description')?.value.trim(),
           vehicleConditionNote: document.getElementById('ret-condition-note')?.value.trim(),
           photos: photosRaw.split(',').map(s => s.trim()).filter(Boolean),
+          mediaIds: mediaIdsRaw.split(',').map(s => s.trim()).filter(Boolean),
           pickupDate: document.getElementById('ret-pickup-date')?.value,
           pickupSlot: document.getElementById('ret-pickup-slot')?.value,
           pickupAddress: document.getElementById('ret-pickup-address')?.value.trim(),
@@ -9844,14 +11209,187 @@ const AppState = {
     document.querySelectorAll('.pref-toggle-input').forEach(chk => {
       chk.addEventListener('change', async () => {
         const key = chk.getAttribute('data-pref-key');
+        const group = chk.getAttribute('data-pref-group') || 'notificationPrefs';
         const val = chk.checked;
         try {
-          await ApiClient.auth.updatePreferences({ [key]: val });
+          const updatedUser = await ApiClient.auth.updatePreferences({ [group]: { [key]: val } });
+          if (updatedUser) AppState.currentUser = updatedUser;
           showToast('Đã lưu cài đặt tùy chọn tài khoản!', '✓');
         } catch (err) {
-          showToast(err.message, '⚠️');
+          chk.checked = !val;
+          showToast(err.message || 'Không thể lưu tùy chọn.', '⚠️');
         }
       });
+    });
+
+    // P2: Test drive reschedule & cancel
+    document.querySelectorAll('.btn-reschedule-testdrive').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        const curDate = btn.getAttribute('data-date') || new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        const curSlot = btn.getAttribute('data-slot') || '10:30';
+        const preferredDate = prompt('Nhập ngày lái thử mới (YYYY-MM-DD):', curDate);
+        if (!preferredDate) return;
+        const timeSlot = prompt('Nhập khung giờ mới (09:00, 10:30, 14:00, 15:30, 17:00):', curSlot);
+        if (!timeSlot) return;
+        try {
+          await ApiClient.appointments.reschedule(id, { preferredDate: preferredDate.trim(), timeSlot: timeSlot.trim() });
+          showToast('📅 Đã đổi lịch lái thử thành công!', '✓');
+          renderProfile('profile-appointments');
+        } catch (err) {
+          showToast(err.message || 'Không thể đổi lịch.', '⚠️');
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-cancel-testdrive').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        try {
+          await ApiClient.appointments.updateStatus(id, 'Đã hủy');
+          showToast('Đã hủy lịch hẹn lái thử.', '✓');
+          renderProfile('profile-appointments');
+        } catch (err) {
+          showToast(err.message || 'Không thể hủy lịch hẹn.', '⚠️');
+        }
+      });
+    });
+
+    // P2: Order timeline, registration case & e-contract modals for Buyer
+    document.querySelectorAll('.btn-profile-order-timeline').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const orderId = btn.getAttribute('data-order-id');
+        const orderNum = btn.getAttribute('data-order-number');
+        try {
+          const tl = await ApiClient.orders.getTimeline(orderId);
+          const events = tl?.events || [];
+          const overlay = document.createElement('div');
+          overlay.className = 'modal-overlay active';
+          overlay.style.zIndex = '99999';
+          overlay.innerHTML = `
+            <div style="background:#FFFFFF; border-radius:16px; max-width:580px; width:92vw; padding:24px; max-height:85vh; overflow:auto;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <h3 style="margin:0; font-size:18px; font-weight:800;">🕒 Dòng thời gian đơn ${escapeHtml(orderNum)}</h3>
+                <button type="button" class="btn-secondary btn-close-ptl" style="padding:6px 12px;">✕ Đóng</button>
+              </div>
+              ${events.length > 0 ? events.map(ev => `
+                <div style="border-left:3px solid #2563EB; padding:6px 12px; margin-bottom:10px; background:#F8FAFC; border-radius:0 8px 8px 0; font-size:12.5px;">
+                  <strong>${escapeHtml(ev.label || ev.type)}</strong>
+                  <div style="color:#475569;">${escapeHtml(ev.detail || '')}</div>
+                  <div style="color:#94A3B8; font-size:11px;">${escapeHtml(ev.at || '')}</div>
+                </div>
+              `).join('') : '<p style="font-size:13px; color:var(--text-muted);">Chưa có sự kiện nào.</p>'}
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.querySelector('.btn-close-ptl').onclick = () => overlay.remove();
+          overlay.onclick = (ev) => { if (ev.target === overlay) overlay.remove(); };
+        } catch (err) {
+          showToast(err.message || 'Không tải được tiến độ đơn hàng.', '⚠️');
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-profile-order-reg').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const orderId = btn.getAttribute('data-order-id');
+        const orderObj = (AppState._profileData?.myOrders || []).find(o => o.id === orderId) || { id: orderId };
+        window.SigmaRegistrationView?.openOrderRegistrationModal?.(orderObj, {
+          showToast,
+          onUpdated: () => renderProfile('profile-orders')
+        });
+      });
+    });
+
+    document.querySelectorAll('.btn-profile-order-contract').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const orderId = btn.getAttribute('data-order-id');
+        try {
+          const contracts = AppState._profileData?.myContracts || [];
+          let contract = contracts.find(c => c.orderId === orderId);
+          if (!contract) {
+            contract = await ApiClient.contracts.generate(orderId);
+          }
+          const htmlDoc = await ApiClient.contracts.getDocumentHtml(contract.id);
+          const overlay = document.createElement('div');
+          overlay.className = 'modal-overlay active';
+          overlay.style.zIndex = '99999';
+          overlay.innerHTML = `
+            <div style="background:#FFFFFF; border-radius:16px; max-width:740px; width:94vw; padding:24px; max-height:88vh; overflow:auto;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0; font-size:18px; font-weight:800;">✍️ Hợp đồng điện tử #${escapeHtml(contract.contractNumber || contract.id)} (v${contract.version || 1})</h3>
+                <button type="button" class="btn-secondary btn-close-ec" style="padding:6px 12px;">✕ Đóng</button>
+              </div>
+              <div style="border:1px solid #E2E8F0; border-radius:10px; padding:16px; background:#F8FAFC; margin-bottom:14px; font-size:13px;">${htmlDoc}</div>
+              ${contract.locked ? `
+                <div style="padding:10px 14px; background:#ECFDF5; color:#065F46; border-radius:8px; font-size:13px; font-weight:700;">✓ Hợp đồng đã được xác nhận khóa bản vĩnh viễn lúc ${escapeHtml(contract.acknowledgedAt || '')}.</div>
+              ` : `
+                <form id="form-ack-contract" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                  <input type="text" id="ec-signer-name" class="filter-input" required placeholder="Họ tên người ký" value="${escapeHtml(AppState.currentUser?.fullName || '')}" style="flex:1; min-width:160px;">
+                  <input type="text" id="ec-id-last4" class="filter-input" required maxlength="4" minlength="4" placeholder="4 số cuối CCCD" style="width:140px;">
+                  <button type="submit" class="btn-primary" style="padding:9px 16px;">✍️ Xác nhận Ký Hợp đồng</button>
+                </form>
+              `}
+            </div>
+          `;
+          document.body.appendChild(overlay);
+          overlay.querySelector('.btn-close-ec').onclick = () => overlay.remove();
+          overlay.onclick = (ev) => { if (ev.target === overlay) overlay.remove(); };
+          overlay.querySelector('#form-ack-contract')?.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            try {
+              await ApiClient.contracts.acknowledge(contract.id, {
+                acceptedTerms: true,
+                signerName: overlay.querySelector('#ec-signer-name').value.trim(),
+                signerIdLast4: overlay.querySelector('#ec-id-last4').value.trim()
+              });
+              overlay.remove();
+              showToast('✍️ Đã xác nhận & khóa hợp đồng điện tử thành công!', '🎉');
+              renderProfile('profile-orders');
+            } catch (err) {
+              showToast(err.message || 'Không thể xác nhận hợp đồng.', '⚠️');
+            }
+          });
+        } catch (err) {
+          showToast(err.message || 'Không thể tải hợp đồng điện tử.', '⚠️');
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-buyer-withdraw-fin').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const appId = btn.getAttribute('data-id');
+        const expectedVersion = Number(btn.getAttribute('data-ver') || 1);
+        try {
+          await ApiClient.financing.reviewApplication(appId, { action: 'withdraw', decisionNote: 'Khách hàng chủ động rút hồ sơ', expectedVersion });
+          showToast('Đã rút hồ sơ vay trả góp.', '✓');
+          renderProfile('profile-orders');
+        } catch (err) {
+          showToast(err.message || 'Không thể rút hồ sơ.', '⚠️');
+        }
+      });
+    });
+
+    document.querySelectorAll('.btn-mark-notif-read').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-id');
+        try {
+          await ApiClient.notifications.markRead(id);
+          renderProfile('profile-notifications');
+        } catch (err) {
+          showToast(err.message || 'Không thể đánh dấu đã đọc.', '⚠️');
+        }
+      });
+    });
+
+    document.getElementById('chk-analytics-optin')?.addEventListener('change', (e) => {
+      const enabled = Boolean(e.target?.checked);
+      try {
+        localStorage.setItem('sigmacar_analytics_consent', enabled ? 'true' : 'false');
+      } catch {}
+      showToast(enabled
+        ? 'Đã bật ghi nhận sự kiện phân tích trải nghiệm xe.'
+        : 'Đã tắt thu thập sự kiện không thiết yếu (chỉ giữ luồng đặt cọc & thanh toán).', '🛡️');
     });
 
     document.getElementById('btn-oneclick-unsubscribe')?.addEventListener('click', async () => {
@@ -9953,8 +11491,8 @@ const AppState = {
     const fuelBadge = isEv ? '⚡ XE ĐIỆN' : '⛽ XE XĂNG/DẦU';
     const codeBadge = car.productCode ? `${car.productCode} • ` : '';
     const fuelSpecLabel = isEv ? 'Quãng đường' : 'Hộp số';
-    const fuelSpecVal = isEv ? `${car.range || 450} km` : (car.transmission ? car.transmission.replace('Hộp số ', '') : 'Tự động');
-    const stockCount = car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : 5);
+    const fuelSpecVal = isEv ? (car.range ? `${car.range} km` : 'Đang cập nhật') : (car.transmission ? car.transmission.replace('Hộp số ', '') : 'Đang cập nhật');
+    const stockCount = car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : 0);
     const hasCustom3D = !!(car.model3d && car.model3d.glbPath);
 
     return `
@@ -9968,7 +11506,7 @@ const AppState = {
         <div class="car-card-body">
           <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:4px;">
             <span>${car.brand || 'SIGMACAR'} • ${car.subCategory || car.category}</span>
-            <span style="color:#059669;">Kho: ${stockCount} • Năm ${car.year || 2024}</span>
+            <span style="color:${stockCount > 0 ? '#059669' : '#DC2626'};">${stockCount > 0 ? `Kho: ${stockCount}` : 'Tạm hết hàng'} • Năm ${car.year || 2024}</span>
           </div>
           <h3 class="car-card-title" onclick="window.openCarDetail('${car.id}')" style="cursor:pointer;">${car.name}</h3>
           <div class="car-card-subtitle">${car.excelSpecs || car.subtitle || car.category}</div>
@@ -9976,7 +11514,7 @@ const AppState = {
 
           <div class="car-specs-row">
             <div class="spec-item"><span class="spec-label">${fuelSpecLabel}</span><span class="spec-val">${fuelSpecVal}</span></div>
-            <div class="spec-item"><span class="spec-label">Công suất</span><span class="spec-val">${car.hp ? car.hp + ' HP' : '200 HP'}</span></div>
+            <div class="spec-item"><span class="spec-label">Công suất</span><span class="spec-val">${car.hp ? car.hp + ' HP' : 'Đang cập nhật'}</span></div>
             <div class="spec-item"><span class="spec-label">Ghế</span><span class="spec-val">${car.seats || 5} Ghế</span></div>
           </div>
 
@@ -10003,7 +11541,8 @@ const AppState = {
     document.querySelectorAll('.btn-interest, .btn-save-action').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const id = e.currentTarget.getAttribute('data-id') || 'model-e';
+        const id = e.currentTarget.getAttribute('data-id');
+        if (!id) return;
         requireAuth('lưu xe vào danh sách quan tâm', () => {
           if (AppState.savedCarIds.has(id)) {
             AppState.savedCarIds.delete(id);
@@ -10035,45 +11574,114 @@ const AppState = {
     if (nameEl) nameEl.textContent = `Dự toán trả góp ${car.name}`;
     if (priceEl) priceEl.textContent = car.priceFormatted;
 
-    const recalc = () => {
+    let latestCalc = null;
+    const recalc = async () => {
       const price = car.price;
       const pct = parseFloat(document.getElementById('calc-down-payment-pct')?.value || '30');
       const termMonths = parseInt(document.getElementById('calc-term-months')?.value || '60', 10);
       const annualRate = parseFloat(document.getElementById('calc-bank-select')?.value || '7.9');
-
-      const downAmount = Math.round(price * (pct / 100));
-      const loanAmount = price - downAmount;
-      const monthlyPrincipal = Math.round(loanAmount / termMonths);
-      const monthlyInterestFirst = Math.round(loanAmount * (annualRate / 100 / 12));
-      const monthlyTotal = monthlyPrincipal + monthlyInterestFirst;
+      const repaymentMethod = document.getElementById('calc-repayment-method')?.value || 'equal_principal';
+      const monthlyIncomeRaw = document.getElementById('calc-monthly-income')?.value;
+      const monthlyOblRaw = document.getElementById('calc-monthly-obligation')?.value;
+      const monthlyIncome = monthlyIncomeRaw !== '' && monthlyIncomeRaw !== undefined ? Number(monthlyIncomeRaw) : undefined;
+      const monthlyObligation = monthlyOblRaw !== '' && monthlyOblRaw !== undefined ? Number(monthlyOblRaw) : 0;
 
       const elDown = document.getElementById('calc-out-down-amount');
       const elLoan = document.getElementById('calc-out-loan-amount');
       const elPrinc = document.getElementById('calc-out-principal');
       const elTotal = document.getElementById('calc-out-monthly-total');
+      const elRateNote = document.getElementById('calc-out-rate-note');
+      const elDti = document.getElementById('calc-dti-badge');
+      const elDiscl = document.getElementById('calc-disclaimer-text');
 
-      if (elDown) elDown.textContent = `${downAmount.toLocaleString('vi-VN')} VNĐ`;
-      if (elLoan) elLoan.textContent = `${loanAmount.toLocaleString('vi-VN')} VNĐ`;
-      if (elPrinc) elPrinc.textContent = `${monthlyPrincipal.toLocaleString('vi-VN')} VNĐ/tháng`;
-      if (elTotal) elTotal.textContent = `~${monthlyTotal.toLocaleString('vi-VN')} VNĐ/tháng`;
+      try {
+        const res = await ApiClient.financing.calculate({
+          vehiclePrice: price,
+          downPaymentPercent: pct,
+          annualInterestRatePercent: annualRate,
+          termMonths,
+          repaymentMethod,
+          includeSchedule: false,
+          monthlyIncome,
+          monthlyObligation
+        });
+        latestCalc = res;
+        if (elDown) elDown.textContent = `${Number(res.downPaymentAmount || 0).toLocaleString('vi-VN')} VNĐ`;
+        if (elLoan) elLoan.textContent = `${Number(res.financedPrincipal ?? res.loanPrincipal ?? 0).toLocaleString('vi-VN')} VNĐ`;
+        if (elPrinc) elPrinc.textContent = `${Number(res.firstMonthPrincipal || 0).toLocaleString('vi-VN')} VNĐ/tháng`;
+        if (elTotal) elTotal.textContent = `${Number(res.firstMonthPayment || 0).toLocaleString('vi-VN')} VNĐ/tháng (Tổng lãi: ${Number(res.totalInterest || 0).toLocaleString('vi-VN')} VNĐ)`;
+        if (elRateNote) {
+          elRateNote.textContent = `Tổng chi phí ${termMonths} tháng: ${Number(res.totalCostOfLoan ?? res.totalPayable ?? 0).toLocaleString('vi-VN')} VNĐ`;
+        }
+        if (elDti) {
+          if (res.affordability) {
+            elDti.style.display = 'block';
+            const band = res.affordability.riskBand || res.affordability.status;
+            const badgeColor = band === 'comfortable' ? '#065F46' : (band === 'moderate' || band === 'caution' ? '#92400E' : '#991B1B');
+            const badgeBg = band === 'comfortable' ? '#ECFDF5' : (band === 'moderate' || band === 'caution' ? '#FFFBEB' : '#FEF2F2');
+            elDti.style.background = badgeBg;
+            elDti.style.color = badgeColor;
+            elDti.textContent = `Tỷ lệ DTI: ${res.affordability.dtiPercent}% — ${res.affordability.advisory || res.affordability.assessment || ''}`;
+          } else {
+            elDti.style.display = 'none';
+          }
+        }
+        if (elDiscl && res.disclaimer) {
+          elDiscl.textContent = res.disclaimer;
+        }
+      } catch (err) {
+        if (elTotal) elTotal.textContent = err.message || 'Thông số chưa hợp lệ';
+      }
     };
 
     recalc();
 
-    document.getElementById('calc-down-payment-pct')?.addEventListener('change', recalc);
-    document.getElementById('calc-term-months')?.addEventListener('change', recalc);
-    document.getElementById('calc-bank-select')?.addEventListener('change', recalc);
+    const downEl = document.getElementById('calc-down-payment-pct');
+    const termEl = document.getElementById('calc-term-months');
+    const bankEl = document.getElementById('calc-bank-select');
+    const methodEl = document.getElementById('calc-repayment-method');
+    const incEl = document.getElementById('calc-monthly-income');
+    const oblEl = document.getElementById('calc-monthly-obligation');
+    const closeEl = document.getElementById('btn-loan-modal-close');
+    const advisorEl = document.getElementById('btn-calc-request-advisor');
 
-    document.getElementById('btn-loan-modal-close')?.addEventListener('click', () => {
-      loanCalcModal.classList.remove('active');
-    });
-
-    document.getElementById('btn-calc-request-advisor')?.addEventListener('click', () => {
-      requireAuth('đăng ký tư vấn gói trả góp', () => {
-        loanCalcModal.classList.remove('active');
-        showToast('Đã gửi thông tin đăng ký gói vay trả góp! Chuyên viên sẽ liên hệ trong 15 phút.', '🎉');
-      });
-    });
+    if (downEl) downEl.onchange = recalc;
+    if (termEl) termEl.onchange = recalc;
+    if (bankEl) bankEl.onchange = recalc;
+    if (methodEl) methodEl.onchange = recalc;
+    if (incEl) incEl.oninput = recalc;
+    if (oblEl) oblEl.oninput = recalc;
+    if (closeEl) {
+      closeEl.onclick = () => loanCalcModal.classList.remove('active');
+    }
+    if (advisorEl) {
+      advisorEl.onclick = () => {
+        requireAuth('đăng ký tư vấn gói trả góp', async () => {
+          try {
+            const pct = parseFloat(document.getElementById('calc-down-payment-pct')?.value || '30');
+            const termMonths = parseInt(document.getElementById('calc-term-months')?.value || '60', 10);
+            const annualRate = parseFloat(document.getElementById('calc-bank-select')?.value || '7.9');
+            const repaymentMethod = document.getElementById('calc-repayment-method')?.value || 'equal_principal';
+            const monthlyIncomeRaw = document.getElementById('calc-monthly-income')?.value;
+            const monthlyOblRaw = document.getElementById('calc-monthly-obligation')?.value;
+            const appRes = await ApiClient.financing.submitApplication({
+              vehicleId: car.id,
+              downPaymentPercent: pct,
+              annualInterestRatePercent: annualRate,
+              termMonths,
+              repaymentMethod,
+              monthlyIncome: monthlyIncomeRaw ? Number(monthlyIncomeRaw) : undefined,
+              monthlyObligation: monthlyOblRaw ? Number(monthlyOblRaw) : 0,
+              consentCreditCheck: true
+            });
+            loanCalcModal.classList.remove('active');
+            showToast(`Đã gửi hồ sơ trả góp #${appRes.id} lên hệ thống! Chuyên viên sẽ thẩm định trong giờ làm việc.`, '🎉');
+          } catch (err) {
+            showToast(err.message || 'Không thể gửi hồ sơ vay.', '⚠️');
+          }
+        });
+      };
+    }
 
     loanCalcModal.classList.add('active');
   }
@@ -10137,8 +11745,13 @@ const AppState = {
     `).join('');
   }
 
+  let liveSearchDebounceTimer = null;
   searchInput?.addEventListener('input', (e) => {
-    performLiveSearch(e.target.value);
+    const val = e.target.value;
+    clearTimeout(liveSearchDebounceTimer);
+    liveSearchDebounceTimer = setTimeout(() => {
+      performLiveSearch(val);
+    }, 180);
   });
 
   searchInput?.addEventListener('keydown', (e) => {
@@ -10228,6 +11841,10 @@ const AppState = {
     try {
       const res = await ApiClient.auth.login({ email, password });
       AppState.currentUser = res.user;
+      if (ApiClient.cart?.mergeGuestDraftOnLogin) {
+        await ApiClient.cart.mergeGuestDraftOnLogin().catch(() => {});
+      }
+      window.SigmaCartView?.updateCartHeaderBadge?.();
       updateDropdownUserUI();
       authModal.classList.remove('active');
       showToast(`Đăng nhập thành công! Xin chào ${res.user.fullName} (${res.user.role.toUpperCase()})`, '👋');
@@ -10258,6 +11875,10 @@ const AppState = {
     try {
       const res = await ApiClient.auth.register({ fullName, phone, role, email, password });
       AppState.currentUser = res.user;
+      if (ApiClient.cart?.mergeGuestDraftOnLogin) {
+        await ApiClient.cart.mergeGuestDraftOnLogin().catch(() => {});
+      }
+      window.SigmaCartView?.updateCartHeaderBadge?.();
       updateDropdownUserUI();
       authModal.classList.remove('active');
       showToast(`Đăng ký thành công! Chào mừng ${res.user.fullName} gia nhập SIGMACAR! 🎉`, '🎉');
@@ -10333,6 +11954,11 @@ const AppState = {
     }
   }
 
+  document.getElementById('btn-header-cart')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    navigateTo('cart');
+  });
+
   // Header and modal button interactions
   document.getElementById('btn-header-auth')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -10385,7 +12011,11 @@ const AppState = {
   document.getElementById('btn-dropdown-logout')?.addEventListener('click', () => {
     ApiClient.auth.logout();
     AppState.currentUser = null;
+    AppState._profileData = null;
+    AppState._sellerFinancingApps = null;
+    AppState._sellerReturnsItems = null;
     updateDropdownUserUI();
+    window.SigmaCartView?.updateCartHeaderBadge?.();
     accountDropdown.classList.remove('active');
     showToast('Đã đăng xuất tài khoản an toàn!', '👋');
     navigateTo('home');
@@ -10523,6 +12153,7 @@ const AppState = {
   }
   updateDropdownUserUI();
   await loadBackendData();
+  window.SigmaCartView?.updateCartHeaderBadge?.();
   const initial = window.location.hash.replace('#', '') || 'home';
   navigateTo(initial);
   });

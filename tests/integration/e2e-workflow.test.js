@@ -1,14 +1,24 @@
-const { describe, it } = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
-
-const BASE_URL = process.env.TEST_API_URL || 'http://localhost:3000/api/v1';
+const { startTestServer } = require('../helpers/test-app');
 
 describe('End-to-End Workflow: Complete EV Commerce Customer & Dealer Journey', () => {
+  let app = null;
+  let BASE_URL = '';
   let buyerToken = null;
   let buyerUser = null;
   let sellerToken = null;
   let createdOrderId = null;
   let createdAppointmentId = null;
+
+  before(async () => {
+    app = await startTestServer({ mode: 'memory', reseed: true });
+    BASE_URL = app.baseUrl;
+  });
+
+  after(async () => {
+    if (app) await app.close();
+  });
 
   it('Step 1: Buyer browses catalog and queries vehicle specifications', async () => {
     const res = await fetch(`${BASE_URL}/vehicles/tesla-cybertruck`);

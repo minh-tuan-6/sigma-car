@@ -11,16 +11,9 @@ console.log('🧪 RUNNING FULL AR IMPLEMENTATION TEST SUITE (PHASES 1-6)...\n');
 let total = 0;
 let passed = 0;
 
+const pendingTests = [];
 function it(desc, fn) {
-  total++;
-  try {
-    fn();
-    console.log(`  ✅ PASS: ${desc}`);
-    passed++;
-  } catch (err) {
-    console.error(`  ❌ FAIL: ${desc}`);
-    console.error(`     ${err.stack || err.message}`);
-  }
+  pendingTests.push({ desc, fn });
 }
 
 // 1. Syntax & Compilation Check
@@ -43,7 +36,7 @@ it('All JavaScript modules compile without syntax errors', () => {
 });
 
 // 2. Phase 1 - Asset Gate & Calibrated GLB Models
-it('Calibrated Cybertruck AR GLB models have exact 1:1 physical dimensions (5.682m), centered origin and Y=0 contact', () => {
+it('Calibrated Cybertruck AR GLB models have exact 1:1 physical dimensions (5.682m), centered origin and Y=0 contact', async () => {
   const threeCode = fs.readFileSync(path.resolve('js/libs/three.min.js'), 'utf8');
   const gltfLoaderCode = fs.readFileSync(path.resolve('js/libs/GLTFLoader.js'), 'utf8');
 
@@ -64,22 +57,28 @@ it('Calibrated Cybertruck AR GLB models have exact 1:1 physical dimensions (5.68
     'assets/models/ar/tesla_cybertruck_ar_tactical_green.glb'
   ];
 
-  files.forEach(f => {
+  for (const f of files) {
     const glbBuffer = fs.readFileSync(path.resolve(f));
     const loader = new THREE.GLTFLoader();
-    loader.parse(glbBuffer.buffer.slice(glbBuffer.byteOffset, glbBuffer.byteOffset + glbBuffer.byteLength), '', (gltf) => {
-      const box = new THREE.Box3().setFromObject(gltf.scene);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-
-      assert(Math.abs(size.z - 5.682) < 0.005, `${f}: Length should be 5.682m, got ${size.z}`);
-      assert(size.x > 1.95 && size.x < 2.05, `${f}: Width should be ~1.996m, got ${size.x}`);
-      assert(size.y > 1.85 && size.y < 1.92, `${f}: Height should be ~1.886m, got ${size.y}`);
-      assert(Math.abs(center.x) < 0.001, `${f}: Center X should be 0.0, got ${center.x}`);
-      assert(Math.abs(center.z) < 0.001, `${f}: Center Z should be 0.0, got ${center.z}`);
-      assert(Math.abs(box.min.y) < 0.001, `${f}: Min Y should be 0.0, got ${box.min.y}`);
+    await new Promise((resolve, reject) => {
+      loader.parse(glbBuffer.buffer.slice(glbBuffer.byteOffset, glbBuffer.byteOffset + glbBuffer.byteLength), '', (gltf) => {
+        try {
+          const box = new THREE.Box3().setFromObject(gltf.scene);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          assert(Math.abs(size.z - 5.682) < 0.005, `${f}: Length should be 5.682m, got ${size.z}`);
+          assert(size.x > 1.95 && size.x < 2.05, `${f}: Width should be ~1.996m, got ${size.x}`);
+          assert(size.y > 1.85 && size.y < 1.92, `${f}: Height should be ~1.886m, got ${size.y}`);
+          assert(Math.abs(center.x) < 0.001, `${f}: Center X should be 0.0, got ${center.x}`);
+          assert(Math.abs(center.z) < 0.001, `${f}: Center Z should be 0.0, got ${center.z}`);
+          assert(Math.abs(box.min.y) < 0.001, `${f}: Min Y should be 0.0, got ${box.min.y}`);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      }, reject);
     });
-  });
+  }
 });
 
 // 3. Phase 2 - State Resolver & AR Manifest Integration
@@ -110,10 +109,18 @@ it('AR Manifest provides accurate vehicle verification and dynamic configuration
   assert.strictEqual(cfg3.hex, '#3F6212');
   assert(cfg3.glbUrl.includes('tesla_cybertruck_ar_tactical_green.glb'));
 
-  // Fallback for unverified vehicle
+  // Unverified catalog vehicle: keeps real studioGlbUrl/glbUrl for 3D viewer, clearly marked unverified
   const fallback = manifest.getVehicleArConfig('toyota-camry');
   assert.strictEqual(fallback.readiness, 'unverified');
-  assert(fallback.glbUrl.includes('sigma-car-3d.glb'));
+  assert.strictEqual(fallback.arScaleCertified, false);
+  assert.strictEqual(fallback.glbUrl, 'assets/models/toyota_camry.glb');
+  assert.strictEqual(fallback.studioGlbUrl, 'assets/models/toyota_camry.glb');
+
+  // Unknown vehicle ID must cleanly return unsupported
+  const unsupported = manifest.getVehicleArConfig('unknown-nonexistent-car');
+  assert.strictEqual(unsupported.supported, false);
+  assert.strictEqual(unsupported.readiness, 'unsupported');
+  assert.strictEqual(unsupported.glbUrl, null);
 });
 
 // 4. Phase 3 - AR Core Integration & Adapter API
@@ -180,10 +187,23 @@ it('scripts/build_dist.js bundles all AR assets, models, libraries and manifests
   });
 });
 
-console.log(`\n======================================================`);
-console.log(`FULL SUITE RESULTS: ${passed}/${total} Passed (${passed === total ? '100% SUCCESS' : 'FAILED'})`);
-console.log(`======================================================\n`);
+(async () => {
+  for (const item of pendingTests) {
+    total++;
+    try {
+      await item.fn();
+      console.log(`  ✅ PASS: ${item.desc}`);
+      passed++;
+    } catch (err) {
+      console.error(`  ❌ FAIL: ${item.desc}`);
+      console.error(`     ${err.stack || err.message}`);
+    }
+  }
+  console.log(`\n======================================================`);
+  console.log(`FULL SUITE RESULTS: ${passed}/${total} Passed (${passed === total ? '100% SUCCESS' : 'FAILED'})`);
+  console.log(`======================================================\n`);
 
-if (passed !== total) {
-  process.exit(1);
-}
+  if (passed !== total) {
+    process.exit(1);
+  }
+})();

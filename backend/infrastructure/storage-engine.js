@@ -4,37 +4,99 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { ROLES, ORDER_STATUS, PAYMENT_STATUS, APPOINTMENT_STATUS, TICKET_STATUS, TICKET_PRIORITY, RETURN_STATUS, WARRANTY_STATUS, CAMPAIGN_CATEGORIES, CAMPAIGN_STATUS } = require('../domain/constants');
+const config = require('../config');
+const {
+  ROLES, ORDER_STATUS, PAYMENT_STATUS, APPOINTMENT_STATUS, TICKET_STATUS,
+  TICKET_PRIORITY, RETURN_STATUS, WARRANTY_STATUS, CAMPAIGN_CATEGORIES,
+  CAMPAIGN_STATUS, LEGACY_VEHICLE_ARCHIVES, SHOWROOM_BRANCHES
+} = require('../domain/constants');
 
-const DATA_DIR = path.join(__dirname, '..', '..', 'data');
-const DATA_FILE = path.join(DATA_DIR, 'sigmacar_store.json');
+const DEFAULT_DATA_DIR = path.join(__dirname, '..', '..', 'data');
+const DEFAULT_DATA_FILE = config.storage && config.storage.dataFile
+  ? path.resolve(config.storage.dataFile)
+  : path.join(DEFAULT_DATA_DIR, 'sigmacar_store.json');
 
-// In-Memory Database Structure with stable reference
-const dbState = {
-  users: [],
-  vehicles: [],
-  certifiedVehicles: [],
-  orders: [],
-  appointments: [],
-  returnRequests: [],
-  warranties: [],
-  serviceRecords: [],
-  serviceAppointments: [],
-  reviews: [],
-  questions: [],
-  supportTickets: [],
-  faqs: [],
-  emailCampaigns: [],
-  auditLogs: [],
-  meta: {
-    initializedAt: null,
-    lastSavedAt: null
-  }
+const CORE_COLLECTIONS = [
+  'users', 'vehicles', 'certifiedVehicles', 'orders', 'appointments',
+  'returnRequests', 'warranties', 'serviceRecords', 'serviceAppointments',
+  'reviews', 'questions', 'supportTickets', 'faqs', 'emailCampaigns', 'auditLogs'
+];
+
+const EXTENDED_COLLECTIONS = [
+  'branchInventory', 'carts', 'quotes', 'paymentIntents', 'paymentLedger',
+  'webhookEvents', 'refunds', 'reservations', 'inventoryMovements', 'promotions',
+  'configurations', 'accessories', 'bundles', 'registrationCases',
+  'financingApplications', 'mediaAssets', 'policyVersions', 'handovers',
+  'vehicleUnits', 'vehicleOwnerships', 'warrantyClaims', 'serviceCenters',
+  'serviceBays', 'technicians', 'serviceParts', 'serviceJobs', 'contentEntries',
+  'outboxEvents', 'notifications', 'consentEvents', 'aiConversations',
+  'aiPreferences', 'tcoAssumptions', 'analyticsEvents', 'chargingCache',
+  'contracts', 'idempotencyRecords'
+];
+
+const ALL_COLLECTIONS = [...CORE_COLLECTIONS, ...EXTENDED_COLLECTIONS];
+
+const storageRuntime = {
+  mode: (config.storage && config.storage.mode) || 'json',
+  dataFile: DEFAULT_DATA_FILE,
+  fsImpl: fs,
+  allowDevSeed: config.storage ? config.storage.allowDevSeed : true,
+  memoryOnly: (config.storage && config.storage.mode === 'memory') || false
 };
 
+function createEmptyState() {
+  const empty = {};
+  ALL_COLLECTIONS.forEach((col) => { empty[col] = []; });
+  empty.meta = {
+    version: '4.0.0',
+    initializedAt: null,
+    lastSavedAt: null
+  };
+  return empty;
+}
+
+// In-Memory Database Structure with stable reference
+const dbState = createEmptyState();
+
 function setDbState(newState) {
+  const base = createEmptyState();
   Object.keys(dbState).forEach(k => delete dbState[k]);
-  Object.assign(dbState, newState);
+  Object.assign(dbState, base, newState || {});
+  if (!dbState.meta) dbState.meta = { version: '4.0.0', initializedAt: null, lastSavedAt: null };
+}
+
+function resetToEmpty() {
+  setDbState(createEmptyState());
+}
+
+function configureStorage(options = {}) {
+  if (options.mode !== undefined) {
+    storageRuntime.mode = options.mode;
+    storageRuntime.memoryOnly = options.mode === 'memory';
+  }
+  if (options.memoryOnly !== undefined) {
+    storageRuntime.memoryOnly = Boolean(options.memoryOnly);
+    if (storageRuntime.memoryOnly) storageRuntime.mode = 'memory';
+  }
+  if (options.dataFile !== undefined) {
+    storageRuntime.dataFile = path.resolve(options.dataFile);
+  }
+  if (options.fsImpl !== undefined) {
+    storageRuntime.fsImpl = options.fsImpl || fs;
+  }
+  if (options.allowDevSeed !== undefined) {
+    storageRuntime.allowDevSeed = Boolean(options.allowDevSeed);
+  }
+  return getStorageConfig();
+}
+
+function getStorageConfig() {
+  return {
+    mode: storageRuntime.mode,
+    dataFile: storageRuntime.dataFile,
+    allowDevSeed: storageRuntime.allowDevSeed,
+    memoryOnly: storageRuntime.memoryOnly
+  };
 }
 
 // Concurrency mutex lock for transactional operations
@@ -54,33 +116,92 @@ function releaseLock() {
   isLocked = false;
 }
 
+function ensureAllCollectionArrays() {
+  for (const col of ALL_COLLECTIONS) {
+    if (!Array.isArray(dbState[col])) {
+      dbState[col] = [];
+    }
+  }
+  if (!dbState.meta || typeof dbState.meta !== 'object') {
+    dbState.meta = { version: '4.0.0', initializedAt: null, lastSavedAt: null };
+  }
+}
+
 // Persistent Storage Management
 function loadFromDisk() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf8');
-      setDbState(JSON.parse(raw));
-      ensureExtendedCollections();
-    } else {
+  if (storageRuntime.memoryOnly || storageRuntime.mode === 'memory') {
+    if (storageRuntime.allowDevSeed) {
       seedInitialData();
-      saveToDisk();
+    } else {
+      resetToEmpty();
     }
-  } catch (err) {
-    console.error('Error loading data from disk, initializing seed data:', err.message);
+    ensureAllCollectionArrays();
+    return;
+  }
+
+  const fsDriver = storageRuntime.fsImpl;
+  const dataFile = storageRuntime.dataFile;
+  const dataDir = path.dirname(dataFile);
+
+  if (!fsDriver.existsSync(dataDir)) {
+    fsDriver.mkdirSync(dataDir, { recursive: true });
+  }
+
+  if (fsDriver.existsSync(dataFile)) {
+    const raw = fsDriver.readFileSync(dataFile, 'utf8');
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (parseErr) {
+      // Never silently overwrite corrupt production JSON with seed data
+      console.error('CRITICAL: Failed to parse storage file (refusing to overwrite disk):', parseErr.message);
+      throw new Error(`Storage file corrupted (${dataFile}): ${parseErr.message}`);
+    }
+    setDbState(parsed);
+    ensureExtendedCollections();
+    return;
+  }
+
+  if (storageRuntime.allowDevSeed) {
     seedInitialData();
+    saveToDisk();
+  } else {
+    resetToEmpty();
+    ensureAllCollectionArrays();
+    saveToDisk();
   }
 }
 
 function saveToDisk() {
+  if (!dbState.meta) dbState.meta = {};
+  dbState.meta.lastSavedAt = new Date().toISOString();
+
+  if (storageRuntime.memoryOnly || storageRuntime.mode === 'memory') {
+    return;
+  }
+
+  const fsDriver = storageRuntime.fsImpl;
+  const dataFile = storageRuntime.dataFile;
+  const dataDir = path.dirname(dataFile);
+  if (!fsDriver.existsSync(dataDir)) {
+    fsDriver.mkdirSync(dataDir, { recursive: true });
+  }
+
+  const tmpFile = `${dataFile}.${process.pid}.${Date.now()}.tmp`;
+  const payload = JSON.stringify(dbState, null, 2);
   try {
-    if (!dbState.meta) dbState.meta = {};
-    dbState.meta.lastSavedAt = new Date().toISOString();
-    fs.writeFileSync(DATA_FILE, JSON.stringify(dbState, null, 2), 'utf8');
+    fsDriver.writeFileSync(tmpFile, payload, 'utf8');
+    fsDriver.renameSync(tmpFile, dataFile);
   } catch (err) {
+    try {
+      if (fsDriver.existsSync && fsDriver.existsSync(tmpFile) && fsDriver.unlinkSync) {
+        fsDriver.unlinkSync(tmpFile);
+      }
+    } catch (_) {
+      // ignore temp cleanup errors
+    }
     console.error('Failed to save database state to disk:', err.message);
+    throw err;
   }
 }
 
@@ -104,6 +225,10 @@ function seedInitialData() {
       fullName: 'Hệ Thống Quản Trị SIGMACAR',
       role: ROLES.ADMIN,
       phone: '+84 1900 8888',
+      branchId: 'all',
+      branchIds: ['hn-caugiay', 'hn-longbien', 'hcm-q7', 'hcm-thuduc', 'dn-haichau'],
+      sessionVersion: 1,
+      disabledAt: null,
       passwordHash: `${defaultSalt}:${adminKey}`,
       createdAt: new Date().toISOString()
     },
@@ -113,6 +238,25 @@ function seedInitialData() {
       fullName: 'Minh Phan - Chuyên Viên Tư Vấn SIGMACAR',
       role: ROLES.SELLER,
       phone: '+84 1900 8889',
+      branchId: 'hn-caugiay',
+      branchIds: ['hn-caugiay'],
+      branchName: 'Showroom SIGMACAR Cầu Giấy (Hà Nội)',
+      sessionVersion: 1,
+      disabledAt: null,
+      passwordHash: `${defaultSalt}:${sellerKey}`,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'usr_seller_hcm',
+      email: 'linhnguyen.seller@sigmacar.vn',
+      fullName: 'Linh Nguyễn - Chuyên Viên Tư Vấn Quận 7',
+      role: ROLES.SELLER,
+      phone: '+84 1900 8890',
+      branchId: 'hcm-q7',
+      branchIds: ['hcm-q7'],
+      branchName: 'Showroom SIGMACAR Quận 7 (TP.HCM)',
+      sessionVersion: 1,
+      disabledAt: null,
       passwordHash: `${defaultSalt}:${sellerKey}`,
       createdAt: new Date().toISOString()
     },
@@ -122,6 +266,8 @@ function seedInitialData() {
       fullName: 'Minh Hoàng',
       role: ROLES.BUYER,
       phone: '+84 912 345 678',
+      sessionVersion: 1,
+      disabledAt: null,
       passwordHash: `${defaultSalt}:${buyerKey}`,
       createdAt: new Date().toISOString()
     },
@@ -131,6 +277,8 @@ function seedInitialData() {
       fullName: 'Phạm Thanh Thảo',
       role: ROLES.BUYER,
       phone: '+84 908 765 432',
+      sessionVersion: 1,
+      disabledAt: null,
       passwordHash: `${defaultSalt}:${buyerKey}`,
       createdAt: new Date().toISOString()
     }
@@ -3734,8 +3882,13 @@ function seedInitialData() {
   ];
 
   seedExtendedData();
-  if (!dbState.meta) dbState.meta = { version: '3.0.0' };
+  if (!dbState.certifiedVehicles || dbState.certifiedVehicles.length === 0) {
+    dbState.certifiedVehicles = getDefaultCertifiedVehicles();
+  }
+  ensureAllCollectionArrays();
+  if (!dbState.meta) dbState.meta = { version: '4.0.0' };
   dbState.meta.initializedAt = new Date().toISOString();
+  dbState.meta.legacyVehicleArchives = LEGACY_VEHICLE_ARCHIVES;
 }
 
 function seedExtendedData() {
@@ -4328,139 +4481,264 @@ function seedExtendedData() {
   ];
 }
 
-function ensureExtendedCollections() {
-  const defaultCollections = [
-    'certifiedVehicles', 'appointments',
-    'returnRequests', 'warranties', 'serviceRecords', 'serviceAppointments',
-    'reviews', 'questions', 'supportTickets', 'faqs', 'emailCampaigns', 'auditLogs'
+function getDefaultCertifiedVehicles() {
+  return [
+    {
+      id: "cpo-1",
+      name: "SIGMA Model E Premium",
+      year: 2023,
+      vin: "VIN: 89J921K",
+      odo: "12.500 km",
+      odoNum: 12500,
+      price: 1050000000,
+      priceFormatted: "1.050.000.000 đ",
+      batteryHealth: "96%",
+      color: "Trắng / Nội thất Đen",
+      inspection: "176+ Điểm kiểm định",
+      warranty: "Gia hạn 12 tháng / 20.000 km",
+      category: "SUV",
+      image: "assets/car-used-1.jpg",
+      badge: "Certified Pre-Owned",
+      status: "Sẵn sàng bàn giao",
+      stock: 1,
+      condition: "certified",
+      type: "certified"
+    },
+    {
+      id: "cpo-2",
+      name: "SIGMA Vision S Executive",
+      year: 2022,
+      vin: "VIN: 45A772Q",
+      odo: "24.000 km",
+      odoNum: 24000,
+      price: 1680000000,
+      priceFormatted: "1.680.000.000 đ",
+      batteryHealth: "94%",
+      color: "Xanh Sapphire / Nội thất Kem",
+      inspection: "176+ Điểm kiểm định",
+      warranty: "Gia hạn 12 tháng / 20.000 km",
+      category: "Sedan",
+      image: "assets/car-used-2.jpg",
+      badge: "Certified Pre-Owned",
+      status: "Sẵn sàng bàn giao",
+      stock: 1,
+      condition: "certified",
+      type: "certified"
+    },
+    {
+      id: "cpo-3",
+      name: "SIGMA City G Smart",
+      year: 2024,
+      vin: "VIN: 12K551X",
+      odo: "3.500 km",
+      odoNum: 3500,
+      price: 720000000,
+      priceFormatted: "720.000.000 đ",
+      batteryHealth: "99%",
+      color: "Bạc Ánh Kim / Nội thất Xám",
+      inspection: "176+ Điểm kiểm định",
+      warranty: "Gia hạn 24 tháng / 40.000 km",
+      category: "Compact",
+      image: "assets/car-used-3.jpg",
+      badge: "Certified Siêu Lướt",
+      status: "Sẵn sàng bàn giao",
+      stock: 1,
+      condition: "certified",
+      type: "certified"
+    },
+    {
+      id: "cpo-4",
+      name: "SIGMA Model E Luxury",
+      year: 2022,
+      vin: "VIN: 77D443M",
+      odo: "18.200 km",
+      odoNum: 18200,
+      price: 1120000000,
+      priceFormatted: "1.120.000.000 đ",
+      batteryHealth: "95%",
+      color: "Đen Phantom / Nội thất Da bò",
+      inspection: "176+ Điểm kiểm định",
+      warranty: "Gia hạn 12 tháng / 20.000 km",
+      category: "SUV",
+      image: "assets/car-certified-2.jpg",
+      badge: "Certified Pre-Owned",
+      status: "Sẵn sàng bàn giao",
+      stock: 1,
+      condition: "certified",
+      type: "certified"
+    },
+    {
+      id: "cpo-5",
+      name: "SIGMA E-Vision Premium Special",
+      year: 2023,
+      vin: "VIN: 98P112A",
+      odo: "8.900 km",
+      odoNum: 8900,
+      price: 1180000000,
+      priceFormatted: "1.180.000.000 đ",
+      batteryHealth: "98%",
+      color: "Đỏ Ruby / Nội thất Đen Nappa",
+      inspection: "176+ Điểm kiểm định",
+      warranty: "Gia hạn 18 tháng / 30.000 km",
+      category: "SUV",
+      image: "assets/car-certified-1.jpg",
+      badge: "Certified Pre-Owned",
+      status: "Sẵn sàng bàn giao",
+      stock: 1,
+      condition: "certified",
+      type: "certified"
+    }
   ];
-  let needsSeed = false;
-  for (const col of defaultCollections) {
-    if (!Array.isArray(dbState[col])) {
-      dbState[col] = [];
-      needsSeed = true;
+}
+
+function parseBatteryKwh(v) {
+  if (Number.isFinite(v.batteryKwh)) return v.batteryKwh;
+  const raw = v.evSpecs?.batteryCapacity || v.battery || '';
+  const m = String(raw).match(/(\d+(?:\.\d+)?)\s*kwh/i);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function distributeBranchStock(totalStock, isCertified, preferredBranchId) {
+  const safeTotal = Math.max(0, Number.isInteger(totalStock) ? totalStock : 0);
+  if (isCertified) {
+    const targetBranch = preferredBranchId || 'hn-caugiay';
+    return SHOWROOM_BRANCHES.map(b => ({
+      branchId: b.id,
+      stockOnHand: b.id === targetBranch ? Math.min(1, safeTotal) : 0
+    }));
+  }
+  const primary = safeTotal <= 1 ? safeTotal : Math.ceil(safeTotal * 0.6);
+  const rem = Math.max(0, safeTotal - primary);
+  const hcm = rem <= 1 ? rem : Math.ceil(rem * 0.5);
+  const dn = Math.max(0, rem - hcm);
+  return SHOWROOM_BRANCHES.map(b => {
+    let qty = 0;
+    if (b.id === 'hn-caugiay') qty = primary;
+    else if (b.id === 'hcm-q7') qty = hcm;
+    else if (b.id === 'dn-haichau') qty = dn;
+    return { branchId: b.id, stockOnHand: qty };
+  });
+}
+
+function ensureExtendedCollections() {
+  ensureAllCollectionArrays();
+  if (!dbState.meta.legacyVehicleArchives) {
+    dbState.meta.legacyVehicleArchives = LEGACY_VEHICLE_ARCHIVES;
+  }
+  const nowIso = new Date().toISOString();
+
+  // Backfill normalized numeric batteryKwh ONLY when explicitly present in source specs
+  for (const v of dbState.vehicles) {
+    if (v.batteryKwh === undefined) {
+      const parsed = parseBatteryKwh(v);
+      if (parsed !== null) v.batteryKwh = parsed;
     }
   }
 
-  if (!Array.isArray(dbState.certifiedVehicles) || dbState.certifiedVehicles.length === 0) {
-    dbState.certifiedVehicles = [
-      {
-        id: "cpo-1",
-        name: "SIGMA Model E Premium",
-        year: 2023,
-        vin: "VIN: 89J921K",
-        odo: "12.500 km",
-        odoNum: 12500,
-        price: 1050000000,
-        priceFormatted: "1.050.000.000 đ",
-        batteryHealth: "96%",
-        color: "Trắng / Nội thất Đen",
-        inspection: "176+ Điểm kiểm định",
-        warranty: "Gia hạn 12 tháng / 20.000 km",
-        category: "SUV",
-        image: "assets/car-used-1.jpg",
-        badge: "Certified Pre-Owned",
-        status: "Sẵn sàng bàn giao",
-        stock: 1,
-        condition: "certified",
-        type: "certified"
-      },
-      {
-        id: "cpo-2",
-        name: "SIGMA Vision S Executive",
-        year: 2022,
-        vin: "VIN: 45A772Q",
-        odo: "24.000 km",
-        odoNum: 24000,
-        price: 1680000000,
-        priceFormatted: "1.680.000.000 đ",
-        batteryHealth: "94%",
-        color: "Xanh Sapphire / Nội thất Kem",
-        inspection: "176+ Điểm kiểm định",
-        warranty: "Gia hạn 12 tháng / 20.000 km",
-        category: "Sedan",
-        image: "assets/car-used-2.jpg",
-        badge: "Certified Pre-Owned",
-        status: "Sẵn sàng bàn giao",
-        stock: 1,
-        condition: "certified",
-        type: "certified"
-      },
-      {
-        id: "cpo-3",
-        name: "SIGMA City G Smart",
-        year: 2024,
-        vin: "VIN: 12K551X",
-        odo: "3.500 km",
-        odoNum: 3500,
-        price: 720000000,
-        priceFormatted: "720.000.000 đ",
-        batteryHealth: "99%",
-        color: "Bạc Ánh Kim / Nội thất Xám",
-        inspection: "176+ Điểm kiểm định",
-        warranty: "Gia hạn 24 tháng / 40.000 km",
-        category: "Compact",
-        image: "assets/car-used-3.jpg",
-        badge: "Certified Siêu Lướt",
-        status: "Sẵn sàng bàn giao",
-        stock: 1,
-        condition: "certified",
-        type: "certified"
-      },
-      {
-        id: "cpo-4",
-        name: "SIGMA Model E Luxury",
-        year: 2022,
-        vin: "VIN: 77D443M",
-        odo: "18.200 km",
-        odoNum: 18200,
-        price: 1120000000,
-        priceFormatted: "1.120.000.000 đ",
-        batteryHealth: "95%",
-        color: "Đen Phantom / Nội thất Da bò",
-        inspection: "176+ Điểm kiểm định",
-        warranty: "Gia hạn 12 tháng / 20.000 km",
-        category: "SUV",
-        image: "assets/car-certified-2.jpg",
-        badge: "Certified Pre-Owned",
-        status: "Sẵn sàng bàn giao",
-        stock: 1,
-        condition: "certified",
-        type: "certified"
-      },
-      {
-        id: "cpo-5",
-        name: "SIGMA E-Vision Premium Special",
-        year: 2023,
-        vin: "VIN: 98P112A",
-        odo: "8.900 km",
-        odoNum: 8900,
-        price: 1180000000,
-        priceFormatted: "1.180.000.000 đ",
-        batteryHealth: "98%",
-        color: "Đỏ Ruby / Nội thất Đen Nappa",
-        inspection: "176+ Điểm kiểm định",
-        warranty: "Gia hạn 18 tháng / 30.000 km",
-        category: "SUV",
-        image: "assets/car-certified-1.jpg",
-        badge: "Certified Pre-Owned",
-        status: "Sẵn sàng bàn giao",
-        stock: 1,
-        condition: "certified",
-        type: "certified"
+  // Ensure per-branch inventory ledger exists for every vehicle & CPO unit without overwriting live stock
+  const allCatalog = [
+    ...dbState.vehicles.map(v => ({ item: v, isCertified: false })),
+    ...dbState.certifiedVehicles.map(v => ({ item: v, isCertified: true }))
+  ];
+  for (const { item, isCertified } of allCatalog) {
+    if (!item || !item.id) continue;
+    const hasBranchRows = dbState.branchInventory.some(row => row.vehicleId === item.id);
+    if (!hasBranchRows) {
+      const initialStock = Number.isInteger(item.stock) ? item.stock : (isCertified ? 1 : 5);
+      const dist = distributeBranchStock(initialStock, isCertified, item.branchId);
+      for (const slot of dist) {
+        dbState.branchInventory.push({
+          id: `inv_${item.id}_${slot.branchId}`,
+          vehicleId: item.id,
+          branchId: slot.branchId,
+          stockOnHand: slot.stockOnHand,
+          reservedQty: 0,
+          version: 1,
+          updatedAt: nowIso
+        });
       }
-    ];
-    needsSeed = true;
+    }
   }
 
-  if (needsSeed || dbState.faqs.length === 0 || dbState.warranties.length === 0) {
-    // Backfill extended seed data without wiping existing vehicles
-    const savedVehicles = dbState.vehicles;
-    const savedCertified = dbState.certifiedVehicles;
-    seedInitialData();
-    if (Array.isArray(savedVehicles) && savedVehicles.length > 0) dbState.vehicles = savedVehicles;
-    if (Array.isArray(savedCertified) && savedCertified.length > 0) dbState.certifiedVehicles = savedCertified;
-    saveToDisk();
+  // Seed default active promotions idempotently when empty
+  if (dbState.accessories.length === 0) {
+    try {
+      const { SIGMA_DATA } = require('../../js/data');
+      if (SIGMA_DATA && Array.isArray(SIGMA_DATA.accessories)) {
+        dbState.accessories.push(...SIGMA_DATA.accessories.map(a => ({ ...a, compatibility: a.compatibility || ['all'] })));
+      }
+    } catch (e) {}
+  }
+
+  if (dbState.promotions.length === 0) {
+    dbState.promotions.push(
+      {
+        id: 'promo_sigma50',
+        code: 'SIGMA50',
+        name: 'Ưu đãi đặt cọc Tiên phong 50 triệu VNĐ',
+        discountType: 'fixed',
+        discountValue: 50000000,
+        maxDiscountAmount: 50000000,
+        minOrderValue: 1000000000,
+        usageLimit: 100,
+        usedCount: 0,
+        startsAt: '2025-01-01T00:00:00.000Z',
+        expiresAt: '2028-12-31T23:59:59.000Z',
+        isActive: true,
+        createdAt: nowIso
+      },
+      {
+        id: 'promo_evgreen5',
+        code: 'EVGREEN5',
+        name: 'Ưu đãi Xe Thuần Điện 5% (tối đa 30 triệu VNĐ)',
+        discountType: 'percent',
+        discountValue: 5,
+        maxDiscountAmount: 30000000,
+        fuelRestriction: 'ev',
+        minOrderValue: 300000000,
+        usageLimit: 200,
+        usedCount: 0,
+        startsAt: '2025-01-01T00:00:00.000Z',
+        expiresAt: '2028-12-31T23:59:59.000Z',
+        isActive: true,
+        createdAt: nowIso
+      },
+      {
+        id: 'promo_tet2026',
+        code: 'TET2026',
+        name: 'Voucher Tri Ân Chủ xe 10 triệu VNĐ',
+        discountType: 'fixed',
+        discountValue: 10000000,
+        maxDiscountAmount: 10000000,
+        minOrderValue: 200000000,
+        usageLimit: 500,
+        usedCount: 0,
+        startsAt: '2025-01-01T00:00:00.000Z',
+        expiresAt: '2028-12-31T23:59:59.000Z',
+        isActive: true,
+        createdAt: nowIso
+      }
+    );
+  }
+
+  // Ensure policy versions exist
+  if (dbState.policyVersions.length === 0) {
+    dbState.policyVersions.push(
+      { id: 'pol_order_2026_1', type: 'order_terms', version: '2026.1', title: 'Điều khoản Đặt cọc & Mua bán xe SIGMACAR v2026.1', effectiveFrom: '2026-01-01T00:00:00.000Z', isActive: true },
+      { id: 'pol_return_2026_1', type: 'return_7d', version: '2026.1', title: 'Chính sách Đổi trả 7 ngày & Hoàn tiền SIGMACAR v2026.1', effectiveFrom: '2026-01-01T00:00:00.000Z', isActive: true }
+    );
+  }
+
+  // Ensure existing seeded sellers loaded from older store snapshots carry deterministic branch scope & sessionVersion
+  for (const user of dbState.users) {
+    if (!Number.isInteger(user.sessionVersion) || user.sessionVersion < 1) {
+      user.sessionVersion = 1;
+    }
+    if (user.id === 'usr_seller_01' && !user.branchId && (!Array.isArray(user.branchIds) || user.branchIds.length === 0)) {
+      user.branchId = 'hn-caugiay';
+      user.branchIds = ['hn-caugiay'];
+      user.branchName = 'Showroom SIGMACAR Cầu Giấy (Hà Nội)';
+    }
   }
 }
 
@@ -4482,13 +4760,23 @@ async function runInTransaction(action) {
   }
 }
 
-// Initialize on module load
-loadFromDisk();
+// Initialize on module load unless explicitly disabled
+if (process.env.SIGMACAR_LAZY_INIT !== 'true') {
+  loadFromDisk();
+}
 
 module.exports = {
   dbState,
+  ALL_COLLECTIONS,
+  CORE_COLLECTIONS,
+  EXTENDED_COLLECTIONS,
   runInTransaction,
   saveToDisk,
   seedInitialData,
-  reload: loadFromDisk
+  reload: loadFromDisk,
+  configureStorage,
+  getStorageConfig,
+  resetToEmpty,
+  setDbState,
+  getDefaultCertifiedVehicles
 };

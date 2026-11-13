@@ -55,6 +55,8 @@ function canUserTransitionOrder(userRole, currentStatus, targetStatus) {
   if (!allowed.includes(targetStatus)) {
     return {
       allowed: false,
+      statusCode: 409,
+      code: 'INVALID_STATE_TRANSITION',
       reason: `Chuyển đổi trạng thái đơn hàng không hợp lệ: từ "${currentStatus}" sang "${targetStatus}".`
     };
   }

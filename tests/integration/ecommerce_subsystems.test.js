@@ -1,11 +1,13 @@
 // tests/integration/ecommerce_subsystems.test.js
+process.env.SIGMACAR_STORAGE_MODE = 'memory';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { dbState, seedInitialData, saveToDisk } = require('../../backend/infrastructure/storage-engine');
+const { dbState, seedInitialData, saveToDisk, configureStorage } = require('../../backend/infrastructure/storage-engine');
 const ecommerceService = require('../../backend/application/ecommerce-service');
 const { ROLES, RETURN_STATUS, APPOINTMENT_STATUS } = require('../../backend/domain/constants');
 
 function resetDb() {
+  configureStorage({ mode: 'memory', allowDevSeed: true });
   Object.keys(dbState).forEach(k => delete dbState[k]);
   seedInitialData();
   saveToDisk();
@@ -13,8 +15,8 @@ function resetDb() {
 
 const buyerUser = { userId: 'usr_buyer_01', role: ROLES.BUYER, fullName: 'Minh Hoàng', email: 'minhhoang.sigma@example.com' };
 const buyer2User = { userId: 'usr_buyer_02', role: ROLES.BUYER, fullName: 'Phạm Thanh Thảo', email: 'thanhthao.ev@example.com' };
-const adminUser = { userId: 'usr_admin_01', role: ROLES.ADMIN, fullName: 'Nguyễn Quản Trị', email: 'admin@sigmacar.vn' };
-const supportStaffUser = { userId: 'usr_support_01', role: ROLES.SUPPORT_STAFF, fullName: 'Nguyễn Ngọc Lan', email: 'support@sigmacar.vn' };
+const adminUser = { userId: 'usr_admin_01', role: ROLES.ADMIN, branchIds: ['hn-caugiay', 'hcm-q7'], fullName: 'Nguyễn Quản Trị', email: 'admin@sigmacar.vn' };
+const supportStaffUser = { userId: 'usr_support_01', role: ROLES.SUPPORT_STAFF, branchId: 'hn-caugiay', branchIds: ['hn-caugiay'], fullName: 'Nguyễn Ngọc Lan', email: 'support@sigmacar.vn' };
 
 test('Section 2: Automated 7-Day Returns Center lifecycle & state transitions', async () => {
   resetDb();
@@ -253,6 +255,8 @@ test('Section 6: Email Campaigns personalization, safe dev queue & Unsubscribe p
     '<p>Xin chào {{customer_name}}, chúc mừng sinh nhật {{birth_date}}! Mã ưu đãi: {{promo_code}} cho xe {{vehicle_name}}.</p>',
     'Chúc mừng {{customer_name}} - Ưu đãi {{promo_code}}',
     {
+      id: 'usr_buyer_01',
+      email: 'minhhoang.sigma@example.com',
       fullName: 'Minh Hoàng',
       birthDate: '15/10/1992',
       promoCode: 'SIGMABDAY15',
@@ -263,6 +267,7 @@ test('Section 6: Email Campaigns personalization, safe dev queue & Unsubscribe p
   assert.ok(rendered.renderedHtml.includes('15/10/1992'));
   assert.ok(rendered.renderedHtml.includes('SIGMABDAY15'));
   assert.ok(rendered.renderedSubject.includes('Minh Hoàng'));
+  assert.ok(rendered.unsubscribeToken);
 
   // 2. Execute scheduled campaign CMP-2026-01 in safe simulated dev mode & prevent duplicate send
   const sentCampaign = await ecommerceService.executeCampaignSend(adminUser, 'CMP-2026-01', { confirmed: true });
@@ -276,9 +281,9 @@ test('Section 6: Email Campaigns personalization, safe dev queue & Unsubscribe p
     /đã được gửi trước đó/i
   );
 
-  // 3. Unsubscribe flow updates user privacy consent and excludes them from marketing segments
+  // 3. Unsubscribe flow requires signed token (or authenticated self) and updates user privacy consent
   const unsubRes = await ecommerceService.unsubscribeMarketing({
-    email: 'minhhoang.sigma@example.com',
+    token: rendered.unsubscribeToken,
     reason: 'Không muốn nhận email khuyến mãi định kỳ'
   });
   assert.equal(unsubRes.unsubscribed, true);

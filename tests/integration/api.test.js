@@ -1,21 +1,23 @@
-const { describe, it, before } = require('node:test');
+const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert');
-
-const BASE_URL = process.env.TEST_API_URL || 'http://localhost:3000/api/v1';
+const { startTestServer } = require('../helpers/test-app');
 
 describe('Integration Test: SIGMACAR REST API v1', () => {
+  let app = null;
+  let BASE_URL = '';
   let buyerToken = null;
   let sellerToken = null;
   let adminToken = null;
 
-  // Verify server is alive
   before(async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/vehicles`);
-      assert.strictEqual(res.status, 200);
-    } catch (e) {
-      throw new Error(`Server is not reachable at ${BASE_URL}. Ensure 'node server.js' is running.`);
-    }
+    app = await startTestServer({ mode: 'memory', reseed: true });
+    BASE_URL = app.baseUrl;
+    const res = await fetch(`${BASE_URL}/vehicles`);
+    assert.strictEqual(res.status, 200);
+  });
+
+  after(async () => {
+    if (app) await app.close();
   });
 
   it('POST /auth/login - should authenticate seeded accounts successfully', async () => {

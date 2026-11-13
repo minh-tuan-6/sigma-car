@@ -759,10 +759,16 @@
         const poster = document.createElement('div');
         poster.setAttribute('slot', 'poster');
         poster.className = 'ar-model-loading-poster';
+        const dimLabel = arConfig.dimensionsMeters
+          ? `Kích thước tham khảo: ${arConfig.dimensionsMeters.length}m × ${arConfig.dimensionsMeters.width}m × ${arConfig.dimensionsMeters.height}m`
+          : 'Đang nạp mô hình 3D...';
+        const scaleNote = arConfig.arScaleCertified
+          ? 'Tỉ lệ vật lý 1:1 đã kiểm chuẩn'
+          : 'Chế độ mô phỏng Studio (chưa kiểm chuẩn 1:1)';
         poster.innerHTML = `
           <div class="vr-loading-spinner" style="margin-bottom:12px;"></div>
-          <div style="color:#FFFFFF; font-size:14px; font-weight:700;">Đang nạp mô hình 3D chuẩn 1:1...</div>
-          <div style="color:#94A3B8; font-size:12px; margin-top:4px;">Kích thước: 5.68m × 2.00m (Khớp tỉ lệ thực tế)</div>
+          <div style="color:#FFFFFF; font-size:14px; font-weight:700;">Đang nạp mô hình 3D...</div>
+          <div style="color:#94A3B8; font-size:12px; margin-top:4px;">${dimLabel} • ${scaleNote}</div>
         `;
         mv.appendChild(poster);
 
@@ -952,32 +958,92 @@
       };
     }
 
+    getShareableArUrl() {
+      const origin = typeof location !== 'undefined' && location.origin && location.origin !== 'null'
+        ? location.origin + location.pathname
+        : 'https://sigma-car.pages.dev/';
+      return `${origin}#ar-live?carId=${encodeURIComponent(this.carId || '')}&colorIdx=${Number(this.currentColorIndex || 0)}`;
+    }
+
+    getArCapabilities() {
+      const arCfg = typeof SIGMA_AR_MANIFEST !== 'undefined'
+        ? SIGMA_AR_MANIFEST.getVehicleArConfig(this.carId, this.currentColorIndex || 0)
+        : null;
+      const isVerified = Boolean(arCfg && arCfg.readiness === 'verified' && arCfg.arScaleCertified === true);
+      const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      return {
+        carId: this.carId,
+        isVerified1to1: isVerified,
+        readiness: arCfg ? arCfg.readiness : 'unsupported',
+        nativeArAvailable: Boolean(this.modelViewer && this.modelViewer.canActivateAR),
+        isMobile,
+        shareUrl: this.getShareableArUrl()
+      };
+    }
+
+    async launchNativeAR(carId = null, colorIdx = null) {
+      if (carId && carId !== this.carId) {
+        this.carId = carId;
+      }
+      if (colorIdx !== null && colorIdx !== undefined) {
+        this.currentColorIndex = Number(colorIdx) || 0;
+      }
+      return await this.activateAR();
+    }
+
     // Launch Native AR (WebXR / Scene Viewer / Quick Look)
     async activateAR() {
+      const arCfg = typeof SIGMA_AR_MANIFEST !== 'undefined'
+        ? SIGMA_AR_MANIFEST.getVehicleArConfig(this.carId, this.currentColorIndex || 0)
+        : null;
+      const isVerified = Boolean(arCfg && arCfg.readiness === 'verified' && arCfg.arScaleCertified === true);
+
       if (!this.modelViewer) {
-        throw new Error('model-viewer is not mounted.');
+        // If mounted in Three.js camera overlay mode (desktop or camera live), report honest capability
+        if (this.threeViewer && typeof this.threeViewer.enterWebXR === 'function') {
+          const xrRes = await this.threeViewer.enterWebXR({ ar: true });
+          if (xrRes && xrRes.supported && xrRes.immersiveActive) {
+            return { launched: true, mode: xrRes.mode, isVerified };
+          }
+        }
+        return {
+          launched: false,
+          mode: 'camera-studio-simulation',
+          isVerified,
+          shareUrl: this.getShareableArUrl(),
+          message: isVerified
+            ? 'Trình duyệt này đang chạy Camera AR Studio; quét mã QR trên điện thoại Android/iOS để mở Native AR 1:1.'
+            : 'Xe này chưa chứng thực AR 1:1; đang hiển thị ở chế độ mô phỏng Studio trên trình duyệt.'
+        };
       }
 
       const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
       if (this.modelViewer.canActivateAR) {
         try {
-          return await this.modelViewer.activateAR();
+          if (!isVerified && typeof showToast === 'function') {
+            showToast('ℹ️ Mẫu xe này đang ở chế độ mô phỏng Studio (chưa kiểm chuẩn 1:1 ngoài đời thực).', '⚠️');
+          }
+          await this.modelViewer.activateAR();
+          return { launched: true, mode: 'model-viewer-native-ar', isVerified };
         } catch (err) {
           console.warn('[SigmaARAdapter] activateAR error:', err);
           const btn = document.getElementById('sigma-native-ar-trigger-btn');
           if (btn) btn.click();
+          return { launched: false, mode: 'native-ar-fallback', error: err.message, shareUrl: this.getShareableArUrl() };
         }
       } else {
         if (!isMobile) {
           if (typeof showToast === 'function') {
             showToast('💡 Đang xem Camera WebAR trên máy tính! Trên điện thoại bạn có thể quét mã QR để mở thêm Google Scene Viewer / Apple Quick Look.', '📱');
           }
+          return { launched: false, mode: 'desktop-qr-fallback', isVerified, shareUrl: this.getShareableArUrl() };
         } else {
           // Fallback to ensuring browser camera is active
           if (!this.cameraManager.isActive() && this.videoElement) {
             await this.cameraManager.startCamera(this.videoElement);
           }
+          return { launched: true, mode: 'mobile-camera-overlay', isVerified };
         }
       }
     }
@@ -1230,6 +1296,21 @@
       if (currentInstance) {
         return await currentInstance.activateAR();
       }
+    },
+
+    launchNativeAR: async function (carId, colorIdx) {
+      if (currentInstance) {
+        return await currentInstance.launchNativeAR(carId, colorIdx);
+      }
+      return { launched: false, mode: 'uninitialized' };
+    },
+
+    getArCapabilities: function () {
+      return currentInstance ? currentInstance.getArCapabilities() : null;
+    },
+
+    getShareableArUrl: function () {
+      return currentInstance ? currentInstance.getShareableArUrl() : '';
     },
 
     startCamera: async function (options) {

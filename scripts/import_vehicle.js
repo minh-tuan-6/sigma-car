@@ -780,8 +780,10 @@ function processVehicleFolder(sourceFolderPath, options = {}) {
   const vehicleId = slugify(rawVehicle.id || `${rawVehicle.brand || ''}-${rawVehicle.name || folderName}`);
   rawVehicle.id = vehicleId;
   const targetVehicleAssetDir = path.join(ASSETS_VEHICLES_DIR, vehicleId);
-  ensureDir(targetVehicleAssetDir);
-  ensureDir(ASSETS_MODELS_DIR);
+  if (!options.dryRun) {
+    ensureDir(targetVehicleAssetDir);
+    ensureDir(ASSETS_MODELS_DIR);
+  }
 
   // Step 2: Discover & Extract 3D Model (.glb / .gltf / .zip)
   console.log(`🧊 [2/6] Kiểm tra tài nguyên mô hình 3D (.glb / .zip)...`);
@@ -798,18 +800,22 @@ function processVehicleFolder(sourceFolderPath, options = {}) {
     if (zipCandidates.length > 0) {
       const zipPath = zipCandidates[0];
       const extractDir = path.join(path.dirname(zipPath), 'extracted');
-      ensureDir(extractDir);
-      if (walkFiles(extractDir).filter(f => /\.glb$/i.test(f)).length === 0) {
-        try {
-          execSync(`powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractDir}' -Force"`, { stdio: 'ignore' });
-        } catch (e) {}
+      if (!options.dryRun) {
+        ensureDir(extractDir);
+        if (walkFiles(extractDir).filter(f => /\.glb$/i.test(f)).length === 0) {
+          try {
+            execSync(`powershell -NoProfile -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractDir}' -Force"`, { stdio: 'ignore' });
+          } catch (e) {}
+        }
       }
-      const extractedFiles = walkFiles(extractDir);
-      const extractedGlbs = extractedFiles.filter(f => /\.glb$/i.test(f));
-      if (extractedGlbs.length > 0) {
-        foundGlbPath = extractedGlbs[0];
+      if (fs.existsSync(extractDir)) {
+        const extractedFiles = walkFiles(extractDir);
+        const extractedGlbs = extractedFiles.filter(f => /\.glb$/i.test(f));
+        if (extractedGlbs.length > 0) {
+          foundGlbPath = extractedGlbs[0];
+        }
+        foundTextures = extractedFiles.filter(f => IMAGE_EXTENSIONS.has(path.extname(f).toLowerCase()) && f.toLowerCase().includes('texture'));
       }
-      foundTextures = extractedFiles.filter(f => IMAGE_EXTENSIONS.has(path.extname(f).toLowerCase()) && f.toLowerCase().includes('texture'));
     }
   }
 
@@ -903,9 +909,9 @@ function processVehicleFolder(sourceFolderPath, options = {}) {
     }
 
     const destCatDir = path.join(targetVehicleAssetDir, 'images', category);
-    ensureDir(destCatDir);
     const destImgFull = path.join(destCatDir, baseName);
     if (!options.dryRun) {
+      ensureDir(destCatDir);
       fs.copyFileSync(imgPath, destImgFull);
     }
     const webRelPath = `assets/vehicles/${vehicleId}/images/${category}/${baseName}`;
@@ -1010,8 +1016,8 @@ function processVehicleFolder(sourceFolderPath, options = {}) {
   for (const pdf of pdfFiles) {
     const baseName = path.basename(pdf);
     const destDocDir = path.join(targetVehicleAssetDir, 'documents');
-    ensureDir(destDocDir);
     if (!options.dryRun) {
+      ensureDir(destDocDir);
       fs.copyFileSync(pdf, path.join(destDocDir, baseName));
     }
     const webDocPath = `assets/vehicles/${vehicleId}/documents/${baseName}`;
@@ -1273,16 +1279,18 @@ function syncProductToAllStores(product) {
 
 if (require.main === module) {
   const args = process.argv.slice(2);
-  ensureTemplateAssets();
+  const dryRun = args.includes('--dry-run');
+  const noBuild = args.includes('--no-build');
+  const folderArgs = args.filter(a => !a.startsWith('--'));
+
+  if (!dryRun) {
+    ensureTemplateAssets();
+  }
 
   if (args.includes('--init-template')) {
     console.log('✅ Đã khởi tạo đầy đủ cấu trúc mẫu tại ./vehicle-template');
     process.exit(0);
   }
-
-  const dryRun = args.includes('--dry-run');
-  const noBuild = args.includes('--no-build');
-  const folderArgs = args.filter(a => !a.startsWith('--'));
 
   if (folderArgs.length === 0) {
     console.log('Cách sử dụng: node scripts/import_vehicle.js <đường-dẫn-folder-xe> [--dry-run] [--no-build]');
