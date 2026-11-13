@@ -553,8 +553,8 @@
     }
 
     setupStudioFloor() {
-      // Contact shadow mesh under the vehicle
-      const shadowGeo = new THREE.PlaneGeometry(5.2, 3.2);
+      // Contact shadow mesh under the vehicle (X = width, Z = length after -90 deg X rotation)
+      const shadowGeo = new THREE.PlaneGeometry(3.2, 5.2);
       const shadowTex = createGroundShadowTexture();
       const shadowMat = new THREE.MeshBasicMaterial({
         map: shadowTex,
@@ -657,19 +657,55 @@
       );
     }
 
+    computeTightModelBox(root) {
+      root.updateMatrixWorld(true);
+      const box = new THREE.Box3();
+      const v = new THREE.Vector3();
+      let hasVerts = false;
+      root.traverse((child) => {
+        if (!child.isMesh || !child.geometry || !child.geometry.attributes || !child.geometry.attributes.position) return;
+        const nameLower = ((child.name || '') + ' ' + (child.parent ? child.parent.name || '' : '')).toLowerCase();
+        if (
+          nameLower.includes('texblendobj') ||
+          nameLower.includes('shadow_gnd') ||
+          /^shadow\b/.test((child.parent ? child.parent.name || '' : '').toLowerCase())
+        ) {
+          child.visible = false;
+          return;
+        }
+        const pos = child.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(child.matrixWorld);
+          if (isFinite(v.x) && isFinite(v.y) && isFinite(v.z)) {
+            box.expandByPoint(v);
+            hasVerts = true;
+          }
+        }
+      });
+      return hasVerts ? box : new THREE.Box3().setFromObject(root);
+    }
+
     setupLoadedModel(model) {
       try {
-        // 1. Normalize Scale & Center inside a wrapper Group so all 24 GLB models (mm, cm, or m) render at 4.4m studio scale
-        model.updateMatrixWorld(true);
-        const rawBox = new THREE.Box3().setFromObject(model);
-        const rawSize = rawBox.getSize(new THREE.Vector3());
+        // 1. Auto-correct orientation if a model was exported Z-up or sideways, then normalize scale using vertex bounds
+        let rawBox = this.computeTightModelBox(model);
+        let rawSize = rawBox.getSize(new THREE.Vector3());
+        if (rawSize.y > rawSize.z * 1.35 && rawSize.y > rawSize.x * 1.35) {
+          model.rotation.x -= Math.PI / 2;
+          rawBox = this.computeTightModelBox(model);
+          rawSize = rawBox.getSize(new THREE.Vector3());
+        } else if (rawSize.x > rawSize.z * 1.35) {
+          model.rotation.y -= Math.PI / 2;
+          rawBox = this.computeTightModelBox(model);
+          rawSize = rawBox.getSize(new THREE.Vector3());
+        }
+
         const rawMaxDim = Math.max(rawSize.x, rawSize.y, rawSize.z);
         const targetMaxDim = 4.4;
         const normScale = (rawMaxDim > 0.0001 && isFinite(rawMaxDim)) ? (targetMaxDim / rawMaxDim) : 1.0;
         model.scale.multiplyScalar(normScale);
-        model.updateMatrixWorld(true);
 
-        const box = new THREE.Box3().setFromObject(model);
+        const box = this.computeTightModelBox(model);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
 
@@ -678,6 +714,12 @@
         model.position.z += -center.z;
         model.position.y += -box.min.y;
         model.updateMatrixWorld(true);
+
+        if (this.shadowMesh) {
+          const sx = Math.min(1.4, Math.max(0.7, size.x / 2.0));
+          const sz = Math.min(1.3, Math.max(0.85, size.z / 4.4));
+          this.shadowMesh.scale.set(sx, sz, 1);
+        }
 
         const wrapper = new THREE.Group();
         wrapper.add(model);
@@ -714,11 +756,35 @@
             child.castShadow = true;
             child.receiveShadow = true;
 
+            const hasNegativeDet = child.matrixWorld.determinant() < 0;
+            const colorAttr = child.geometry && child.geometry.attributes && child.geometry.attributes.color;
+            if (
+              colorAttr &&
+              colorAttr.itemSize === 4 &&
+              colorAttr.count > 0 &&
+              colorAttr.array[3] === 0 &&
+              colorAttr.array[Math.min(colorAttr.count - 1, 7) * 4 + 3] === 0
+            ) {
+              // Fix exported VEC4 COLOR_0 attributes with alpha=0 so WebGL transparent AR buffers never write alpha=0
+              const arr = colorAttr.array;
+              const one = colorAttr.normalized
+                ? (arr instanceof Uint16Array ? 65535 : (arr instanceof Uint8Array ? 255 : 1))
+                : 1;
+              for (let ai = 3; ai < arr.length; ai += 4) {
+                arr[ai] = one;
+              }
+              colorAttr.needsUpdate = true;
+            }
+
             const mats = Array.isArray(child.material) ? child.material : (child.material ? [child.material] : []);
             const meshName = (child.name || '').toLowerCase();
 
             mats.forEach((mat) => {
               if (!mat) return;
+              if (hasNegativeDet && mat.side !== THREE.DoubleSide) {
+                mat.side = THREE.DoubleSide;
+                mat.needsUpdate = true;
+              }
               const matName = (mat.name || '').toLowerCase();
 
               const isPaint = (
@@ -756,6 +822,7 @@
 
               const isRim = (
                 matName.includes('rim') ||
+                matName.includes('velg') ||
                 matName.includes('wheel') ||
                 matName.includes('alloy') ||
                 meshName.includes('rim')

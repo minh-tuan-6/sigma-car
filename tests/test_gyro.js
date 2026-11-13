@@ -545,7 +545,7 @@ function getSpherical(viewer) {
     assert(appCode.includes('GYRO NOT AVAILABLE'), 'app.js must display GYRO NOT AVAILABLE status');
     assert(appCode.includes('MOTION PERMISSION REQUIRED'), 'app.js must display MOTION PERMISSION REQUIRED status');
     assert(appCode.includes('Invert Horizontal') && appCode.includes('Invert Vertical'), 'app.js must include Invert controls');
-    assert(htmlCode.includes('js/car-3d-viewer.js?v=18.0'), 'index.html cache buster must be updated to v=18.0');
+    assert(htmlCode.includes('js/car-3d-viewer.js?v=19.0'), 'index.html cache buster must be updated to v=19.0');
   });
 
   console.log(`\n======================================================`);
