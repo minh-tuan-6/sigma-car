@@ -10,6 +10,27 @@ const { pathToFileURL } = require('url');
 const ROOT = path.resolve(__dirname, '..', '..');
 const mod = (rel) => import(pathToFileURL(path.join(ROOT, rel)).href);
 
+describe('AR: showroom entry point', () => {
+  it('opens spatial AR for the displayed car even when the preview viewer is unavailable', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+    const start = source.indexOf("    document.getElementById('btn-mode-ar')?.addEventListener");
+    const end = source.indexOf("    document.getElementById('btn-vr-hud-webxr')", start);
+    assert.ok(start >= 0 && end > start);
+    for (const hasViewer of [true, false]) {
+      const calls = [];
+      let click;
+      require('node:vm').runInNewContext(source.slice(start, end), {
+        document: { getElementById: () => ({ addEventListener: (type, fn) => { click = fn; } }) },
+        viewer: hasViewer ? { stopCamera: () => calls.push('stop') } : null,
+        car: { id: 'tesla-cybertruck' },
+        window: { openArLive: (id) => calls.push(id) }
+      });
+      click();
+      assert.deepStrictEqual(calls, hasViewer ? ['stop', 'tesla-cybertruck'] : ['tesla-cybertruck']);
+    }
+  });
+});
+
 let THREE, urlPolicy, fetchMod, AssetCache, validator, normalizeVehicle, placement, hit, gestures, MaterialConfigurator,
   AnimationController, capability, session, manifestSchema, manifestClient, configSync, fallback, tracker, HotspotManagerMod;
 
@@ -369,6 +390,13 @@ describe('AR: surface detection, placement and gestures', () => {
     assert.ok(Math.abs(s.position.y + 1) < 1e-9);
     s = htm.update(frame([]), {});
     assert.strictEqual(s.valid, false);
+    assert.strictEqual(s.stable, true, 'debouncing must not be mistaken for a current valid hit');
+    htm.reset();
+    assert.strictEqual(htm.latest.valid, false);
+    assert.strictEqual(htm.latest.stable, false, 'reset immediately invalidates the previous surface');
+    s = htm.update(frame([{ getPose: () => pose(-2) }]), {});
+    assert.strictEqual(s.stable, false, 'a reset requires fresh confirmation');
+    assert.strictEqual(s.position.y, -2, 'new scan must not blend with the old surface');
     htm.dispose();
     assert.strictEqual(cancelled, true);
   });

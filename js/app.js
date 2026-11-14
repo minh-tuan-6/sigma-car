@@ -5299,25 +5299,10 @@ if (typeof window !== 'undefined') {
       }
       activateImmersiveVrStudio();
     });
-    document.getElementById('btn-mode-ar')?.addEventListener('click', async () => {
-      document.querySelectorAll('.vr-mode-pills .vr-mode-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById('btn-mode-ar')?.classList.add('active');
-      if (vrHud) vrHud.style.display = 'none';
-      if (viewer) {
-        viewer.setVRStudioMode(false);
-        try {
-          showToast('Đang kết nối Camera thiết bị cho chế độ AR...', '📹');
-          await viewer.startCamera();
-          document.getElementById('vr-car-viewport')?.classList.add('camera-active');
-          showToast('🟢 Đã bật Camera AR! Chiếc xe đang hiển thị trên nền môi trường thật.', '📹');
-        } catch (err) {
-          showToast('Không thể mở Camera: ' + (err.message || 'Lỗi thiết bị'), '⚠️');
-          document.querySelectorAll('.vr-mode-pills .vr-mode-btn').forEach(b => b.classList.remove('active'));
-          document.getElementById('btn-mode-360')?.classList.add('active');
-          viewer.setTransparentMode(false);
-          document.getElementById('vr-car-viewport')?.classList.remove('camera-active');
-        }
-      }
+    document.getElementById('btn-mode-ar')?.addEventListener('click', () => {
+      // Use spatial tracking + floor hit tests, not the legacy camera-video overlay.
+      if (viewer) viewer.stopCamera();
+      window.openArLive(car.id);
     });
     document.getElementById('btn-vr-hud-webxr')?.addEventListener('click', async () => {
       if (viewer && typeof viewer.enterWebXR === 'function') {

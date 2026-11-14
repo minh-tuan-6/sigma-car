@@ -484,7 +484,7 @@ class ArApp {
 
   _placeAtReticle() {
     const surf = this.hitTest && this.hitTest.latest;
-    if (!surf || !surf.stable) {
+    if (!surf || !surf.valid || !surf.stable) {
       this.ui.toast('Chưa nhận diện ổn định mặt sàn — hãy quét thêm.');
       return;
     }
@@ -504,9 +504,10 @@ class ArApp {
   }
 
   _resetPlacement() {
+    if (this.hitTest) this.hitTest.reset();
+    this.placement.surfaceUpdate(false);
     this.placement.reset();
     this.sceneMgr.anchor.visible = false;
-    if (this.hitTest) this.hitTest.reset();
   }
 
   // ------------------------------------------------------------------ frame loop
@@ -514,7 +515,7 @@ class ArApp {
     const xrOn = this.xr && this.xr.isRunning && frame;
     if (xrOn) {
       const surf = this.hitTest ? this.hitTest.update(frame, this.xr.refSpace) : null;
-      if (surf) this.placement.surfaceUpdate(surf.stable);
+      this.placement.surfaceUpdate(Boolean(surf && surf.valid && surf.stable));
       const st = this.placement.state;
       if (st === PLACEMENT.MOVING && surf && surf.valid) this.sceneMgr.anchor.position.copy(surf.position);
       this.sceneMgr.anchor.visible = st === PLACEMENT.PLACED || st === PLACEMENT.MOVING;

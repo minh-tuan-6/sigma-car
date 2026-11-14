@@ -109,6 +109,7 @@ export class HitTestManager {
   reset() {
     this.filter.reset();
     this._smoothed = null;
+    this.latest = { stable: false, valid: false, position: new Vector3(), quaternion: new Quaternion(), reason: 'INIT' };
   }
 
   dispose() {
