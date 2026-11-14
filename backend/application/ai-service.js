@@ -426,7 +426,7 @@ ${automotiveContext}`;
     };
 
     // If automotive query, attach recommendation vehicle card if available
-    if (isAutomotive && rawResult.recommendation) {
+    if ((isAutomotive || rawResult.fromBrain) && rawResult.recommendation) {
       formatted.recommendation = rawResult.recommendation;
     } else if (isAutomotive && !rawResult.recommendation) {
       // Auto-extract matching vehicle if user asked for a specific car
@@ -667,8 +667,45 @@ ${automotiveContext}`;
   // SMART VERSATILE LOCAL ENGINE
   // Natural Reasoning, Real Tools Calling, No Rigid Generic Scripts
   // =================================================================
+  _getBrain() {
+    if (!this._brain) {
+      const { createBrain } = require('./local-ai/sigma-brain');
+      this._brain = createBrain({
+        getVehicles: () => dbState.vehicles || [],
+        FinancingService: require('./financing-service'),
+        TcoService: require('./tco-service')
+      });
+    }
+    return this._brain;
+  }
+
+  _looksAutomotiveForBrain(text) {
+    const { norm } = require('./local-ai/text');
+    const q = norm(text);
+    if (/\b(xe|oto|o to|sac|pin|ty|trieu|tr|cu|cho ngoi|tra gop|vay|tra truoc|lai thu|dat coc|suv|sedan|hatchback|ban tai|hybrid|ev|ma luc|hp|km)\b/.test(q)) return true;
+    try { return this._getBrain()._internals.findCars(text).some(m => m.car); } catch (_) { return false; }
+  }
+
+  _askBrain(userPrompt, history, currentUser) {
+    try {
+      const res = this._getBrain().answer({ message: userPrompt, history, currentUser });
+      if (res && res.text) return { text: res.text, recommendation: res.recommendation, fromBrain: true };
+    } catch (err) {
+      console.error(`[AIService Diagnostic] Sigma Brain error: ${err.message}`);
+    }
+    return null;
+  }
+
   async _runSmartLocalEngine(userPrompt, history = [], currentUser = null) {
     const qLower = userPrompt.toLowerCase().trim();
+
+    // Sigma Brain (backend/application/local-ai): car questions go to the reasoning engine first, so e.g. "sạc mất mấy
+    // giờ" or "5-7 chỗ" are not mistaken for the clock / arithmetic branches below. Old branches remain the fallback.
+    const brainFirst = this._looksAutomotiveForBrain(userPrompt);
+    if (brainFirst) {
+      const b = this._askBrain(userPrompt, history, currentUser);
+      if (b) return b;
+    }
 
     // ---------------------------------------------------------------
     // 1. ARITHMETIC & MATH ("1+1 bằng mấy?", "2*2 bằng mấy?", "1 + 1", "2x2")
@@ -847,6 +884,13 @@ ${automotiveContext}`;
           text: `🌤️ **Thời tiết tại ${loc}:** Hiện tại dịch vụ dữ liệu thời tiết trực tiếp từ trạm vệ tinh tạm thời chưa sẵn sàng hoặc kết nối bị giới hạn. Bạn có thể kiểm tra trực tiếp qua ứng dụng thời tiết trên điện thoại nhé!`
         };
       }
+    }
+
+    // ---------------------------------------------------------------
+    // 7.9 SIGMA BRAIN (everything not handled above)
+    if (!brainFirst) {
+      const b = this._askBrain(userPrompt, history, currentUser);
+      if (b) return b;
     }
 
     // ---------------------------------------------------------------

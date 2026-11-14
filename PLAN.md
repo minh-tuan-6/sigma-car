@@ -1075,3 +1075,18 @@ the built-in local engine (`local-automotive`) again, as before N.13. OpenAI / G
 "Cấu hình AI" when a key is configured; advisor replies use them through `generateGroundedReply` only in that case,
 otherwise the shortlist template is used. `npm test` 365/365, `test:worker-runtime` 110 + 1 skipped; the staging
 dry-run deploy no longer lists an `env.AI` binding.
+
+### N.16 Smarter local AI — "Sigma Brain" (user request)
+
+New module `backend/application/local-ai/` (`text.js` Vietnamese parsing, `knowledge.js` curated topics,
+`sigma-brain.js` reasoning), wired into `AIService._runSmartLocalEngine`: car-related questions go to the brain first
+(so "sạc mất mấy giờ" / "5-7 chỗ" no longer hit the clock / arithmetic branches); the original branches stay as the
+fallback, and the brain is wrapped in try/catch. Capabilities: accent-insensitive understanding; money / budget ranges /
+monthly-payment budgets; seats, fuel (incl. "không thích xe xăng"), body type, brand, usage (gia đình, đi phố, grab…),
+superlatives; car matching by name / nickname / "vf9" / single-model brand, with ambiguity prompts ("civic" → 3 cars);
+conversation memory (pronouns, "chiếc thứ 2", "hai chiếc trên", refinements "rẻ hơn", "còn xe điện thì sao");
+scored recommendations with reasons and two-way relaxation when nothing matches; 2–3 car comparison tables with
+verdicts; per-attribute spec answers from the live catalog (never invented); loan maths via `FinancingService` with
+affordability check; running cost via `TcoService`; EV / financing / site-help knowledge. ~0.3 ms per answer.
+Tests: `tests/unit/local_ai_brain.test.js` (16). `npm test` 381/381, `test:worker-runtime` 110 + 1 skipped.
+Needs a staging Worker redeploy to go live.
