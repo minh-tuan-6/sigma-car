@@ -11364,6 +11364,18 @@ if (typeof window !== 'undefined') {
 
       const order = await ApiClient.orders.createDeposit(payload);
       depositModal.classList.remove('active');
+      // Simulated deposit payment: confirmation box + 5 s hold (js/fake-pay-dialog.js). Cancelling keeps the order
+      // unpaid; it can be paid later from "Đơn hàng của tôi".
+      if (window.SigmaFakePay) {
+        try {
+          const r = await window.SigmaFakePay.payOrder({ orderId: order.id, mode: 'deposit', amount: order.depositAmount || 50000000 });
+          if (!r.paid) showToast(`Đã tạo đơn ${order.orderNumber} (chưa đặt cọc). Bạn có thể thanh toán sau trong Đơn hàng của tôi.`, '🧾');
+        } catch (payErr) {
+          showToast(`Đã tạo đơn ${order.orderNumber} nhưng đặt cọc chưa thành công: ${payErr.message}`, '⚠️');
+        }
+        navigateTo('profile', { profileTab: 'profile-orders' });
+        return;
+      }
       showToast(`Đặt cọc xe thành công! Mã đơn hàng: ${order.orderNumber}`, '🎉');
       setTimeout(() => {
         navigateTo('profile', { profileTab: 'profile-orders' });

@@ -125,8 +125,8 @@
                   </select>
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
-                  ${remainingDeposit > 0 ? `<button type="button" class="btn-primary btn-create-intent" data-mode="deposit" style="flex:1;">⚡ Đặt cọc (${fmtVnd(remainingDeposit)})</button>` : ''}
-                  <button type="button" class="btn-dark btn-create-intent" data-mode="full" style="flex:1;">💎 Thanh toán Toàn bộ (${fmtVnd(remainingFull)})</button>
+                  ${remainingDeposit > 0 ? `<button type="button" class="btn-primary btn-create-intent" data-mode="deposit" data-amount="${remainingDeposit}" style="flex:1;">⚡ Đặt cọc (${fmtVnd(remainingDeposit)})</button>` : ''}
+                  <button type="button" class="btn-dark btn-create-intent" data-mode="full" data-amount="${remainingFull}" style="flex:1;">💎 Thanh toán Toàn bộ (${fmtVnd(remainingFull)})</button>
                 </div>
               ` : `
                 <div style="padding:12px; border-radius:10px; background:${isSettled ? '#ECFDF5' : '#F1F5F9'}; color:${isSettled ? '#065F46' : '#475569'}; font-weight:700; font-size:13.5px; margin-bottom:14px;">
@@ -210,6 +210,19 @@
       btn.addEventListener('click', async () => {
         const mode = btn.getAttribute('data-mode');
         const provider = document.getElementById('pay-provider-select')?.value || 'napas_qr_sandbox';
+        // Simulated payment: confirmation box + 5 s hold, then the sandbox intent is created and settled.
+        if (window.SigmaFakePay) {
+          btn.disabled = true;
+          try {
+            const r = await window.SigmaFakePay.payOrder({ orderId: orderDetail.id, mode, provider, amount: Number(btn.getAttribute('data-amount')) || 0 });
+            if (r.paid) renderOrderPaymentPanel(container, orderDetail.id, deps);
+            else btn.disabled = false;
+          } catch (err) {
+            showToast(err.message || 'Thanh toán mô phỏng không thành công.', '⚠️');
+            renderOrderPaymentPanel(container, orderDetail.id, deps);
+          }
+          return;
+        }
         btn.disabled = true;
         try {
           const intent = await ApiClient.payments.createIntent({ orderId: orderDetail.id, mode, provider }, newIdempotencyKey('pi'));

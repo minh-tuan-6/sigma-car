@@ -66,6 +66,8 @@ __filename = "'/bundle/worker.mjs'"
 NODE_ENV = "production"
 TRUST_PROXY = "true"
 PAYMENT_GATEWAY_SANDBOX = "true"
+# Simulated payments: buyers settle sandbox intents with the hold-to-confirm dialog (js/fake-pay-dialog.js).
+ALLOW_SANDBOX_SIMULATOR = "true"
 SIGMACAR_ALLOW_DEV_SEED = "false"
 
 [[env.staging.d1_databases]]
@@ -93,6 +95,8 @@ __filename = "'/bundle/worker.mjs'"
 NODE_ENV = "production"
 TRUST_PROXY = "true"
 PAYMENT_GATEWAY_SANDBOX = "true"
+# Simulated payments: buyers settle sandbox intents with the hold-to-confirm dialog (js/fake-pay-dialog.js).
+ALLOW_SANDBOX_SIMULATOR = "true"
 SIGMACAR_ALLOW_DEV_SEED = "false"
 
 [[env.production.d1_databases]]

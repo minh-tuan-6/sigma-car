@@ -194,6 +194,20 @@ describe('T1.7 test-drive slots', () => {
   });
 });
 
+describe('contracts.getDocumentHtml (e-contract modal)', () => {
+  it('returns the body of the server document for embedding', async () => {
+    const { client, calls } = recordingClient(() => ({ body: { success: true, data: { html: '<!DOCTYPE html><html><head><title>T</title></head><body><h2>HỢP ĐỒNG</h2><p>x</p></body></html>' } } }));
+    const html = await client.contracts.getDocumentHtml('ctr_1');
+    assert.ok(calls[0].url.endsWith('/contracts/ctr_1/document'));
+    assert.strictEqual(html, '<h2>HỢP ĐỒNG</h2><p>x</p>');
+  });
+
+  it('passes through a fragment (offline demo document)', async () => {
+    const { client } = recordingClient(() => ({ body: { success: true, data: { html: '<div>demo</div>' } } }));
+    assert.strictEqual(await client.contracts.getDocumentHtml('c'), '<div>demo</div>');
+  });
+});
+
 describe('T1.18 offline financing matches the server calculator', () => {
   const FinancingService = require('../../backend/application/financing-service');
   const offline = loadClient(async () => { throw new TypeError('Failed to fetch'); });

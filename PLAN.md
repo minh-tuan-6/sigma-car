@@ -1016,3 +1016,23 @@ Residual risk (not changed, needs approval): the public `POST /analytics/events`
 references are `<PROVIDER>_<Date.now() base36>_<hex>`; with the current date the base36 part is often all letters, which
 the existing "opaque id" fallback cannot mask inside a sentence, so the test failed twice (6/7) on an unchanged note.
 One normaliser rule now masks these references; the test passed 7/7 twice afterwards.
+
+### N.11 Follow-up fix: e-contract modal (pre-existing defect)
+
+`app.js` called `ApiClient.contracts.getDocumentHtml`, which never existed (`HEAD` also lacked it), so the "Hợp đồng điện tử"
+button failed with "getDocumentHtml is not a function". Added the method to `js/api-client.js` (returns the `<body>` of
+the server document, whose values are escaped by `contract-service.js`). A scan of every `ApiClient.<group>.<method>(`
+call in `js/` now finds no undefined methods. Tests: 2 cases in `tests/unit/api_client_wiring.test.js`; `npm test`
+358/358; browser check: the modal opens with the contract and the signing form, no page errors.
+
+### N.12 Simulated ("fake") payments (user request)
+
+There is no real payment provider, so paying is simulated: `js/fake-pay-dialog.js` shows "Xác nhận trả [số tiền]?" with a
+green "Trả [số tiền] (nhấn giữ 5s)" button (mouse, touch or Space/Enter; releasing early resets; Hủy/Escape cancel) and
+a "Thanh toán mô phỏng — không trừ tiền thật" notice. On confirm it creates a sandbox intent and settles it through the
+existing signed sandbox webhook, so order status, ledger, analytics and notifications update as for a real payment.
+Used by the order payment panel ("Đặt cọc", "Thanh toán toàn bộ") and the product-page deposit form. Worker vars
+`ALLOW_SANDBOX_SIMULATOR = "true"` added for staging and production (`wrangler.api.toml`), otherwise buyers get 403 in
+production. Browser check: early release → still Unpaid; 5 s hold → Deposit_Paid 50.000.000 đ; Space held 5 s →
+Fully_Paid; Escape closes without paying; product-page deposit → Deposit_Paid; desktop and mobile layout checked.
+`npm test` 358/358, build OK.

@@ -2093,6 +2093,14 @@ const ApiClient = {
     async getDocument(contractId) {
       const res = await ApiClient.request(`/contracts/${encodeURIComponent(contractId)}/document`);
       return res.data;
+    },
+    // The e-contract modal (app.js) embeds the document inside a <div>; the server sends a full HTML page with every
+    // value escaped (contract-service buildPrintableHtml), so only its <body> content is returned here.
+    async getDocumentHtml(contractId) {
+      const doc = await this.getDocument(contractId);
+      const html = String((doc && doc.html) || '');
+      const body = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+      return body ? body[1] : html;
     }
   },
 
