@@ -70,8 +70,8 @@ SIGMACAR_ALLOW_DEV_SEED = "false"
 
 [[env.staging.d1_databases]]
 binding = "DB"
-database_name = "sigmacar-staging"
-database_id = "REPLACE-WITH-STAGING-D1-DATABASE-ID"     # PLACEHOLDER
+database_name = "Server"
+database_id = "5bd12dd5-9093-4773-8f9c-6ea38da6ceef"
 migrations_dir = "backend/infrastructure/d1/migrations"
 
 # ---------------------------------------------------------------------------------------------------------------
