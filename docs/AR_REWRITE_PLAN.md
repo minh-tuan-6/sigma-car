@@ -12,7 +12,7 @@ Legend: ✅ done and verified locally · 🟡 done, needs a physical iPhone/iPad
 | 5 | Rewrite the AR engine | ✅ | `js/ar/` 21 files; 11 WebXR/Scene Viewer modules deleted |
 | 6 | Dedicated AR page `/ar/:vehicleId` | ✅ | Full-screen vehicle, ✕, colour bar, one AR button; safe areas; `100dvh`; E2E layout check (only allowed controls visible) |
 | 7 | External USDZ support | ✅ | `appleAr.usdz[]` (https / same-origin), probe of the first 1 KiB, HTML responses rejected, uninspectable cross-origin files still launched; E2E with a fake CDN |
-| 7b | USDZ asset preparation | ✅ / ⛔ | `npm run usdz:build` (pre-built Cybertruck ×4, 0.94 MB) and on-device conversion (7/24 vehicles fit). 17/24 vehicles are too heavy for the text-USDA exporter; they need an offline binary USDZ (macOS tools), which is not available here |
+| 7b | USDZ asset preparation (no size limits) | ✅ / ⛔ | `npm run usdz:build`: 58 files = all 24 vehicles × every colour, 0 failures, full quality. 13 files ≤ 25 MiB deploy on Pages; 45 need an external HTTPS host (`SIGMACAR_USDZ_PUBLIC_BASE_URL`, `scripts/upload_usdz.js`) — ⛔ upload needs Cloudflare credentials. Otherwise the page converts on the device, with no size limit |
 | 8 | Vehicle colour selection | ✅ | Variant GLB or in-place paint tint; persisted to the website; USDZ per colour; paint verified in the exported USDZ (unit + E2E) |
 | 8b | Colour bar inside the live AR camera | ⛔ | Not possible in AR Quick Look; needs a native ARKit app (Option B) |
 | 9 | Integrate AR Quick Look | ✅ / 🟡 | `<a rel="ar">` + `<img>`, `download` for blob files, `allowsContentScaling=0`, `canonicalWebPageURL`, launched inside the tap (E2E checks `userActivation`). **Opening Quick Look and AR placement need a device test** |
@@ -33,6 +33,6 @@ Legend: ✅ done and verified locally · 🟡 done, needs a physical iPhone/iPad
 ## Next steps for the owner
 
 1. Test on an iPhone and an iPad with the checklist in `AR_TEST_REPORT.md`.
-2. Produce binary USDZ files for the 17 large vehicles on a Mac (Reality Converter or `usdzconvert`), one per colour. Declare them in `data/ar-manifest.json` (`configurations[].usdzUrl`), or host them and reference them by URL.
+2. Host the 45 USDZ files above 25 MiB: create a public R2 bucket, run `node scripts/upload_usdz.js --bucket <name> --execute`, set `SIGMACAR_USDZ_PUBLIC_BASE_URL` (Pages build + backend). Optionally re-export them as binary USDC USDZ on a Mac (smaller, same geometry).
 3. Decide whether an in-camera colour bar justifies a native iOS app or App Clip (Option B).
 4. Deploy (needs your authorization and credentials; see `CLOUDFLARE_DEPLOYMENT.md`).

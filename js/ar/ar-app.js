@@ -259,7 +259,16 @@ class ArApp {
     try {
       const out = await this.resolver.prepare(colorIdx, {
         getPivot: () => this.vehicle.pivot,
-        isCurrent: () => token === this._prepareToken
+        isCurrent: () => token === this._prepareToken,
+        onProgress: (p) => {
+          if (token !== this._prepareToken) return;
+          const mb = p.estimatedBytes ? Math.max(1, Math.round(p.estimatedBytes / 1048576)) : null;
+          const label = { analysed: 'Đang chuẩn bị AR…', exporting: 'Đang tạo tệp AR…', validating: 'Đang kiểm tra tệp AR…', done: 'Đang chuẩn bị AR…' }[p.phase] || 'Đang chuẩn bị AR…';
+          // Large models take noticeably longer on a phone; say so instead of looking frozen.
+          const note = mb && mb >= 20 ? `Mô hình chi tiết (~${mb} MB) — có thể mất vài chục giây.` : '';
+          this.ar.progress = p.phase;
+          this.ui.launch({ state: 'preparing', label, note });
+        }
       });
       if (!out || token !== this._prepareToken) return;
       this.ar = { state: 'ready', url: out.url, kind: out.kind, colorMatch: out.colorMatch, colorIdx, error: null };

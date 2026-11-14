@@ -482,30 +482,106 @@ describe('AR: USDZ conversion and validation', () => {
     assert.ok(usdzBuilder.inspectUsdz(ok.subarray(0, 60)).problems.includes('TRUNCATED'));
   });
 
-  it('refuses conversions it cannot do well instead of producing a broken file', async () => {
+  it('never rejects a model for its size: an estimate above 100 MB is converted (no size guard)', async () => {
+    const { USDZExporter } = await import('three/addons/exporters/USDZExporter.js');
+    const tinyScene = new THREE.Group();
+    tinyScene.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial()));
+    const tiny = await new USDZExporter().parseAsync(tinyScene);
+    // 3 million vertices → an estimated USDZ > 100 MB. A stub exporter keeps the test fast; the builder logic
+    // (audit, progress, validation) is the real one.
     const big = new THREE.Group();
-    big.add(new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.4, 1.9, 40, 40, 40), new THREE.MeshStandardMaterial()));
-    await assert.rejects(usdzBuilder.buildVehicleUsdz(big, { maxEstimatedBytes: 1000 }), (e) => e.code === 'MODEL_TOO_LARGE_FOR_CONVERSION');
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9e6), 3));
+    big.add(new THREE.Mesh(g, new THREE.MeshStandardMaterial()));
+    const phases = [];
+    let exported = 0;
+    const out = await usdzBuilder.buildVehicleUsdz(big, {
+      exporter: { parseAsync: async () => { exported++; return tiny; } },
+      onProgress: (p) => phases.push(p.phase)
+    });
+    assert.ok(out.report.estimatedBytes > 100 * 1024 * 1024, `estimate ${out.report.estimatedBytes}`);
+    assert.strictEqual(exported, 1);
+    assert.deepStrictEqual(phases, ['analysed', 'exporting', 'validating', 'done']);
+    assert.strictEqual(usdzBuilder.MAX_ESTIMATED_USDZ_BYTES, undefined, 'no size constant remains');
+    const src = fs.readFileSync(path.join(ROOT, 'js/ar/apple/usdz-builder.js'), 'utf8');
+    assert.ok(!/MODEL_TOO_LARGE|maxEstimatedBytes|quá chi tiết/.test(src), 'no size-based rejection in the builder');
+  });
+
+  it('reports the real cause of a failed conversion (memory, textures, unsupported data)', async () => {
+    const one = () => {
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial()));
+      return g;
+    };
+    const failWith = (err) => usdzBuilder.buildVehicleUsdz(one(), { exporter: { parseAsync: async () => { throw err; } } });
+    await assert.rejects(failWith(new RangeError('Invalid string length')), (e) => e.code === 'OUT_OF_MEMORY' && /Invalid string length/.test(e.message));
+    await assert.rejects(failWith(new RangeError('Array buffer allocation failed')), (e) => e.code === 'OUT_OF_MEMORY');
+    await assert.rejects(failWith(new Error('Out of memory')), (e) => e.code === 'OUT_OF_MEMORY');
+    await assert.rejects(failWith(new TypeError("Failed to execute 'drawImage'")), (e) => e.code === 'TEXTURE_EXPORT_FAILED');
+    await assert.rejects(failWith(new Error('boom')), (e) => e.code === 'EXPORT_FAILED' && /boom/.test(e.message));
+    await assert.rejects(usdzBuilder.buildVehicleUsdz(one(), { exporter: { parseAsync: async () => new Uint8Array(64) } }), (e) => e.code === 'INVALID_USDZ');
     const unlit = new THREE.Group();
     unlit.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
     await assert.rejects(usdzBuilder.buildVehicleUsdz(unlit), (e) => e.code === 'NOTHING_EXPORTABLE');
     const ktx = new THREE.Group();
-    const tex = new THREE.CompressedTexture([], 4, 4);
-    ktx.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ map: tex })));
+    ktx.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ map: new THREE.CompressedTexture([], 4, 4) })));
     await assert.rejects(usdzBuilder.buildVehicleUsdz(ktx), (e) => e.code === 'COMPRESSED_TEXTURES');
   });
 
-  it('pre-built USDZ files in the repository are valid and match data/usdz-assets.json', () => {
+  it('every vehicle colour has a pre-built USDZ; files present on disk are valid and match the index', () => {
     const index = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/usdz-assets.json'), 'utf8'));
-    const entries = Object.values(index.vehicles).flat();
-    assert.ok(entries.length >= 4);
-    for (const e of entries) {
-      const bytes = fs.readFileSync(path.join(ROOT, e.path));
-      assert.strictEqual(bytes.length, e.bytes, e.path);
-      assert.strictEqual(crypto.createHash('sha256').update(bytes).digest('hex'), e.sha256, `${e.path} is stale — re-run npm run usdz:build`);
-      assert.ok(usdzBuilder.inspectUsdz(new Uint8Array(bytes)).ok, e.path);
-      assert.ok(bytes.length < 25 * 1024 * 1024, 'within the Cloudflare Pages file limit');
+    const { buildArManifest, PAGES_MAX_FILE_BYTES } = require(path.join(ROOT, 'backend/application/ar-manifest-service.js'));
+    const store = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/sigmacar_store.json'), 'utf8'));
+    const missing = [];
+    for (const v of store.vehicles.filter(x => !x.archived)) {
+      const m = buildArManifest(v, { usdzIndex: { vehicles: {} } });
+      if (!m) continue;
+      const want = m.features.changeColor && m.colors.length ? m.colors.map(c => c.index) : [null];
+      const have = (index.vehicles[m.vehicleId] || []).map(e => e.colorIndex);
+      for (const c of want) if (!have.includes(c)) missing.push(`${m.vehicleId}:${c}`);
     }
+    assert.deepStrictEqual(missing, [], 'run npm run usdz:build');
+
+    for (const e of Object.values(index.vehicles).flat()) {
+      assert.strictEqual(e.staticHostable, e.bytes <= PAGES_MAX_FILE_BYTES, e.path);
+      const file = path.join(ROOT, e.path);
+      // Files above the Pages limit are git-ignored build output; a fresh clone does not have them.
+      if (!fs.existsSync(file)) {
+        assert.strictEqual(e.staticHostable, false, `${e.path} is missing — run npm run usdz:build`);
+        continue;
+      }
+      assert.strictEqual(fs.statSync(file).size, e.bytes, `${e.path} is stale — run npm run usdz:build`);
+      const fd = fs.openSync(file, 'r');
+      const head = Buffer.alloc(512);
+      fs.readSync(fd, head, 0, 512, 0);
+      fs.closeSync(fd);
+      assert.ok(usdzBuilder.inspectUsdzHeader(new Uint8Array(head)).ok, e.path);
+      if (e.staticHostable) {
+        const bytes = fs.readFileSync(file);
+        assert.strictEqual(crypto.createHash('sha256').update(bytes).digest('hex'), e.sha256, `${e.path} is stale`);
+        assert.ok(usdzBuilder.inspectUsdz(new Uint8Array(bytes)).ok, e.path);
+      }
+    }
+    const ignore = fs.readFileSync(path.join(ROOT, 'assets/models/usdz/.gitignore'), 'utf8');
+    for (const e of Object.values(index.vehicles).flat().filter(x => !x.staticHostable)) {
+      assert.ok(ignore.includes(`/${e.path.replace('assets/models/usdz/', '')}`), `${e.path} must be git-ignored`);
+    }
+  });
+
+  it('manifest serves large pre-built files from the external base URL, never as undeployable Pages files', () => {
+    const svc = require(path.join(ROOT, 'backend/application/ar-manifest-service.js'));
+    const vehicle = { id: 'test-car', name: 'T', colors: [{ name: 'A', hex: '#111111' }, { name: 'B', hex: '#222222' }], model3d: { glbPath: 'assets/models/ar/tesla_cybertruck_ar_v1.glb' } };
+    const usdzIndex = { vehicles: { 'test-car': [
+      { colorIndex: 0, path: 'assets/models/usdz/tesla-cybertruck/0.usdz', bytes: 988109, sha256: 'a'.repeat(64), staticHostable: true },
+      { colorIndex: 1, path: 'assets/models/usdz/test-car/1.usdz', bytes: 90 * 1048576, sha256: 'b'.repeat(64), staticHostable: false }
+    ] } };
+    const opts = { registry: { vehicles: {} }, bindings: { vehicles: {} }, usdzIndex };
+    const ext = svc.buildArManifest(vehicle, { ...opts, usdzPublicBaseUrl: 'https://usdz.sigmacar.example/models/' }).appleAr.usdz;
+    assert.deepStrictEqual(ext.map(u => u.url), ['assets/models/usdz/tesla-cybertruck/0.usdz?v=aaaaaaaaaaaa', 'https://usdz.sigmacar.example/models/test-car/1.usdz?v=bbbbbbbbbbbb']);
+    const pages = svc.buildArManifest(vehicle, { ...opts, usdzPublicBaseUrl: '', staticHostOnly: true }).appleAr.usdz;
+    assert.deepStrictEqual(pages.map(u => u.colorIndex), [0], 'no base URL → Pages snapshot omits it (page converts on the device)');
+    assert.strictEqual(svc.usdzPublicBaseUrl('http://insecure.example'), null);
+    assert.strictEqual(svc.usdzPublicBaseUrl('https://u:p@x.example'), null);
   });
 });
 

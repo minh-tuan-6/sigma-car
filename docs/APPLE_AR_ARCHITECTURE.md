@@ -37,7 +37,7 @@ ar.html → js/ar/ar-app.js
                                       normalised to metres / +Y up / grounded / centred
   4. full-screen 3D view + colour bar (no camera on this page)
   5. iPhone/iPad only: UsdzResolver.prepare(colour)
-        exact-colour USDZ (pre-built or external, probed) → else on-device conversion → else colourless file
+        exact-colour USDZ (pre-built or external, probed) → else on-device conversion (no size limit) → else colourless file
   6. tap "Xem AR" → launchQuickLook(href)  synchronously, inside the user gesture
   7. ✕ → back to the showroom page with the chosen colour
 ```
@@ -51,7 +51,7 @@ Android, Windows, Linux, macOS and iOS in-app browsers stop after step 4. They s
 | `ar-app.js` | Page controller: boot, colour changes, AR preparation, launch, cleanup, error states, `window.__sigmaAr` (test data; nothing on screen) |
 | `apple/apple-ar-support.js` | iOS/iPadOS detection: `relList.supports('ar')` decides; device class (incl. iPadOS desktop-class UA via touch points) only labels the message |
 | `apple/quick-look.js` | `buildQuickLookHref()` (fragment parameters) and `launchQuickLook()` (`<a rel="ar">` + `<img>` child, `download` for blob files) |
-| `apple/usdz-builder.js` | `buildVehicleUsdz()` (three.js `USDZExporter`, horizontal plane anchoring), size estimate and guard, `inspectUsdz()` / `inspectUsdzHeader()` spec checks |
+| `apple/usdz-builder.js` | `buildVehicleUsdz()` (three.js `USDZExporter`, horizontal plane anchoring), progress phases, real-cause error mapping, informational size estimate, `inspectUsdz()` / `inspectUsdzHeader()` spec checks |
 | `apple/usdz-resolver.js` | Chooses the USDZ per colour, probes declared files, caches generated files per colour, revokes blob URLs |
 | `manifest/manifest-schema.js`, `manifest/manifest-client.js` | Manifest v2 validation (re-derives features from data); API first, static snapshot only when the API is unreachable |
 | `models/*` (6 files) | URL policy (models and USDZ), streamed download (progress, timeout, retry, abort, HTML sniffing), cache, glTF validation, normalisation, Draco/Meshopt/KTX2 decoders |
@@ -70,33 +70,54 @@ The vendored libraries are `js/vendor/three` (r170: GLTFLoader, DRACOLoader, KTX
 
 ## 5. USDZ asset workflow
 
-Quick Look cannot open GLB/glTF. The GLB is never handed to it.
+Quick Look cannot open GLB/glTF. The GLB is never handed to it. **No conversion is rejected because of its size**: models are converted in full, with no polygon reduction and no texture downscaling below the source resolution (cap 8192 px).
+
+```
+vehicle GLB(s) ──npm run usdz:build──▶ headless Chrome runs the AR page's own modules
+   (every vehicle, every paint colour)    load → normalise to metres → apply paint → USDZExporter
+                                          → stream to disk → inspectUsdz() → move into place
+                                          → data/usdz-assets.json (bytes, SHA-256, staticHostable)
+        ≤ 25 MiB ──▶ assets/models/usdz/… ──▶ Cloudflare Pages (static) ─┐
+        > 25 MiB ──▶ assets/models/usdz/… (git-ignored) ──npm run usdz:upload──▶ R2 / any HTTPS host ─┤
+                                                                                                    ▼
+                         AR manifest (API + Pages snapshots) lists one USDZ per colour ──▶ AR Quick Look
+```
 
 | Source | How it is produced | Used when |
 |---|---|---|
-| **Pre-built** (`assets/models/usdz/<id>/<colour>.usdz`) | `npm run usdz:build -- --vehicle <id>` (or `--all`). Runs the page's own modules in headless Chrome: loads each colour's GLB (or tints the body paint), normalises to metres, exports, checks the archive, writes `data/usdz-assets.json` (bytes, SHA-256, source GLB, warnings). Files over 25 MiB are refused (Pages limit). | First choice for that colour. The URL carries `?v=<sha256>` because the files are cached as immutable |
-| **External** (CDN, e.g. made with Apple Reality Converter / `usdzconvert` / Blender) | Declared in data: `data/ar-manifest.json` → `configurations[].usdzUrl` (per colour), `usdzUrl` (any colour), or vehicle `model3d.usdzPath` | When no pre-built file exists for the colour |
-| **On-device conversion** | `buildVehicleUsdz()` on the iPhone/iPad, from the model being shown with the selected paint already applied | No file for the colour **and** estimated size ≤ 24 MiB, no KTX2 textures |
+| **Pre-built** | `npm run usdz:build` (all vehicles; `-- --vehicle <id>` for one). The URL carries `?v=<sha256>` because the files are cached as immutable | First choice for every colour |
+| **External** (CDN, e.g. a binary USDZ made with Apple Reality Converter) | `data/ar-manifest.json` → `configurations[].usdzUrl` (per colour), `usdzUrl` (any colour), or vehicle `model3d.usdzPath` | No pre-built file for the colour |
+| **On-device conversion** | `buildVehicleUsdz()` on the iPhone/iPad from the model being shown, with the selected paint applied. Progress is shown ("Đang tạo tệp AR…", and for big models "có thể mất vài chục giây") | No pre-built/external file is reachable for the colour. No size limit; a real failure is reported with its cause (`OUT_OF_MEMORY`, `TEXTURE_EXPORT_FAILED`, `INVALID_USDZ`, `COMPRESSED_TEXTURES`, …) |
 | Colour-independent file | `usdzUrl` / `usdzPath` | Last resort; the button says "AR hiển thị màu mặc định" |
 
-Pre-built in this repository: **Tesla Cybertruck, 4 colours, 0.94 MB each** (one per authored colour GLB).
+### Where large files are served from
 
-### Measured USDZ sizes (three.js USDZExporter, all 24 vehicles, colour 0)
+Cloudflare Pages refuses any single static file above **25 MiB**. That is the platform's limit, not this project's; a deployment containing such a file fails. Pre-built files above it are handled like this:
 
-The exporter writes plain-text USDA in an uncompressed zip. Draco-compressed GLBs grow a lot when decoded.
+- `npm run build` leaves them out of `dist/` and prints the list.
+- With `SIGMACAR_USDZ_PUBLIC_BASE_URL` set (Pages build variable and backend env), the manifest points those colours at `<base>/<vehicleId>/<colour>.usdz?v=<sha>`. Upload them with `node scripts/upload_usdz.js --bucket <r2-bucket> --execute`; the key layout matches. This needs your Cloudflare credentials and was not run.
+- Without it, the Pages snapshots omit them, so the page converts those colours on the device. The API served by the backend still lists the site path; on Pages that path returns the SPA's HTML, which the page detects ("HTML_INSTEAD_OF_USDZ"), and it then converts on the device.
+- `server.js` serves every file directly, so local and self-hosted setups use all pre-built files.
+- They are written to `assets/models/usdz/.gitignore`, so 2.36 GB of build output is not committed. A fresh clone regenerates them with `npm run usdz:build`.
 
-| Fits the 24 MiB guard (converts on device) | Too large (needs an offline binary `.usdc` USDZ) |
+### Result of the full pipeline run (2026-11-14)
+
+58 USDZ files: all 24 vehicles × every paint colour (one colour-independent file where the model has no paint layer). 0 failures, 2 min 46 s, 2,415 MB in total. 13 files are ≤ 25 MiB (deployable on Pages); 45 need external hosting.
+
+| ≤ 25 MiB (Pages) | > 25 MiB (external base URL or on-device conversion) |
 |---|---|
-| tesla-cybertruck 0.94 MB · honda-accord-euro-r 1.25 · honda-civic-eg6-1991 4.28 · maybach-exelero-2005 5.62 · honda-prelude-bp1 6.31 · lamborghini-terzo-millennio 10.93 · ferrari-f50-1995 13.93 | lamborghini-aventador-sv 27.8 (estimate 31.7) · honda-civic-type-r-2018 28.8 · hyundai-elantra-n-2024 31.7 · vinfast-vf3 33.2 · toyota-camry 35.1 · bugatti-chiron 40.3 · honda-civic-rs 43.8 · porsche-911 47.3 · vinfast-fadil 49.3 · tesla-roadster-2 64.3 · subaru-impreza-2024 69.2 · lucid-air-sapphire 72.6 · rolls-royce-boat-tail 73.4 · vinfast-lux-a20 77.2 · land-rover-defender-110 81.5 · vinfast-vf9 89.7 · suzuki-ciaz-2021 90.9 |
+| tesla-cybertruck 0.94 MB ×4 · honda-accord-euro-r 1.25 · honda-civic-eg6-1991 4.28 ×4 · maybach-exelero-2005 5.62 · honda-prelude-bp1 6.31 · lamborghini-terzo-millennio 10.93 · ferrari-f50-1995 13.93 | lamborghini-aventador-sv 27.8 · honda-civic-type-r-2018 28.8 ×4 · hyundai-elantra-n-2024 31.7 ×4 · vinfast-vf3 33.2 ×5 · toyota-camry 35.1 ×4 · bugatti-chiron 40.3 · honda-civic-rs 43.8 ×4 · porsche-911-carrera-4s-2024 47.3 ×5 · vinfast-fadil 49.3 · tesla-roadster-2 64.3 · subaru-impreza-2024 69.2 · lucid-air-sapphire 72.6 ×2 · rolls-royce-boat-tail 73.4 ×2 · vinfast-lux-a20 77.2 · land-rover-defender-110 81.5 ×4 · vinfast-vf9 89.7 ×4 · suzuki-ciaz-2021 90.9 |
 
-The pre-export estimate (`auditExportable`) stayed between 0.29× and 1.08× of the real size on all 24 models. It is conservative when textures are present. For the 17 large vehicles the AR button is disabled with "cần tệp USDZ dựng sẵn". The fix is an offline conversion to a binary USDZ, which is typically far smaller, declared as an external or pre-built URL. That needs Apple Reality Converter or `usdzconvert` (macOS) or Blender; none of these is available in this Windows environment.
+The sizes come from the exporter's format: plain-text USDA inside an uncompressed zip (the USDZ spec forbids compression), so Draco-compressed GLBs grow a lot when decoded. A binary USDC layer would be much smaller with identical geometry. That needs Apple's USD tools (macOS) or Blender, which are not available in this environment; it is the way to bring most vehicles under 25 MiB without any quality loss.
+
+The pre-export size estimate (`auditExportable`) is informational only: it drives the "may take a while" hint and diagnostics, and never blocks.
 
 ### Conversion fidelity (reported per file, never hidden)
 
 - Only `MeshStandardMaterial`/`MeshPhysicalMaterial` meshes are exported; unlit and multi-material meshes are skipped and counted.
 - glTF `doubleSided` is not carried over: USD preview surfaces are single-sided (`USDZ_SINGLE_SIDED` warning). Thin single-sided geometry may show holes from behind.
 - Paint is written as the linear-sRGB `diffuseColor` of the body material only (verified in tests). Metalness, roughness, clearcoat and textures are exported as authored; Quick Look's own renderer and lighting will look different from the web view.
-- KTX2 (compressed) textures are refused for on-device conversion.
+- KTX2 (compressed) textures are refused for on-device conversion (the exporter cannot decode them without extra tooling). No current model uses them.
 
 ## 6. iOS / iPadOS support
 
@@ -132,7 +153,7 @@ Reality Composer `.reality` files with tap behaviours are another native-authore
 
 ## 10. Files
 
-- **Added:** `js/ar/apple/*` (4 files), `js/ar/ui/apple-ar-ui.js`, `js/ar/ui/qr-code.js`, `scripts/build_usdz.js`, `data/usdz-assets.json`, `assets/models/usdz/tesla-cybertruck/{0..3}.usdz`, `js/vendor/three/addons/exporters/USDZExporter.js`, `js/vendor/three/addons/libs/fflate.module.js`, `.gitattributes`, this document, `docs/AR_REWRITE_PLAN.md`.
+- **Added:** `js/ar/apple/*` (4 files), `js/ar/ui/apple-ar-ui.js`, `js/ar/ui/qr-code.js`, `scripts/build_usdz.js`, `scripts/upload_usdz.js`, `data/usdz-assets.json`, `assets/models/usdz/**` (58 files; the 45 above 25 MiB are git-ignored), `assets/models/usdz/.gitignore`, `js/vendor/three/addons/exporters/USDZExporter.js`, `js/vendor/three/addons/libs/fflate.module.js`, `.gitattributes`, this document, `docs/AR_REWRITE_PLAN.md`.
 - **Rewritten:** `ar.html`, `css/ar.css`, `js/ar/ar-app.js`, `js/ar/core/scene-manager.js`, `js/ar/vehicle/vehicle-controller.js`, `js/ar/vehicle/material-configurator.js`, `js/ar/manifest/manifest-schema.js` (v2), `backend/application/ar-manifest-service.js` (v2), `tests/unit/ar_engine.test.js`, `tests/e2e/ar-flow.e2e.js`.
 - **Modified:** `js/ar/models/url-policy.js` (USDZ policy), `js/car-3d-viewer.js` (no `immersive-ar`), `js/app.js` (comments only), `_headers`, `scripts/vendor_ar_libs.js`, `package.json` (`usdz:build`), `tests/integration/api_proxy_ar_manifest.test.js`, `tests/integration/ar_model_loading.test.js`, `docs/AR_TEST_REPORT.md`, `docs/CLOUDFLARE_DEPLOYMENT.md`.
 - **Removed:** the WebXR engine: `core/session-manager.js`, `core/hit-test-manager.js`, `core/placement-reticle.js`, `core/placement-controller.js`, `core/interaction-manager.js`, `core/capability-detector.js`, `fallback/platform-fallback.js` (Scene Viewer intent), `capture/capture-manager.js`, `vehicle/hotspot-manager.js`, `vehicle/animation-controller.js`, `ui/ar-ui.js`, the vendored `XREstimatedLight.js`, and `docs/AR_ARCHITECTURE.md` (described the removed engine). Before deletion, every import was checked: none of these files was referenced outside `js/ar` and its tests.

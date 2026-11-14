@@ -191,19 +191,47 @@ const server = http.createServer(async (req, res) => {
       ? 'no-cache, no-store, must-revalidate'
       : 'public, max-age=3600';
 
-    res.writeHead(200, {
+    // Content-Length and single byte-range support: large assets (USDZ up to ~90 MB) report download progress,
+    // and a client that only needs the header (AR page USDZ probe: Range bytes=0-1023) does not pull the whole file.
+    const size = fs.statSync(realFile).size;
+    const headers = {
       'Content-Type': contentType,
       'Cache-Control': cacheHeader,
       'Pragma': 'no-cache',
-      'Expires': '0'
-    });
+      'Expires': '0',
+      'Accept-Ranges': 'bytes'
+    };
+    let start = 0;
+    let end = size - 1;
+    let status = 200;
+    const range = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || '').trim());
+    if (range && (range[1] !== '' || range[2] !== '')) {
+      if (range[1] === '') {
+        start = Math.max(0, size - Number(range[2]));
+      } else {
+        start = Number(range[1]);
+        if (range[2] !== '') end = Math.min(end, Number(range[2]));
+      }
+      if (start > end || start >= size) {
+        res.writeHead(416, { 'Content-Range': `bytes */${size}`, 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end();
+        return;
+      }
+      status = 206;
+      headers['Content-Range'] = `bytes ${start}-${end}/${size}`;
+    }
+    headers['Content-Length'] = String(end - start + 1);
+    res.writeHead(status, headers);
 
     if (req.method === 'HEAD') {
       res.end();
       return;
     }
 
-    const stream = fs.createReadStream(realFile);
+    const stream = fs.createReadStream(realFile, { start, end });
+    // Stop reading (and release the file handle) when the client goes away mid-download.
+    res.on('close', () => stream.destroy());
+    stream.on('error', () => res.destroy());
     stream.pipe(res);
   });
 });

@@ -108,8 +108,15 @@ describe('API connectivity through the Pages Function proxy', () => {
     const ferrari = await (await viaProxy('/api/v1/vehicles/ferrari-f50-1995/ar-manifest')).json();
     assert.strictEqual(ferrari.data.features.changeColor, false);
     assert.strictEqual(ferrari.data.model.scaleMode, 'fit-to-length');
-    assert.deepStrictEqual(ferrari.data.appleAr.usdz, [], 'no USDZ file → on-device conversion only');
+    // No paint layer → one colour-independent pre-built USDZ (13.9 MB, hostable on Pages).
+    assert.deepStrictEqual(ferrari.data.appleAr.usdz.map(u => [u.colorIndex, u.source]), [[null, 'prebuilt']]);
+    assert.match(ferrari.data.appleAr.usdz[0].url, /^assets\/models\/usdz\/ferrari-f50-1995\/default\.usdz\?v=[0-9a-f]{12}$/);
     assert.strictEqual(ferrari.data.appleAr.onDeviceConversion, true);
+
+    // A model whose USDZ exceeds the Pages file limit (VinFast VF9, 89.7 MB) is still listed for every colour.
+    const vf9 = (await (await viaProxy('/api/v1/vehicles/vinfast-vf9/ar-manifest')).json()).data;
+    assert.deepStrictEqual(vf9.appleAr.usdz.map(u => u.colorIndex), [0, 1, 2, 3]);
+    assert.ok(vf9.appleAr.usdz.every(u => u.bytes > 25 * 1024 * 1024));
   });
 });
 

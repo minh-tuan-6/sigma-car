@@ -3,7 +3,7 @@
 // Order for a colour:
 //   1. a USDZ declared for that exact colour (pre-built by scripts/build_usdz.js, or an external HTTPS URL);
 //      it is probed first when the server allows it, and skipped if it turns out not to be a USDZ;
-//   2. on-device conversion of the model currently shown (selected paint already applied);
+//   2. on-device conversion of the model currently shown (selected paint already applied) — no size limit;
 //   3. a colour-independent USDZ, launched with an explicit "default colour" notice;
 //   4. nothing → the AR button stays disabled with the reason.
 // Generated files are cached per colour as blob: URLs (no re-export when switching back) and revoked on dispose.
@@ -112,10 +112,10 @@ export class UsdzResolver {
   /**
    * Resolves the USDZ for a colour.
    * @param {number} colorIdx
-   * @param {{ getPivot: () => THREE.Object3D|null, isCurrent?: () => boolean }} ctx
+   * @param {{ getPivot: () => THREE.Object3D|null, isCurrent?: () => boolean, onProgress?: Function }} ctx
    * @returns {Promise<{ url: string, kind: 'prebuilt'|'external'|'generated'|'generic', colorMatch: boolean, bytes: number|null, warnings: string[], probe?: object }>}
    */
-  async prepare(colorIdx, { getPivot, isCurrent = () => true } = {}) {
+  async prepare(colorIdx, { getPivot, isCurrent = () => true, onProgress } = {}) {
     const p = this.plan(colorIdx);
     const notes = [];
 
@@ -133,7 +133,7 @@ export class UsdzResolver {
       const pivot = getPivot ? getPivot() : null;
       if (!pivot) throw new UsdzBuildError('NO_MODEL', 'Mô hình chưa sẵn sàng để chuẩn bị AR.');
       const t0 = Date.now();
-      const out = await this.build(pivot);
+      const out = await this.build(pivot, { onProgress });
       if (!isCurrent()) return null; // the colour changed while converting; the newer request wins
       const url = this.createObjectURL(new Blob([out.bytes], { type: 'model/vnd.usdz+zip' }));
       const entry = { url, bytes: out.bytes.byteLength, warnings: out.warnings || [], report: { ...(out.report || {}), ms: Date.now() - t0 } };

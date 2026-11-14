@@ -155,6 +155,17 @@ async function waitForAr(page, predicate = 'ready', timeout = 60000) {
   return page.evaluate(() => JSON.parse(JSON.stringify(window.__sigmaAr || null)));
 }
 
+// Every vehicle now has pre-built USDZ files; to exercise on-device conversion, a page gets the real manifest with
+// its USDZ list removed (as on Pages when a > 25 MiB file has no external URL).
+async function withoutUsdz(page, vehicleId) {
+  await page.route(`**/api/v1/vehicles/${vehicleId}/ar-manifest`, async (route) => {
+    const response = await route.fetch();
+    const json = await response.json();
+    json.data.appleAr.usdz = [];
+    await route.fulfill({ response, json });
+  });
+}
+
 async function readBytes(page, url) {
   const b64 = await page.evaluate(async (u) => {
     const buf = new Uint8Array(await (await fetch(u)).arrayBuffer());
@@ -369,6 +380,7 @@ async function readBytes(page, url) {
 
   await step('iPhone, no USDZ file: converts the shown model (selected paint) on the device and launches a blob USDZ', async () => {
     const p = await iphone.newPage();
+    await withoutUsdz(p, 'honda-civic-eg6-1991');
     await p.goto(`${base}/ar/honda-civic-eg6-1991?color=3`);
     const s = await waitForAr(p, 'ar-settled', 90000);
     assert.strictEqual(s.ar.state, 'ready', JSON.stringify(s.metrics.warnings));
@@ -403,14 +415,37 @@ async function readBytes(page, url) {
     await p.close();
   });
 
-  await step('iPhone, model too detailed to convert on the device: AR disabled with the reason (no crash, no fake)', async () => {
+  await step('iPhone, large model (VinFast VF9, 89.7 MB USDZ): pre-built file for the colour is served and launched', async () => {
     const p = await iphone.newPage();
-    await p.goto(`${base}/ar/vinfast-vf9`);
+    await p.goto(`${base}/ar/vinfast-vf9?color=2`);
     const s = await waitForAr(p, 'ar-settled', 90000);
-    assert.strictEqual(s.ar.state, 'unavailable');
-    assert.strictEqual(s.ar.error, 'MODEL_TOO_LARGE_FOR_CONVERSION');
-    assert.ok(await p.locator('#ar-launch').isDisabled());
-    assert.match(await p.locator('#ar-launch-note').textContent(), /cần tệp USDZ dựng sẵn/);
+    assert.strictEqual(s.ar.state, 'ready', JSON.stringify(s.metrics.warnings));
+    assert.strictEqual(s.ar.kind, 'prebuilt');
+    assert.match(s.ar.url, /\/assets\/models\/usdz\/vinfast-vf9\/2\.usdz\?v=[0-9a-f]{12}$/);
+    assert.strictEqual(s.metrics.usdz.probe.status, 'valid');
+    assert.ok(s.metrics.usdz.bytes > 80 * 1048576);
+    const res = await fetch(s.ar.url);
+    assert.strictEqual(res.headers.get('content-type'), 'model/vnd.usdz+zip');
+    assert.strictEqual(Number(res.headers.get('content-length')), s.metrics.usdz.bytes);
+    await res.body.cancel();
+    await p.locator('#ar-launch').tap();
+    assert.match((await p.evaluate(() => window.__qlLaunches))[0].href, /vinfast-vf9\/2\.usdz\?v=[0-9a-f]{12}#allowsContentScaling=0/);
+    await p.close();
+  });
+
+  await step('iPhone, large model without a pre-built file: converted on the device in full (no size limit)', async () => {
+    const p = await iphone.newPage();
+    await withoutUsdz(p, 'vinfast-vf9');
+    await p.goto(`${base}/ar/vinfast-vf9?color=1`);
+    const s = await waitForAr(p, 'ar-settled', 180000);
+    assert.strictEqual(s.ar.state, 'ready', JSON.stringify(s.metrics.warnings));
+    assert.strictEqual(s.ar.kind, 'generated');
+    assert.ok(s.metrics.usdz.bytes > 80 * 1048576, `bytes ${s.metrics.usdz.bytes}`);
+    assert.strictEqual(s.metrics.usdz.report.exported, s.metrics.usdz.report.meshes - s.metrics.usdz.report.skippedUnsupportedMaterial - s.metrics.usdz.report.skippedMultiMaterial);
+    const head = await p.evaluate(async (u) => Array.from(new Uint8Array(await (await fetch(u)).arrayBuffer()).subarray(0, 4)), s.ar.url);
+    assert.deepStrictEqual(head, [0x50, 0x4b, 0x03, 0x04]);
+    assert.ok(!(await p.locator('#ar-launch').isDisabled()));
+    measurements.largeOnDeviceConversion = { vehicle: 'vinfast-vf9', ms: s.metrics.usdz.report.ms, bytes: s.metrics.usdz.bytes, estimatedBytes: s.metrics.usdz.report.estimatedBytes };
     await p.close();
   });
 

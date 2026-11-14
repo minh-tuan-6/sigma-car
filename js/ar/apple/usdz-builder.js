@@ -10,7 +10,10 @@
 //   * only MeshStandardMaterial / MeshPhysicalMaterial meshes are exported (unlit / multi-material meshes are skipped);
 //   * USD preview surfaces are single-sided; glTF doubleSided is not carried over;
 //   * compressed (KTX2) textures need decompression support and are rejected here;
-//   * textures are re-encoded as PNG, capped at maxTextureSize.
+//   * textures are re-encoded as PNG at source resolution (cap 8192 px, the largest texture Apple GPUs sample).
+// There is NO size limit: large models are converted in full (no decimation, no texture downscaling). On a phone
+// the browser may still run out of memory; that real error is reported (OUT_OF_MEMORY), and large models are
+// meant to be served pre-built (scripts/build_usdz.js) so the phone never has to convert them.
 
 const USD_LAYER_RE = /\.(usda|usdc|usd)$/i;
 
@@ -31,16 +34,15 @@ async function loadExporter() {
 }
 
 // three.js USDZExporter writes geometry as ASCII .usda (7 significant digits) inside an uncompressed zip, so a
-// Draco-compressed GLB can grow ~40× (measured: vinfast_vf9.glb 1.9 MB → 89.7 MB USDZ). Conversion is refused
-// above this estimate: the file would be too heavy to build in mobile Safari memory and to ship
-// (Cloudflare Pages caps files at 25 MiB). Such models need a binary (.usdc) USDZ made offline.
-export const MAX_ESTIMATED_USDZ_BYTES = 24 * 1024 * 1024;
+// Draco-compressed GLB can grow ~40× (measured: vinfast_vf9.glb 1.9 MB → 89.7 MB USDZ). The estimate below is
+// informational only (progress text, diagnostics); it never blocks a conversion.
+export const DEFAULT_MAX_TEXTURE_SIZE = 8192;
 const BYTES_PER_FLOAT = 12;   // "-0.1234567, " incl. separators and parentheses (calibrated in AR_TEST_REPORT.md)
 const BYTES_PER_INDEX = 7;
 const BYTES_PER_TEXEL = 1.2; // re-encoded PNG (lossless; varies with content)
 
 /** Inventory of what the exporter will and will not carry over. Pure; safe to call in tests. */
-export function auditExportable(root, { maxTextureSize = 2048 } = {}) {
+export function auditExportable(root, { maxTextureSize = DEFAULT_MAX_TEXTURE_SIZE } = {}) {
   const report = { meshes: 0, exported: 0, skippedUnsupportedMaterial: 0, skippedMultiMaterial: 0, doubleSided: 0, compressedTextures: 0, textures: 0, estimatedBytes: 0 };
   const seenTex = new Set();
   const seenGeo = new Set();
@@ -155,18 +157,15 @@ export function inspectUsdzHeader(input) {
  * Exports the vehicle pivot (normalised: metres, +Y up, grounded) to USDZ bytes.
  * The pivot must not be moved by a parent transform other than identity — the preview anchor is.
  * @param {THREE.Object3D} pivot
- * @param {{ maxTextureSize?: number, exporter?: { parseAsync: Function } }} [opts]
+ * @param {{ maxTextureSize?: number, exporter?: { parseAsync: Function }, onProgress?: (p: { phase: string, estimatedBytes?: number }) => void }} [opts]
  * @returns {Promise<{ bytes: Uint8Array, report: object, warnings: string[] }>}
  */
-export async function buildVehicleUsdz(pivot, { maxTextureSize = 2048, exporter, maxEstimatedBytes = MAX_ESTIMATED_USDZ_BYTES } = {}) {
+export async function buildVehicleUsdz(pivot, { maxTextureSize = DEFAULT_MAX_TEXTURE_SIZE, exporter, onProgress } = {}) {
   if (!pivot || typeof pivot.traverseVisible !== 'function') throw new UsdzBuildError('NO_MODEL', 'Chưa có mô hình để chuyển đổi.');
+  const progress = (phase) => { if (onProgress) { try { onProgress({ phase, estimatedBytes: report.estimatedBytes }); } catch (_) {} } };
   const report = auditExportable(pivot, { maxTextureSize });
   report.estimatedBytes = Math.round(report.estimatedBytes);
-  if (report.estimatedBytes > maxEstimatedBytes) {
-    throw new UsdzBuildError('MODEL_TOO_LARGE_FOR_CONVERSION',
-      `Mô hình quá chi tiết để chuyển sang USDZ trên thiết bị (ước tính ${(report.estimatedBytes / 1048576).toFixed(0)} MB); cần tệp USDZ dựng sẵn.`,
-      { report });
-  }
+  progress('analysed');
   if (report.exported === 0) {
     throw new UsdzBuildError('NOTHING_EXPORTABLE', 'Mô hình không có vật liệu PBR nào chuyển được sang USDZ.', { report });
   }
@@ -183,6 +182,9 @@ export async function buildVehicleUsdz(pivot, { maxTextureSize = 2048, exporter,
 
   pivot.updateWorldMatrix(true, true);
   const exp = exporter || await loadExporter();
+  progress('exporting');
+  // Let the UI paint the progress state before the CPU-bound export starts.
+  await new Promise(r => setTimeout(r, 0));
   let out;
   // The exporter logs the whole material object for every double-sided material; that is already summarised
   // in `warnings`, so those messages are filtered while it runs.
@@ -199,14 +201,33 @@ export async function buildVehicleUsdz(pivot, { maxTextureSize = 2048, exporter,
       maxTextureSize
     });
   } catch (err) {
-    throw new UsdzBuildError('EXPORT_FAILED', `Không chuyển được mô hình sang USDZ: ${String((err && err.message) || err).slice(0, 200)}`, { cause: err, report });
+    throw classifyExportError(err, report);
   } finally {
     console.warn = origWarn;
   }
   const bytes = out instanceof Uint8Array ? out : new Uint8Array(out);
+  progress('validating');
   const check = inspectUsdz(bytes);
   if (!check.ok) {
     throw new UsdzBuildError('INVALID_USDZ', `USDZ tạo ra không hợp lệ (${check.problems.join(', ')}).`, { report, check });
   }
+  progress('done');
   return { bytes, report: { ...report, entries: check.entries.length, bytes: bytes.byteLength }, warnings };
+}
+
+/** Maps an exporter failure to its real cause (never to a size guess). */
+export function classifyExportError(err, report = null) {
+  const msg = String((err && err.message) || err);
+  const name = (err && err.name) || '';
+  // V8: "Invalid string length" / "Array buffer allocation failed"; JavaScriptCore: "Out of memory".
+  const oom = name === 'RangeError' && /string length|allocation|array buffer|out of memory|invalid array length/i.test(msg)
+    || /out of memory/i.test(msg);
+  if (oom) {
+    return new UsdzBuildError('OUT_OF_MEMORY',
+      `Trình duyệt hết bộ nhớ khi tạo USDZ cho mô hình này (${msg.slice(0, 120)}); cần tệp USDZ dựng sẵn từ máy chủ.`, { cause: err, report });
+  }
+  if (/image|canvas|toBlob|drawImage/i.test(msg)) {
+    return new UsdzBuildError('TEXTURE_EXPORT_FAILED', `Không chuyển được texture sang USDZ: ${msg.slice(0, 200)}`, { cause: err, report });
+  }
+  return new UsdzBuildError('EXPORT_FAILED', `Không chuyển được mô hình sang USDZ: ${msg.slice(0, 200)}`, { cause: err, report });
 }

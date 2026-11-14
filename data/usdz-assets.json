@@ -5,12 +5,19 @@
         "colorIndex": 0,
         "path": "assets/models/usdz/tesla-cybertruck/0.usdz",
         "bytes": 988109,
-        "sha256": "92bf0c6057c7a0001471f7964b997934061b20373c7a0f1521f4cf9903f37b26",
+        "sha256": "31d4a01484b102ffa0ed473990d570a12b3854abe3b2c900d4f365fe8c9e8614",
+        "staticHostable": true,
         "sourceGlb": "assets/models/ar/tesla_cybertruck_ar_v1.glb",
         "sizeMeters": {
           "length": 5.682,
           "width": 1.996,
           "height": 1.886
+        },
+        "report": {
+          "meshes": 14,
+          "exported": 14,
+          "textures": 0,
+          "entries": 15
         },
         "warnings": [
           "USDZ_SINGLE_SIDED: 14 vật liệu hai mặt được xuất một mặt."
@@ -20,12 +27,19 @@
         "colorIndex": 1,
         "path": "assets/models/usdz/tesla-cybertruck/1.usdz",
         "bytes": 988016,
-        "sha256": "53ecaff4fe599478b6902ddae1225c8721504588a88e1836b1cb5697e48bffb5",
+        "sha256": "8dea63d3f7f2508e9174f409e6c6d9daaad98121f451b7230f9ea5973b29b071",
+        "staticHostable": true,
         "sourceGlb": "assets/models/ar/tesla_cybertruck_ar_stealth_black.glb",
         "sizeMeters": {
           "length": 5.682,
           "width": 1.996,
           "height": 1.886
+        },
+        "report": {
+          "meshes": 14,
+          "exported": 14,
+          "textures": 0,
+          "entries": 15
         },
         "warnings": [
           "USDZ_SINGLE_SIDED: 14 vật liệu hai mặt được xuất một mặt."
@@ -35,12 +49,19 @@
         "colorIndex": 2,
         "path": "assets/models/usdz/tesla-cybertruck/2.usdz",
         "bytes": 988017,
-        "sha256": "2206c4c9fb34cd9a782e06ffafd4116b8dce87d07086b02bf06dad54afd49a5f",
+        "sha256": "19cc38861c3cef76b5d6ad1c5620ed72e0da5e81e14aa4e7a7635998e7adf85d",
+        "staticHostable": true,
         "sourceGlb": "assets/models/ar/tesla_cybertruck_ar_ceramic_white.glb",
         "sizeMeters": {
           "length": 5.682,
           "width": 1.996,
           "height": 1.886
+        },
+        "report": {
+          "meshes": 14,
+          "exported": 14,
+          "textures": 0,
+          "entries": 15
         },
         "warnings": [
           "USDZ_SINGLE_SIDED: 14 vật liệu hai mặt được xuất một mặt."
@@ -50,20 +71,1260 @@
         "colorIndex": 3,
         "path": "assets/models/usdz/tesla-cybertruck/3.usdz",
         "bytes": 988138,
-        "sha256": "77c251a98f4c5b4c10a0bab5107274a4172791b5f2aa951a41bb497a3f2afbce",
+        "sha256": "6ba79613812f965bed4c422432d03aeb11314fedbd1455ef1616d0ed8d5f6565",
+        "staticHostable": true,
         "sourceGlb": "assets/models/ar/tesla_cybertruck_ar_tactical_green.glb",
         "sizeMeters": {
           "length": 5.682,
           "width": 1.996,
           "height": 1.886
         },
+        "report": {
+          "meshes": 14,
+          "exported": 14,
+          "textures": 0,
+          "entries": 15
+        },
         "warnings": [
           "USDZ_SINGLE_SIDED: 14 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "honda-civic-eg6-1991": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/honda-civic-eg6-1991/0.usdz",
+        "bytes": 4485573,
+        "sha256": "430578001c3b6841cc1aacaa88cf9eef798efcf2be012d16c872a2a3e4575834",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/honda_civic_eg6_1991.glb",
+        "sizeMeters": {
+          "length": 4.07,
+          "width": 1.806,
+          "height": 1.32
+        },
+        "report": {
+          "meshes": 39,
+          "exported": 39,
+          "textures": 1,
+          "entries": 41
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 39 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/honda-civic-eg6-1991/1.usdz",
+        "bytes": 4485816,
+        "sha256": "96d881e8eb60176361349a3ea9e57b3cc8bc710ca1d781f9d01cb535e3406a34",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/honda_civic_eg6_1991.glb",
+        "sizeMeters": {
+          "length": 4.07,
+          "width": 1.806,
+          "height": 1.32
+        },
+        "report": {
+          "meshes": 39,
+          "exported": 39,
+          "textures": 1,
+          "entries": 41
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 39 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/honda-civic-eg6-1991/2.usdz",
+        "bytes": 4485887,
+        "sha256": "7a0e266ce456e312ef83062174531f7e8725d0525504d0350709e12ae3573e1d",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/honda_civic_eg6_1991.glb",
+        "sizeMeters": {
+          "length": 4.07,
+          "width": 1.806,
+          "height": 1.32
+        },
+        "report": {
+          "meshes": 39,
+          "exported": 39,
+          "textures": 1,
+          "entries": 41
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 39 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/honda-civic-eg6-1991/3.usdz",
+        "bytes": 4486253,
+        "sha256": "d00be5752ccbde14e6c98cb30600829646a2a0ee4826856830374197ea178442",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/honda_civic_eg6_1991.glb",
+        "sizeMeters": {
+          "length": 4.07,
+          "width": 1.806,
+          "height": 1.32
+        },
+        "report": {
+          "meshes": 39,
+          "exported": 39,
+          "textures": 1,
+          "entries": 41
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 39 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "honda-civic-type-r-2018": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/honda-civic-type-r-2018/0.usdz",
+        "bytes": 30223585,
+        "sha256": "6c76a81aba25b9dba0c372c28cb3d47cc5ff64831e60c21a17e589e829d88032",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/honda_civic_type_r_2018.glb",
+        "sizeMeters": {
+          "length": 4.557,
+          "width": 2.101,
+          "height": 1.433
+        },
+        "report": {
+          "meshes": 837,
+          "exported": 837,
+          "textures": 22,
+          "entries": 860
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 837 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/honda-civic-type-r-2018/1.usdz",
+        "bytes": 30230820,
+        "sha256": "b10b50af41f519979bc27ff17e7088df0b1716034f4c0d455d06a718fed1bdc9",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/honda_civic_type_r_2018.glb",
+        "sizeMeters": {
+          "length": 4.557,
+          "width": 2.101,
+          "height": 1.433
+        },
+        "report": {
+          "meshes": 837,
+          "exported": 837,
+          "textures": 22,
+          "entries": 860
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 837 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/honda-civic-type-r-2018/2.usdz",
+        "bytes": 30233684,
+        "sha256": "362fb45503c277fd828522ffce4046edba71b4216b9c53b91394a9dc925f5a2d",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/honda_civic_type_r_2018.glb",
+        "sizeMeters": {
+          "length": 4.557,
+          "width": 2.101,
+          "height": 1.433
+        },
+        "report": {
+          "meshes": 837,
+          "exported": 837,
+          "textures": 22,
+          "entries": 860
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 837 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/honda-civic-type-r-2018/3.usdz",
+        "bytes": 30233680,
+        "sha256": "5d71e8d697bcdea64a2c9ec0418fe52287d9d8bed643a097393e38d956d7bd1a",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/honda_civic_type_r_2018.glb",
+        "sizeMeters": {
+          "length": 4.557,
+          "width": 2.101,
+          "height": 1.433
+        },
+        "report": {
+          "meshes": 837,
+          "exported": 837,
+          "textures": 22,
+          "entries": 860
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 837 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "bugatti-chiron": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/bugatti-chiron/default.usdz",
+        "bytes": 42254409,
+        "sha256": "3193b28d6df25c55d937f69bdb776f1cb6753267aa78db4f01496bf2bdda4734",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/bugatti_chiron.glb",
+        "sizeMeters": {
+          "length": 4.544,
+          "width": 2.179,
+          "height": 1.229
+        },
+        "report": {
+          "meshes": 63,
+          "exported": 63,
+          "textures": 4,
+          "entries": 68
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 63 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "ferrari-f50-1995": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/ferrari-f50-1995/default.usdz",
+        "bytes": 14609570,
+        "sha256": "5361915ea5dca19c93ba405762b5295f0bbe6992fc2b82f1fa0f926bf25591bb",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/ferrari_f50_1995.glb",
+        "sizeMeters": {
+          "length": 4.48,
+          "width": 2.293,
+          "height": 1.119
+        },
+        "report": {
+          "meshes": 50,
+          "exported": 50,
+          "textures": 14,
+          "entries": 65
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 50 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "honda-civic-rs": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/honda-civic-rs/0.usdz",
+        "bytes": 45897572,
+        "sha256": "f085b309ac593f7f606fa7614ebbaa3e896bb39419c15a656057f62347d1d10a",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/honda_civic_rs.glb",
+        "sizeMeters": {
+          "length": 4.678,
+          "width": 2.13,
+          "height": 1.458
+        },
+        "report": {
+          "meshes": 307,
+          "exported": 307,
+          "textures": 43,
+          "entries": 351
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 307 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/honda-civic-rs/1.usdz",
+        "bytes": 45898376,
+        "sha256": "ebef35c2169f1e9c108f7e831c6859ca5db02a5733443288fa209b98df1eebb7",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/honda_civic_rs.glb",
+        "sizeMeters": {
+          "length": 4.678,
+          "width": 2.13,
+          "height": 1.458
+        },
+        "report": {
+          "meshes": 307,
+          "exported": 307,
+          "textures": 43,
+          "entries": 351
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 307 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/honda-civic-rs/2.usdz",
+        "bytes": 45898505,
+        "sha256": "87c3ad147d0a1573d36622ec98709233f7a551b1c3d522de065c400fedcc43b1",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/honda_civic_rs.glb",
+        "sizeMeters": {
+          "length": 4.678,
+          "width": 2.13,
+          "height": 1.458
+        },
+        "report": {
+          "meshes": 307,
+          "exported": 307,
+          "textures": 43,
+          "entries": 351
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 307 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/honda-civic-rs/3.usdz",
+        "bytes": 45898017,
+        "sha256": "7e02398f80db009db6635fe6557634f669915ec315f3b2cf9c3bbba7d12bddd0",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/honda_civic_rs.glb",
+        "sizeMeters": {
+          "length": 4.678,
+          "width": 2.13,
+          "height": 1.458
+        },
+        "report": {
+          "meshes": 307,
+          "exported": 307,
+          "textures": 43,
+          "entries": 351
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 307 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "honda-accord-euro-r": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/honda-accord-euro-r/default.usdz",
+        "bytes": 1311970,
+        "sha256": "92843841804d450294c8e0de8152fd514b8bac817935359b11cfd8324714cbee",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/honda_accord_euro_r.glb",
+        "sizeMeters": {
+          "length": 4.665,
+          "width": 2.003,
+          "height": 1.48
+        },
+        "report": {
+          "meshes": 51,
+          "exported": 51,
+          "textures": 18,
+          "entries": 70
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 51 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "honda-prelude-bp1": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/honda-prelude-bp1/default.usdz",
+        "bytes": 6620419,
+        "sha256": "eb68ab6e6bb54ab63c50b09a743568fb76d34b60803ee4beb92ece88954ab8f7",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/honda_prelude_bp1.glb",
+        "sizeMeters": {
+          "length": 4.3,
+          "width": 1.961,
+          "height": 1.298
+        },
+        "report": {
+          "meshes": 32,
+          "exported": 32,
+          "textures": 5,
+          "entries": 38
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 32 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "hyundai-elantra-n-2024": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/hyundai-elantra-n-2024/0.usdz",
+        "bytes": 33230002,
+        "sha256": "f69d7e121d84e219e5e56d437b2a795f87929066db79f3aa7c8341296b01888f",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/hyundai_elantra_n_2024.glb",
+        "sizeMeters": {
+          "length": 4.675,
+          "width": 2.126,
+          "height": 1.405
+        },
+        "report": {
+          "meshes": 35,
+          "exported": 35,
+          "textures": 42,
+          "entries": 78
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 35 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/hyundai-elantra-n-2024/1.usdz",
+        "bytes": 33230157,
+        "sha256": "023ade902b15e7a4d0ed1125fc32586f41a88d341bedc26203ab3d1f055a9e27",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/hyundai_elantra_n_2024.glb",
+        "sizeMeters": {
+          "length": 4.675,
+          "width": 2.126,
+          "height": 1.405
+        },
+        "report": {
+          "meshes": 35,
+          "exported": 35,
+          "textures": 42,
+          "entries": 78
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 35 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/hyundai-elantra-n-2024/2.usdz",
+        "bytes": 33230705,
+        "sha256": "0473c620bd607a8b7fa6fce17ad757f9f4584ab0c526b6384c2ae878724ef738",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/hyundai_elantra_n_2024.glb",
+        "sizeMeters": {
+          "length": 4.675,
+          "width": 2.126,
+          "height": 1.405
+        },
+        "report": {
+          "meshes": 35,
+          "exported": 35,
+          "textures": 42,
+          "entries": 78
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 35 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/hyundai-elantra-n-2024/3.usdz",
+        "bytes": 33230900,
+        "sha256": "a274f576791f6fe7def085b4a4d669fc1a2dae2c25e6b4f80db1807af7e4002f",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/hyundai_elantra_n_2024.glb",
+        "sizeMeters": {
+          "length": 4.675,
+          "width": 2.126,
+          "height": 1.405
+        },
+        "report": {
+          "meshes": 35,
+          "exported": 35,
+          "textures": 42,
+          "entries": 78
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 35 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "lamborghini-aventador-sv": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/lamborghini-aventador-sv/default.usdz",
+        "bytes": 29166501,
+        "sha256": "73f4a94951ac089c41438ec91c82a97fadf68dc8369fce154cfca1ed8f736dba",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/lamborghini_aventador_sv.glb",
+        "sizeMeters": {
+          "length": 4.835,
+          "width": 2.276,
+          "height": 1.149
+        },
+        "report": {
+          "meshes": 112,
+          "exported": 112,
+          "textures": 15,
+          "entries": 128
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 112 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "lamborghini-terzo-millennio": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/lamborghini-terzo-millennio/default.usdz",
+        "bytes": 11883706,
+        "sha256": "61b18791a016db1c853365e78bfc673e88b1dfbd2379efccaa28d57e779d667f",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/lamborghini_terzo_millennio.glb",
+        "sizeMeters": {
+          "length": 4.8,
+          "width": 2.252,
+          "height": 1.014
+        },
+        "report": {
+          "meshes": 99,
+          "exported": 99,
+          "textures": 3,
+          "entries": 103
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 99 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "land-rover-defender-110": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/land-rover-defender-110/0.usdz",
+        "bytes": 85439095,
+        "sha256": "6d07b501cdeda285c4739b2339dcbcfd97ce95438ceb6a7fd62c2c835d1c216e",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/land_rover_defender_110.glb",
+        "sizeMeters": {
+          "length": 5.018,
+          "width": 2.312,
+          "height": 2.944
+        },
+        "report": {
+          "meshes": 139,
+          "exported": 139,
+          "textures": 16,
+          "entries": 155
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 139 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/land-rover-defender-110/1.usdz",
+        "bytes": 85439361,
+        "sha256": "c3bd09e4c77c88ae2cece2616b69f5a59e918ed21837a7638dd96adcbc0f0a11",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/land_rover_defender_110.glb",
+        "sizeMeters": {
+          "length": 5.018,
+          "width": 2.312,
+          "height": 2.944
+        },
+        "report": {
+          "meshes": 139,
+          "exported": 139,
+          "textures": 16,
+          "entries": 155
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 139 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/land-rover-defender-110/2.usdz",
+        "bytes": 85439540,
+        "sha256": "08de3953bec39eb7c7d2d52e8acf7debb8a10eca2d8c2561499678bec86107c4",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/land_rover_defender_110.glb",
+        "sizeMeters": {
+          "length": 5.018,
+          "width": 2.312,
+          "height": 2.944
+        },
+        "report": {
+          "meshes": 139,
+          "exported": 139,
+          "textures": 16,
+          "entries": 155
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 139 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/land-rover-defender-110/3.usdz",
+        "bytes": 85439509,
+        "sha256": "fd3f567817559700c67897dea3c440fea10b99bc24368593fc1d101e454bb6ab",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/land_rover_defender_110.glb",
+        "sizeMeters": {
+          "length": 5.018,
+          "width": 2.312,
+          "height": 2.944
+        },
+        "report": {
+          "meshes": 139,
+          "exported": 139,
+          "textures": 16,
+          "entries": 155
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 139 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "lucid-air-sapphire": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/lucid-air-sapphire/0.usdz",
+        "bytes": 76103051,
+        "sha256": "450818740fe5df070b487117fdbba7319f7defdf63a2d8ea53cdffb1befe30e4",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/lucid_air_sapphire.glb",
+        "sizeMeters": {
+          "length": 4.975,
+          "width": 1.992,
+          "height": 1.445
+        },
+        "report": {
+          "meshes": 229,
+          "exported": 229,
+          "textures": 7,
+          "entries": 237
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 229 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/lucid-air-sapphire/1.usdz",
+        "bytes": 76103736,
+        "sha256": "da23a693c7691dbe5a55c4c54f89dd9b0d4b79c1cf1128da6469bf607ac42622",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/lucid_air_sapphire.glb",
+        "sizeMeters": {
+          "length": 4.975,
+          "width": 1.992,
+          "height": 1.445
+        },
+        "report": {
+          "meshes": 229,
+          "exported": 229,
+          "textures": 7,
+          "entries": 237
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 229 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "maybach-exelero-2005": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/maybach-exelero-2005/0.usdz",
+        "bytes": 5887156,
+        "sha256": "63ba66d2dade0114d28aa86c82a23889270ef6f7a7b99cbc3fd7e25fe574a716",
+        "staticHostable": true,
+        "sourceGlb": "assets/models/maybach_exelero_2005.glb",
+        "sizeMeters": {
+          "length": 5.89,
+          "width": 2.212,
+          "height": 1.442
+        },
+        "report": {
+          "meshes": 18,
+          "exported": 18,
+          "textures": 21,
+          "entries": 39
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 18 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "porsche-911-carrera-4s-2024": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/porsche-911-carrera-4s-2024/0.usdz",
+        "bytes": 49586596,
+        "sha256": "d00a30302c3cfb871e71345ba92a575d5170a97820cc86115289616d0b1402b5",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/porsche_911_carrera_4s_2024.glb",
+        "sizeMeters": {
+          "length": 4.519,
+          "width": 2.043,
+          "height": 1.298
+        },
+        "report": {
+          "meshes": 44,
+          "exported": 44,
+          "textures": 8,
+          "entries": 53
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 44 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/porsche-911-carrera-4s-2024/1.usdz",
+        "bytes": 49586640,
+        "sha256": "940e6956378604681f7e0eff3dcaad51a4c6695534d579503460f991df9bce99",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/porsche_911_carrera_4s_2024.glb",
+        "sizeMeters": {
+          "length": 4.519,
+          "width": 2.043,
+          "height": 1.298
+        },
+        "report": {
+          "meshes": 44,
+          "exported": 44,
+          "textures": 8,
+          "entries": 53
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 44 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/porsche-911-carrera-4s-2024/2.usdz",
+        "bytes": 49586738,
+        "sha256": "cc38361993a726a90ed6d595ff981e6ec1d1bbfd2e3f25140d331cc008eebab9",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/porsche_911_carrera_4s_2024.glb",
+        "sizeMeters": {
+          "length": 4.519,
+          "width": 2.043,
+          "height": 1.298
+        },
+        "report": {
+          "meshes": 44,
+          "exported": 44,
+          "textures": 8,
+          "entries": 53
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 44 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/porsche-911-carrera-4s-2024/3.usdz",
+        "bytes": 49586724,
+        "sha256": "a80ace12a7174f60389e117bbf0f94b9033fa74a261f0c9f7a35ef14afbbd2dc",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/porsche_911_carrera_4s_2024.glb",
+        "sizeMeters": {
+          "length": 4.519,
+          "width": 2.043,
+          "height": 1.298
+        },
+        "report": {
+          "meshes": 44,
+          "exported": 44,
+          "textures": 8,
+          "entries": 53
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 44 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 4,
+        "path": "assets/models/usdz/porsche-911-carrera-4s-2024/4.usdz",
+        "bytes": 49586873,
+        "sha256": "f70c93971c5ec562b7fbb766d967a9f0f518ddb9d632e27c1c97ba1f932fa693",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/porsche_911_carrera_4s_2024.glb",
+        "sizeMeters": {
+          "length": 4.519,
+          "width": 2.043,
+          "height": 1.298
+        },
+        "report": {
+          "meshes": 44,
+          "exported": 44,
+          "textures": 8,
+          "entries": 53
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 44 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "rolls-royce-boat-tail": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/rolls-royce-boat-tail/0.usdz",
+        "bytes": 76988556,
+        "sha256": "2c82609f0c8bab57846ce0450412cfcf2255f72ae428e4a0a76c066e42a1608f",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/rolls_royce_boat_tail.glb",
+        "sizeMeters": {
+          "length": 5.8,
+          "width": 2.191,
+          "height": 1.681
+        },
+        "report": {
+          "meshes": 79,
+          "exported": 79,
+          "textures": 0,
+          "entries": 80
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 79 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/rolls-royce-boat-tail/1.usdz",
+        "bytes": 76988798,
+        "sha256": "32e2d4e1dda11dc7408fcc67a9ff30a82d9338ef2350aa461d2ea4896d4a8e2b",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/rolls_royce_boat_tail.glb",
+        "sizeMeters": {
+          "length": 5.8,
+          "width": 2.191,
+          "height": 1.681
+        },
+        "report": {
+          "meshes": 79,
+          "exported": 79,
+          "textures": 0,
+          "entries": 80
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 79 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "subaru-impreza-2024": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/subaru-impreza-2024/default.usdz",
+        "bytes": 72555112,
+        "sha256": "a1af7e595831e1b537c0cbc63f8dcdfbc3414cd8bd5dfa0178b95604a7b4c4b5",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/subaru_impreza_2024.glb",
+        "sizeMeters": {
+          "length": 4.48,
+          "width": 1.898,
+          "height": 1.704
+        },
+        "report": {
+          "meshes": 89,
+          "exported": 89,
+          "textures": 48,
+          "entries": 138
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 89 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "suzuki-ciaz-2021": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/suzuki-ciaz-2021/default.usdz",
+        "bytes": 95299918,
+        "sha256": "e6064d24a9e437f77a0bf3bd99137a537507d6beb34cd23658fd9aa8635fec76",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/suzuki_ciaz_2021.glb",
+        "sizeMeters": {
+          "length": 4.49,
+          "width": 1.948,
+          "height": 1.488
+        },
+        "report": {
+          "meshes": 243,
+          "exported": 243,
+          "textures": 20,
+          "entries": 263
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 243 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "tesla-roadster-2": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/tesla-roadster-2/default.usdz",
+        "bytes": 67375063,
+        "sha256": "c337ac463c358f35f36a01fb245cb27a612b3cefcaee02d56fbcf59d892bad90",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/tesla_roadster_2.glb",
+        "sizeMeters": {
+          "length": 4.45,
+          "width": 1.941,
+          "height": 1.113
+        },
+        "report": {
+          "meshes": 73,
+          "exported": 73,
+          "textures": 146,
+          "entries": 220
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 73 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "toyota-camry": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/toyota-camry/0.usdz",
+        "bytes": 36807262,
+        "sha256": "ba7c29c99169f0c8aa346a12fe5f9fb1c1ad2d7102d9398ccf73bd315f4423d4",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/toyota_camry.glb",
+        "sizeMeters": {
+          "length": 4.885,
+          "width": 2.138,
+          "height": 1.472
+        },
+        "report": {
+          "meshes": 6,
+          "exported": 6,
+          "textures": 10,
+          "entries": 15
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 1 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/toyota-camry/1.usdz",
+        "bytes": 36807537,
+        "sha256": "83696eaf8289c983c6651b0ff861241af42a3409a14dca6e95f302735ac5ff7e",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/toyota_camry.glb",
+        "sizeMeters": {
+          "length": 4.885,
+          "width": 2.138,
+          "height": 1.472
+        },
+        "report": {
+          "meshes": 6,
+          "exported": 6,
+          "textures": 10,
+          "entries": 15
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 1 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/toyota-camry/2.usdz",
+        "bytes": 36807536,
+        "sha256": "43e1c477809ec9b01556fba7c18bb8abe9e468f7a1a10a2963f77c73bd159f01",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/toyota_camry.glb",
+        "sizeMeters": {
+          "length": 4.885,
+          "width": 2.138,
+          "height": 1.472
+        },
+        "report": {
+          "meshes": 6,
+          "exported": 6,
+          "textures": 10,
+          "entries": 15
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 1 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/toyota-camry/3.usdz",
+        "bytes": 36807539,
+        "sha256": "a0b494d657cc503c53a4d63540cef554cb40d2c124828dc5ce20fca76a2731eb",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/toyota_camry.glb",
+        "sizeMeters": {
+          "length": 4.885,
+          "width": 2.138,
+          "height": 1.472
+        },
+        "report": {
+          "meshes": 6,
+          "exported": 6,
+          "textures": 10,
+          "entries": 15
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 1 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "vinfast-fadil": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/vinfast-fadil/default.usdz",
+        "bytes": 51663541,
+        "sha256": "2140abd11650f36c450e8ee74c6d17712e7ff2c19d5c8afb1f938e22a3c9af7d",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_fadil.glb",
+        "sizeMeters": {
+          "length": 3.676,
+          "width": 1.898,
+          "height": 1.614
+        },
+        "report": {
+          "meshes": 10,
+          "exported": 10,
+          "textures": 11,
+          "entries": 22
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 10 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "vinfast-lux-a20": [
+      {
+        "colorIndex": null,
+        "path": "assets/models/usdz/vinfast-lux-a20/default.usdz",
+        "bytes": 80951761,
+        "sha256": "6632212ba125879337138ed1dbc7c7ab9cbeb0a47f68aba2871528f0b7f43dff",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_lux_a20.glb",
+        "sizeMeters": {
+          "length": 4.973,
+          "width": 2.195,
+          "height": 1.515
+        },
+        "report": {
+          "meshes": 52,
+          "exported": 52,
+          "textures": 1,
+          "entries": 54
+        },
+        "warnings": []
+      }
+    ],
+    "vinfast-vf3": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/vinfast-vf3/0.usdz",
+        "bytes": 34816896,
+        "sha256": "9fdf84f9b3118a12d882f0a15ddf9d0096116e743f64961270096febe1643787",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf3.glb",
+        "sizeMeters": {
+          "length": 3.19,
+          "width": 1.714,
+          "height": 1.546
+        },
+        "report": {
+          "meshes": 15,
+          "exported": 15,
+          "textures": 8,
+          "entries": 24
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 15 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/vinfast-vf3/1.usdz",
+        "bytes": 34816993,
+        "sha256": "f46219d0bbcbaf8a64820ce236bea9b91794b7f7c7f3054d38e6bc46387c82db",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf3.glb",
+        "sizeMeters": {
+          "length": 3.19,
+          "width": 1.714,
+          "height": 1.546
+        },
+        "report": {
+          "meshes": 15,
+          "exported": 15,
+          "textures": 8,
+          "entries": 24
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 15 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/vinfast-vf3/2.usdz",
+        "bytes": 34816993,
+        "sha256": "77fc5f6821c0d3f262ac83d68d4f4cc6b70318c2017e06d9ec94048ed387caa1",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf3.glb",
+        "sizeMeters": {
+          "length": 3.19,
+          "width": 1.714,
+          "height": 1.546
+        },
+        "report": {
+          "meshes": 15,
+          "exported": 15,
+          "textures": 8,
+          "entries": 24
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 15 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/vinfast-vf3/3.usdz",
+        "bytes": 34817164,
+        "sha256": "2b00d069899c33a15b804b93eed1eb9753925b3be27cafc26af23f601b1aea01",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf3.glb",
+        "sizeMeters": {
+          "length": 3.19,
+          "width": 1.714,
+          "height": 1.546
+        },
+        "report": {
+          "meshes": 15,
+          "exported": 15,
+          "textures": 8,
+          "entries": 24
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 15 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 4,
+        "path": "assets/models/usdz/vinfast-vf3/4.usdz",
+        "bytes": 34817161,
+        "sha256": "91af855b21336dd09e607313d810663d095fbc823f5d448f9b8e4bda98412b17",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf3.glb",
+        "sizeMeters": {
+          "length": 3.19,
+          "width": 1.714,
+          "height": 1.546
+        },
+        "report": {
+          "meshes": 15,
+          "exported": 15,
+          "textures": 8,
+          "entries": 24
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 15 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ],
+    "vinfast-vf9": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/vinfast-vf9/0.usdz",
+        "bytes": 94033710,
+        "sha256": "a83a6647c768f021dc60b65e0c4c628ec57700b7c6ae37e13e09890a6fa0d262",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf9.glb",
+        "sizeMeters": {
+          "length": 5.118,
+          "width": 2.432,
+          "height": 1.8
+        },
+        "report": {
+          "meshes": 110,
+          "exported": 110,
+          "textures": 1,
+          "entries": 100
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 110 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/vinfast-vf9/1.usdz",
+        "bytes": 94034266,
+        "sha256": "fa0294edaf13dffff0a63e95d3da0aebc98a5f291efb5027591deacee0ba5e83",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf9.glb",
+        "sizeMeters": {
+          "length": 5.118,
+          "width": 2.432,
+          "height": 1.8
+        },
+        "report": {
+          "meshes": 110,
+          "exported": 110,
+          "textures": 1,
+          "entries": 100
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 110 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/vinfast-vf9/2.usdz",
+        "bytes": 94034393,
+        "sha256": "da87e5623f0802c053bdb4566ccff90306bbcfffbdad715e72d0d5a1ecd01206",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf9.glb",
+        "sizeMeters": {
+          "length": 5.118,
+          "width": 2.432,
+          "height": 1.8
+        },
+        "report": {
+          "meshes": 110,
+          "exported": 110,
+          "textures": 1,
+          "entries": 100
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 110 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/vinfast-vf9/3.usdz",
+        "bytes": 94034273,
+        "sha256": "477445d15b4949570ca1ef4b46466f8d96d442745fd6cd1bf5d7c6a6742bb4b3",
+        "staticHostable": false,
+        "sourceGlb": "assets/models/vinfast_vf9.glb",
+        "sizeMeters": {
+          "length": 5.118,
+          "width": 2.432,
+          "height": 1.8
+        },
+        "report": {
+          "meshes": 110,
+          "exported": 110,
+          "textures": 1,
+          "entries": 100
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 110 vật liệu hai mặt được xuất một mặt."
         ]
       }
     ]
   },
   "generator": "scripts/build_usdz.js (three.js USDZExporter 0.170.0)",
-  "generatedAt": "2026-11-14T11:04:59.927Z",
-  "note": "Structural USDZ checks only. Rendering in AR Quick Look must be verified on an iPhone/iPad."
+  "generatedAt": "2026-11-14T12:13:11.848Z",
+  "note": "Structural USDZ checks only. Rendering in AR Quick Look must be verified on an iPhone/iPad.",
+  "pagesMaxFileBytes": 26214400
 }

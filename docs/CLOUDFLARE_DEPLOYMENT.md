@@ -95,5 +95,11 @@ If something is wrong, the `X-Sigma-Proxy-Error` response header names the cause
 - Models in `assets/models/` are served by Pages (25 MiB per-file limit; the build enforces it).
 - External CDNs work if they serve HTTPS with `Access-Control-Allow-Origin` covering the site origin. Without CORS, the page shows `NETWORK_OR_CORS`. A `.gltf` needs its `.bin`/textures reachable relative to its URL.
 - AR is Apple AR Quick Look only (see `APPLE_AR_ARCHITECTURE.md`). USDZ files under `assets/models/usdz/` are served by Pages with `Content-Type: model/vnd.usdz+zip` (one `_headers` rule; overlapping rules would join values with a comma). Regenerate them with `npm run usdz:build -- --vehicle <id>` whenever a source GLB changes; a unit test fails if a file no longer matches `data/usdz-assets.json`.
+- **USDZ files above 25 MiB (45 of the 58 pre-built files) cannot be Pages static files** — Cloudflare rejects any file above 25 MiB. `npm run build` keeps them out of `dist/`. To serve them:
+  1. Create an R2 bucket with public access (r2.dev subdomain or a custom domain).
+  2. `npm run usdz:build` (if the files are not present), then `node scripts/upload_usdz.js --bucket <name>` to review and `… --execute` to upload (needs `wrangler login` or an API token).
+  3. Set `SIGMACAR_USDZ_PUBLIC_BASE_URL=https://<public-bucket-host>` as a Pages build variable **and** on the backend, then rebuild/redeploy.
+  4. Check: `curl -sI "$B/data/ar/vinfast-vf9.json"` lists `https://<public-bucket-host>/vinfast-vf9/0.usdz?v=…`, and `curl -sI` on that URL returns `200` with `Content-Type: model/vnd.usdz+zip`.
+  Without step 3 the page converts those models on the iPhone/iPad itself (slower; may fail for lack of memory on older devices — the real error is shown).
 - External USDZ files (e.g. binary USDZ made on a Mac for the large models) need HTTPS. CORS is optional (Quick Look downloads them itself), but with `Access-Control-Allow-Origin` the page can verify the file before offering it.
 - AR Quick Look needs the page on HTTPS in Safari on iPhone/iPad; it cannot be tested from `localhost` on a desktop.

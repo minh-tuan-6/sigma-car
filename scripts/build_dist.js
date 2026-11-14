@@ -22,14 +22,33 @@ filesToCopy.forEach(f => {
   }
 });
 
+// Pre-built USDZ files above the Cloudflare Pages per-file limit (25 MiB) cannot be deployed as static files.
+// They are left out of dist/ and served from SIGMACAR_USDZ_PUBLIC_BASE_URL (see scripts/upload_usdz.js);
+// the AR snapshots below reference them there, or omit them (→ on-device conversion) when no URL is set.
+const PAGES_MAX_FILE_BYTES = 25 * 1024 * 1024;
+const externalUsdz = [];
 const dirsToCopy = ['css', 'js', 'assets'];
 dirsToCopy.forEach(d => {
   const src = path.join(rootDir, d);
   const dst = path.join(distDir, d);
   if (fs.existsSync(src)) {
-    fs.cpSync(src, dst, { recursive: true });
+    fs.cpSync(src, dst, {
+      recursive: true,
+      filter: (file) => {
+        if (path.basename(file) === '.gitignore') return false;
+        if (file.toLowerCase().endsWith('.usdz') && fs.statSync(file).size > PAGES_MAX_FILE_BYTES) {
+          externalUsdz.push(path.relative(rootDir, file).split(path.sep).join('/'));
+          return false;
+        }
+        return true;
+      }
+    });
   }
 });
+if (externalUsdz.length) {
+  const base = process.env.SIGMACAR_USDZ_PUBLIC_BASE_URL;
+  console.log(`📦 ${externalUsdz.length} USDZ file(s) > 25 MiB kept out of dist/ (Pages file limit); ${base ? `served from ${base}` : 'SIGMACAR_USDZ_PUBLIC_BASE_URL not set → those colours convert on the device'}`);
+}
 
 // Copy strictly public data files ONLY (NEVER sigmacar_store.json or private runtime data)
 const publicDataDir = path.join(distDir, 'data');
@@ -63,7 +82,7 @@ if (fs.existsSync(storePath)) {
     fs.mkdirSync(arDir, { recursive: true });
     let arCount = 0;
     for (const v of publicCatalog.vehicles) {
-      const manifest = buildArManifest(v);
+      const manifest = buildArManifest(v, { staticHostOnly: true });
       if (manifest && /^[a-z0-9][a-z0-9-]{0,79}$/.test(manifest.vehicleId)) {
         fs.writeFileSync(path.join(arDir, `${manifest.vehicleId}.json`), JSON.stringify(manifest), 'utf8');
         arCount++;

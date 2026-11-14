@@ -111,10 +111,39 @@ function resolveBodyMaterials(glbUrl, carId, bindings) {
   return { body: entry.fallbackPaintUsed ? [] : uniqueStrings(entry.paintMaterials), source: 'bindings' };
 }
 
+// Cloudflare Pages refuses any single static file above 25 MiB (platform limit). Pre-built USDZ files above it
+// are served from SIGMACAR_USDZ_PUBLIC_BASE_URL instead (e.g. an R2 public bucket or another HTTPS host).
+const PAGES_MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+function usdzPublicBaseUrl(override) {
+  const raw = override !== undefined ? override : process.env.SIGMACAR_USDZ_PUBLIC_BASE_URL;
+  if (!raw) return null;
+  try {
+    const u = new URL(String(raw).trim());
+    if (u.protocol !== 'https:' || u.username || u.password) return null;
+    return u.toString().replace(/\/+$/, '');
+  } catch (_) {
+    return null;
+  }
+}
+
+// Where a pre-built file is served from.
+//   * staticHostable (≤ 25 MiB): the site itself (relative path; Pages, server.js);
+//   * larger: the external base URL when configured; otherwise the site path — server.js and other hosts serve it,
+//     but a Pages snapshot build (opts.staticHostOnly) omits it so the page converts on the device instead of
+//     fetching a file that is not deployed.
+function prebuiltUsdzUrl(entry, rel, { publicBase, staticHostOnly }) {
+  const hostable = entry.staticHostable !== false && !(Number(entry.bytes) > PAGES_MAX_FILE_BYTES);
+  const version = entry.sha256 ? `?v=${String(entry.sha256).slice(0, 12)}` : '';
+  if (hostable) return `${rel}${version}`;
+  if (publicBase) return `${publicBase}/${rel.replace(/^assets\/models\/usdz\//, '')}${version}`;
+  return staticHostOnly ? null : `${rel}${version}`;
+}
+
 // USDZ files for AR Quick Look, in priority order per colour:
-//   1. pre-built by scripts/build_usdz.js (data/usdz-assets.json) — only if the file exists on disk;
+//   1. pre-built by scripts/build_usdz.js (data/usdz-assets.json);
 //   2. declared in data: registry configurations[].usdzUrl (per colour), registry usdzUrl / model3d.usdzPath (any colour).
-function collectUsdz(vehicle, reg, usdzIndex, colors) {
+function collectUsdz(vehicle, reg, usdzIndex, colors, { publicBase = null, staticHostOnly = false } = {}) {
   const out = [];
   const seen = new Set();
   const colorIdx = new Set(colors.map(c => c.index));
@@ -129,10 +158,14 @@ function collectUsdz(vehicle, reg, usdzIndex, colors) {
   const built = (usdzIndex && usdzIndex.vehicles && usdzIndex.vehicles[vehicle.id]) || [];
   for (const e of Array.isArray(built) ? built : []) {
     const rel = sanitizeModelUrl(e && e.path, ['.usdz']);
-    if (!rel || /^https:/i.test(rel) || !fs.existsSync(path.join(ROOT_DIR, rel))) continue;
+    if (!rel || /^https:/i.test(rel)) continue;
+    const external = Boolean(publicBase) && (e.staticHostable === false || Number(e.bytes) > PAGES_MAX_FILE_BYTES);
+    // A local file must exist unless it is served from the external base URL (fresh clones do not contain the
+    // large files: they are git-ignored build output).
+    if (!external && !fs.existsSync(path.join(ROOT_DIR, rel))) continue;
     // Content hash in the query string: the files are served with a 1-year immutable cache.
-    const url = e.sha256 ? `${rel}?v=${String(e.sha256).slice(0, 12)}` : rel;
-    push(Number.isInteger(e.colorIndex) ? e.colorIndex : null, url, 'prebuilt', e.bytes);
+    const url = prebuiltUsdzUrl(e, rel, { publicBase, staticHostOnly });
+    if (url) push(Number.isInteger(e.colorIndex) ? e.colorIndex : null, url, 'prebuilt', e.bytes);
   }
   for (const c of (reg && Array.isArray(reg.configurations)) ? reg.configurations : []) {
     if (Number.isInteger(c.colorIndex)) push(c.colorIndex, sanitizeModelUrl(c.usdzUrl, ['.usdz']), 'external', null);
@@ -144,7 +177,8 @@ function collectUsdz(vehicle, reg, usdzIndex, colors) {
 
 /**
  * @param {object} vehicle  vehicle record from VehicleRepository
- * @param {object} [opts]   { registry, bindings, usdzIndex } overrides for tests
+ * @param {object} [opts]   { registry, bindings, usdzIndex, usdzPublicBaseUrl } overrides for tests;
+ *                          staticHostOnly: true for Pages snapshots (omit files Pages cannot host when no base URL)
  * @returns {object|null}   manifest, or null when the vehicle has no usable 3D model
  */
 function buildArManifest(vehicle, opts = {}) {
@@ -178,7 +212,10 @@ function buildArManifest(vehicle, opts = {}) {
     .filter(v => v.colorIndex >= 0 && v.glbUrl);
 
   const materials = resolveBodyMaterials(glbUrl, vehicle.id, bindings);
-  const usdz = collectUsdz(vehicle, reg, usdzIndex, colors);
+  const usdz = collectUsdz(vehicle, reg, usdzIndex, colors, {
+    publicBase: usdzPublicBaseUrl(opts.usdzPublicBaseUrl),
+    staticHostOnly: Boolean(opts.staticHostOnly)
+  });
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -194,7 +231,7 @@ function buildArManifest(vehicle, opts = {}) {
       // fit-to-length: rescale so the longest horizontal extent equals dimensionsMeters.length.
       scaleMode: certified ? 'certified' : (dims ? 'fit-to-length' : 'as-authored'),
       dimensionsMeters: dims,
-      fileSizeBytes: Number.isFinite(Number(reg && reg.fileSizeBytes)) ? Number(reg.fileSizeBytes) : null
+      fileSizeBytes: reg && Number(reg.fileSizeBytes) > 0 ? Number(reg.fileSizeBytes) : null
     },
     variants,
     colors,
@@ -219,6 +256,8 @@ function buildArManifest(vehicle, opts = {}) {
 
 module.exports = {
   SCHEMA_VERSION,
+  PAGES_MAX_FILE_BYTES,
+  usdzPublicBaseUrl,
   buildArManifest,
   sanitizeModelUrl,
   resetCache
