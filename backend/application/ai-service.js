@@ -18,7 +18,7 @@ const appConfig = require('../config');
 class AIService {
   constructor() {
     this.config = {
-      provider: appConfig.ai.provider || 'local-automotive',
+      provider: appConfig.ai.provider || 'openai',
       allowLocalFallback: appConfig.ai.allowLocalFallback !== false,
       geminiApiKey: (appConfig.ai.gemini && appConfig.ai.gemini.apiKey) || process.env.GEMINI_API_KEY || '',
       geminiModel: (appConfig.ai.gemini && appConfig.ai.gemini.model) || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
@@ -132,10 +132,10 @@ class AIService {
         status: this.knowledgeBase.syncStatus
       },
       supportedProviders: [
-        { id: 'local-automotive', name: 'Sigma AI Engine Nội Bộ (Mặc định - Miễn phí, Siêu tốc, Không cần API Key)', defaultModel: 'Sigma AI (Nội bộ)' },
+        { id: 'local-automotive', name: 'Sigma AI Engine Nội Bộ (Dự phòng - Miễn phí, Không cần API Key)', defaultModel: 'Sigma AI (Nội bộ)' },
         { id: 'gemini', name: 'Google Gemini API (Chính thức - Tùy chọn)', defaultModel: 'gemini-2.5-flash', supportedModels: ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'] },
         { id: 'groq', name: 'Groq Cloud (OpenAI-compatible)', defaultModel: 'llama-3.3-70b-versatile', supportedModels: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'] },
-        { id: 'openai', name: 'OpenAI (GPT-4o)', defaultModel: 'gpt-4o-mini', supportedModels: ['gpt-4o-mini', 'gpt-4o'] },
+        { id: 'openai', name: 'OpenAI (Mặc định - GPT-4o / GPT-4o-mini)', defaultModel: 'gpt-4o-mini', supportedModels: ['gpt-4o-mini', 'gpt-4o'] },
         { id: 'ollama', name: 'Ollama Cục Bộ', defaultModel: 'qwen2.5:0.5b', supportedModels: ['qwen2.5:0.5b', 'llama3.2:1b'] }
       ]
     };

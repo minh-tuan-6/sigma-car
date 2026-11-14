@@ -2707,6 +2707,10 @@ if (typeof window !== 'undefined') {
                   hint.textContent = 'Mô hình suy luận cục bộ: 100% bảo mật, tốc độ tức thì, không cần kết nối mạng hay API Key';
                 } else if (cfg.provider === 'gemini') {
                   hint.textContent = 'Gợi ý cho Gemini: gemini-2.5-flash, gemini-1.5-flash, gemini-1.5-pro';
+                } else if (cfg.provider === 'openai') {
+                  hint.textContent = cfg.hasApiKey
+                    ? 'OpenAI (mặc định): gpt-4o-mini, gpt-4o'
+                    : 'OpenAI (mặc định): chưa có OPENAI_API_KEY nên đang trả lời bằng Sigma AI nội bộ';
                 }
               }
               if (keyStatusSaved) keyStatusSaved.style.display = cfg.hasApiKey ? 'block' : 'none';
@@ -2727,8 +2731,8 @@ if (typeof window !== 'undefined') {
             }
           }
         } catch (e) {
-          if (providerSelect) providerSelect.value = 'local-automotive';
-          if (modelInput) modelInput.value = 'Sigma AI (Nội bộ)';
+          if (providerSelect) providerSelect.value = 'openai';
+          if (modelInput) modelInput.value = 'gpt-4o-mini';
           if (epGroup) epGroup.style.display = 'none';
         }
       }

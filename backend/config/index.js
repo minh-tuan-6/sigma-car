@@ -153,7 +153,8 @@ function buildConfig(envOverrides = {}) {
 
     // Centralized AI Configuration
     ai: {
-      provider: process.env.AI_PROVIDER || 'local-automotive',
+      // OpenAI is the default assistant; without OPENAI_API_KEY the chat falls back to the built-in local engine.
+      provider: process.env.AI_PROVIDER || 'openai',
       allowLocalFallback: process.env.ALLOW_LOCAL_FALLBACK !== 'false',
       enableLegacyOllamaProxy: process.env.ENABLE_LEGACY_OLLAMA_PROXY === 'true',
       gemini: {

@@ -1040,3 +1040,11 @@ Follow-up: `POST /payments/sandbox/simulate` no longer returns "Sandbox payment 
 because `NODE_ENV=production`; it is locked only when a real gateway is configured (`PAYMENT_GATEWAY_SANDBOX=false`)
 and `ALLOW_SANDBOX_SIMULATOR` is not `true`. Order ownership is still enforced. Test added to
 `tests/security/payment_bypass.test.js` (production mode: owner 200, other buyer 403); `npm test` 359/359.
+
+### N.13 OpenAI as the default AI assistant (user request)
+
+`AI_PROVIDER` now defaults to `openai` (`backend/config/index.js`, `ai-service.js`; model `gpt-4o-mini`). Without
+`OPENAI_API_KEY` the chat answers with the built-in local engine as before (no network call), so nothing breaks without a
+key. A provider saved by an admin in "Cấu hình AI" still overrides the default. The settings screen marks OpenAI as
+"Mặc định" and the local engine as "Dự phòng". Test: `tests/unit/openai_default.test.js` (3); `npm test` 362/362,
+`test:worker-runtime` 110 + 1 skipped.
