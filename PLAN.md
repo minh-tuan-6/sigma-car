@@ -1036,3 +1036,7 @@ Used by the order payment panel ("Đặt cọc", "Thanh toán toàn bộ") and t
 production. Browser check: early release → still Unpaid; 5 s hold → Deposit_Paid 50.000.000 đ; Space held 5 s →
 Fully_Paid; Escape closes without paying; product-page deposit → Deposit_Paid; desktop and mobile layout checked.
 `npm test` 358/358, build OK.
+Follow-up: `POST /payments/sandbox/simulate` no longer returns "Sandbox payment simulator bị khóa ở môi trường Production" just
+because `NODE_ENV=production`; it is locked only when a real gateway is configured (`PAYMENT_GATEWAY_SANDBOX=false`)
+and `ALLOW_SANDBOX_SIMULATOR` is not `true`. Order ownership is still enforced. Test added to
+`tests/security/payment_bypass.test.js` (production mode: owner 200, other buyer 403); `npm test` 359/359.

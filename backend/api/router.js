@@ -574,7 +574,10 @@ async function handleApiRequest(req, res) {
     if (pathname === '/api/v1/payments/sandbox/simulate' && method === 'POST') {
       const user = authorize(req, res);
       if (!user) return;
-      if (process.env.NODE_ENV === 'production' && process.env.ALLOW_SANDBOX_SIMULATOR !== 'true' && user.role !== ROLES.ADMIN) {
+      // Simulated payments are the site's payment method (js/fake-pay-dialog.js): the simulator is open to the order's
+      // owner whenever the gateway runs in sandbox mode (default). It is locked only if a real gateway is configured
+      // (PAYMENT_GATEWAY_SANDBOX=false) and ALLOW_SANDBOX_SIMULATOR is not 'true'.
+      if (process.env.PAYMENT_GATEWAY_SANDBOX === 'false' && process.env.ALLOW_SANDBOX_SIMULATOR !== 'true' && user.role !== ROLES.ADMIN) {
         return sendError(res, 403, 'Sandbox payment simulator bị khóa ở môi trường Production.', 'FORBIDDEN');
       }
       const body = await parseBody(req);

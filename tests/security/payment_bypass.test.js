@@ -170,6 +170,22 @@ describe('T0.1 complete-payment rejects forged verification', () => {
     assert.equal(settled.body.data.paymentStatus, 'Fully_Paid');
   });
 
+  it('simulated payments work in production mode for the owner only (sandbox gateway)', async () => {
+    const prevEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      const order = await createOrder(buyer1Token);
+      const intent = (await api('/payments/intents', { method: 'POST', token: buyer1Token, body: { orderId: order.id, mode: 'deposit', provider: 'napas_qr_sandbox' } })).body.data;
+      const other = await api('/payments/sandbox/simulate', { method: 'POST', token: buyer2Token, body: { intentId: intent.id, status: 'succeeded' } });
+      assert.equal(other.status, 403, 'another buyer cannot settle this order');
+      const own = await api('/payments/sandbox/simulate', { method: 'POST', token: buyer1Token, body: { intentId: intent.id, status: 'succeeded' } });
+      assert.equal(own.status, 200, JSON.stringify(own.body));
+      assert.equal((await getOrder(order.id, buyer1Token)).paymentStatus, 'Deposit_Paid');
+    } finally {
+      process.env.NODE_ENV = prevEnv;
+    }
+  });
+
   it("forbids completing another buyer's order", async () => {
     const order = await createOrder(buyer1Token);
     const other = await api(`/orders/${order.id}/complete-payment`, {
