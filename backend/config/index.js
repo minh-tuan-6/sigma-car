@@ -153,8 +153,9 @@ function buildConfig(envOverrides = {}) {
 
     // Centralized AI Configuration
     ai: {
-      // OpenAI is the default assistant; without OPENAI_API_KEY the chat falls back to the built-in local engine.
-      provider: process.env.AI_PROVIDER || 'openai',
+      // Cloudflare Workers AI is the default assistant (binding AI, no API key, free daily allowance). Where the binding
+      // does not exist (node server.js, tests) or the quota is used up, the chat answers with the built-in local engine.
+      provider: process.env.AI_PROVIDER || 'workers-ai',
       allowLocalFallback: process.env.ALLOW_LOCAL_FALLBACK !== 'false',
       enableLegacyOllamaProxy: process.env.ENABLE_LEGACY_OLLAMA_PROXY === 'true',
       gemini: {
@@ -168,6 +169,9 @@ function buildConfig(envOverrides = {}) {
         apiKey: process.env.GROQ_API_KEY || process.env.AI_API_KEY || '',
         model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
         endpoint: 'https://api.groq.com/openai/v1/chat/completions'
+      },
+      workersAi: {
+        model: process.env.WORKERS_AI_MODEL || '@cf/aisingapore/gemma-sea-lion-v4-27b-it'
       },
       openai: {
         apiKey: process.env.OPENAI_API_KEY || '',

@@ -70,6 +70,10 @@ PAYMENT_GATEWAY_SANDBOX = "true"
 ALLOW_SANDBOX_SIMULATOR = "true"
 SIGMACAR_ALLOW_DEV_SEED = "false"
 
+# Cloudflare Workers AI (free daily allowance) — default AI assistant; no API key needed.
+[env.staging.ai]
+binding = "AI"
+
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "Server"
@@ -98,6 +102,10 @@ PAYMENT_GATEWAY_SANDBOX = "true"
 # Simulated payments: buyers settle sandbox intents with the hold-to-confirm dialog (js/fake-pay-dialog.js).
 ALLOW_SANDBOX_SIMULATOR = "true"
 SIGMACAR_ALLOW_DEV_SEED = "false"
+
+# Cloudflare Workers AI (free daily allowance) — default AI assistant; no API key needed.
+[env.production.ai]
+binding = "AI"
 
 [[env.production.d1_databases]]
 binding = "DB"

@@ -656,14 +656,24 @@ const ConsultationService = {
           });
         }
       }
+      // The configured AI model (OpenAI by default) writes the reply around this server-computed shortlist; without a
+      // configured model, or if the call fails, the deterministic shortlist text is used as before.
+      const shortlistText = lines.join('\n');
+      const llmText = await AIService.generateGroundedReply({
+        message: sanitizedPrompt,
+        history: existingHistory,
+        currentUser: user,
+        facts: shortlistText
+      });
+      const noticeLines = [];
       if (uploadedMedia) {
-        lines.push(`\n📷 **Ảnh không gian đã được lưu riêng tư có thời hạn** (tự động xóa sau ${Math.min(168, Math.max(1, Number(retentionHours) || DEFAULT_IMAGE_TTL_HOURS))} giờ, EXIF đã được lược bỏ). ${fitContext.disclaimer}`);
+        noticeLines.push(`\n📷 **Ảnh không gian đã được lưu riêng tư có thời hạn** (tự động xóa sau ${Math.min(168, Math.max(1, Number(retentionHours) || DEFAULT_IMAGE_TTL_HOURS))} giờ, EXIF đã được lược bỏ). ${fitContext.disclaimer}`);
       }
       if (fitContext.evaluated && fitContext.comparisons) {
-        lines.push('\n📏 **Đối chiếu kích thước tự đo:**');
-        fitContext.comparisons.forEach(c => lines.push(`- **${c.name}**: ${c.reason}`));
+        noticeLines.push('\n📏 **Đối chiếu kích thước tự đo:**');
+        fitContext.comparisons.forEach(c => noticeLines.push(`- **${c.name}**: ${c.reason}`));
       }
-      aiReplyText = lines.join('\n');
+      aiReplyText = [llmText || shortlistText, ...noticeLines].join('\n');
     } else {
       const baseRes = await AIService.chat({
         message: sanitizedPrompt,

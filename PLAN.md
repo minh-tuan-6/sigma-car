@@ -1048,3 +1048,21 @@ and `ALLOW_SANDBOX_SIMULATOR` is not `true`. Order ownership is still enforced. 
 key. A provider saved by an admin in "Cấu hình AI" still overrides the default. The settings screen marks OpenAI as
 "Mặc định" and the local engine as "Dự phòng". Test: `tests/unit/openai_default.test.js` (3); `npm test` 362/362,
 `test:worker-runtime` 110 + 1 skipped.
+
+Follow-up: logged-in advisor messages with active preferences used a fixed template and never called the AI model. They
+now call `AIService.generateGroundedReply()` (OpenAI by default) with the server-computed shortlist as context; without
+a key or on an API error the template is kept. Image-retention and space-fit notices are appended verbatim. Test:
+`tests/unit/openai_consultation.test.js` (3); `npm test` 365/365.
+
+### N.14 Cloudflare Workers AI as the default assistant (user request; replaces N.13 default)
+
+No working OpenAI key, so the default provider is now `workers-ai`: Cloudflare Workers AI through the `AI` binding
+(`[env.staging.ai]` / `[env.production.ai]` in `wrangler.api.toml`; free daily allowance on the Workers Free plan, no
+API key). Model `@cf/aisingapore/gemma-sea-lion-v4-27b-it` (SEA-LION, tuned for Southeast Asian languages), overridable
+with the `WORKERS_AI_MODEL` var. `backend/cloudflare/runtime.js` passes `env.AI` to `AIService.setWorkersAiBinding()`.
+Without the binding (node server.js, local wrangler dev, tests) or on any Workers AI error (e.g. allowance used up)
+the built-in local engine answers. Advisor replies with active preferences use it too (`generateGroundedReply`). The
+binding is not added to the local default environment, because AI bindings always call Cloudflare. OpenAI remains
+selectable. Tests: `tests/unit/openai_default.test.js` (6), `tests/unit/workers_ai_binding.test.js` (1); `npm test`
+369/369, `test:worker-runtime` 110 + 1 skipped, `test:workers` 7/7; `wrangler deploy --dry-run` shows the `env.AI`
+binding.
