@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="css/style.css?v=19.0">
 </head>
 <body>
+  <div id="sigma-demo-status-bar"></div>
 
   <!-- ===================================================================
        STICKY HEADER & NAVIGATION (Matching Header.pdf)
@@ -603,7 +604,7 @@
         </p>
 
         <!-- Auth Tabs: Đăng nhập / Đăng ký -->
-        <div style="display:flex; background:#F1F5F9; border-radius:var(--radius-md); padding:4px; margin-bottom:20px;">
+        <div style="display:flex; background:#F1F5F9; border-radius:var(--radius-md); padding:4px; margin-bottom:14px;">
           <button type="button" class="auth-tab-btn active" id="tab-auth-login" style="flex:1; padding:8px; border-radius:var(--radius-sm); font-weight:700; font-size:13px; transition:all 0.2s; background:#FFFFFF; color:var(--primary); box-shadow:0 1px 3px rgba(0,0,0,0.08);">
             🔑 Đăng nhập
           </button>
@@ -611,6 +612,8 @@
             ✨ Đăng ký mới
           </button>
         </div>
+
+        <div id="auth-demo-helper-mount" style="margin-bottom:14px;"></div>
 
         <!-- TAB 1: FORM LOGIN -->
         <div id="auth-login-pane">
@@ -793,9 +796,10 @@
   <script src="js/data.js?v=20.0"></script>
   <script src="js/ar-manifest.js?v=20.0"></script>
   <script src="js/ar-adapter.js?v=20.0"></script>
-  <script src="js/api-client.js?v=20.0"></script>
-  <script src="js/cart-view.js?v=20.0"></script>
-  <script src="js/checkout-view.js?v=20.0"></script>
+  <script src="js/static-sandbox.js?v=21.0"></script>
+  <script src="js/api-client.js?v=21.0"></script>
+  <script src="js/cart-view.js?v=21.0"></script>
+  <script src="js/checkout-view.js?v=21.0"></script>
   <script src="js/registration-view.js?v=20.0"></script>
   <script src="js/tco-view.js?v=20.0"></script>
   <script src="js/consultation-state.js?v=20.0"></script>
@@ -804,6 +808,6 @@
   <script src="js/content-admin.js?v=20.0"></script>
   <script src="js/automotive-llm.js?v=20.0"></script>
   <script src="js/ai-engine.js?v=20.0"></script>
-  <script src="js/app.js?v=20.0"></script>
+  <script src="js/app.js?v=21.0"></script>
 </body>
 </html>

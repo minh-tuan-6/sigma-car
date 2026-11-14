@@ -127,6 +127,7 @@
     await updateCartHeaderBadge();
 
     if (loadError) {
+      const canOfferDemo = !ApiClient.isDemoMode() && /Static Read-Only|máy chủ|kết nối|BACKEND/i.test(loadError);
       container.innerHTML = `
         <section class="section" style="padding-top:40px; min-height:60vh;">
           <div class="container" style="max-width:680px;">
@@ -135,6 +136,7 @@
               <h2 style="font-size:20px; font-weight:800; color:#991B1B; margin-bottom:8px;">Không thể tải giỏ hàng</h2>
               <p style="font-size:14px; color:#7F1D1D; margin-bottom:20px;">${esc(loadError)}</p>
               <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                ${canOfferDemo ? '<button class="btn-primary" id="btn-cart-enable-demo" style="background:linear-gradient(135deg,#0EA5E9,#2563EB);">🧪 Bật Demo Sandbox</button>' : ''}
                 <button class="btn-primary" id="btn-cart-retry">↻ Thử lại</button>
                 <button class="btn-secondary" onclick="window.location.hash='new-cars'">Xem dòng xe</button>
               </div>
@@ -142,6 +144,11 @@
           </div>
         </section>
       `;
+      document.getElementById('btn-cart-enable-demo')?.addEventListener('click', () => {
+        ApiClient.setDemoMode(true);
+        showToast('Đã bật Chế độ Demo Sandbox trên trình duyệt.', '🧪');
+        renderCartView(container, deps);
+      });
       document.getElementById('btn-cart-retry')?.addEventListener('click', () => renderCartView(container, deps));
       return;
     }

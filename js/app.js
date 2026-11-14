@@ -11859,6 +11859,7 @@ const AppState = {
         navigateTo('profile');
       }
     } catch (err) {
+      if (typeof renderAuthDemoHelper === 'function') renderAuthDemoHelper(err);
       showToast(err.message, '⚠️');
     }
   });
@@ -11893,6 +11894,7 @@ const AppState = {
         navigateTo('profile');
       }
     } catch (err) {
+      if (typeof renderAuthDemoHelper === 'function') renderAuthDemoHelper(err);
       showToast(err.message, '⚠️');
     }
   });
@@ -12129,6 +12131,134 @@ const AppState = {
     }
   });
 
+  // Static Preview / Opt-In Demo Sandbox Status & Auth Helpers (H-01 transparent isolation)
+  function renderDemoStatusBar() {
+    const bar = document.getElementById('sigma-demo-status-bar');
+    if (!bar || typeof ApiClient === 'undefined') return;
+    const isDemo = ApiClient.isDemoMode();
+    if (isDemo) {
+      bar.innerHTML = `
+        <div style="background:linear-gradient(90deg,#78350F,#92400E); color:#FEF3C7; font-size:12.5px; padding:8px 16px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; text-align:center;">
+          <span>🧪 <strong>CHẾ ĐỘ DEMO SANDBOX</strong> — Giỏ hàng, Checkout &amp; Thanh toán QR chỉ mô phỏng cục bộ trên trình duyệt (không thu tiền thật).</span>
+          <span style="display:inline-flex; gap:6px; align-items:center;">
+            <button type="button" id="btn-demo-reset-store" style="background:rgba(255,255,255,0.16); color:#FFFBEB; border:1px solid rgba(254,243,199,0.45); border-radius:999px; padding:3px 10px; font-size:11.5px; font-weight:700; cursor:pointer;">↻ Đặt lại Demo</button>
+            <button type="button" id="btn-demo-disable" style="background:#FFFBEB; color:#78350F; border:none; border-radius:999px; padding:3px 10px; font-size:11.5px; font-weight:800; cursor:pointer;">⏹ Tắt Demo</button>
+          </span>
+        </div>
+      `;
+      document.getElementById('btn-demo-reset-store')?.addEventListener('click', () => {
+        if (window.SigmaStaticSandbox?.resetStore) window.SigmaStaticSandbox.resetStore();
+        AppState.currentUser = null;
+        updateDropdownUserUI();
+        window.SigmaCartView?.updateCartHeaderBadge?.();
+        renderDemoStatusBar();
+        renderAuthDemoHelper();
+        showToast('Đã đặt lại dữ liệu Demo Sandbox về mặc định.', '🔄');
+        navigateTo(AppState.currentRoute || 'home');
+      });
+      document.getElementById('btn-demo-disable')?.addEventListener('click', () => {
+        ApiClient.setDemoMode(false);
+        showToast('Đã thoát Chế độ Demo Sandbox (chuyển về Live / Static Read-Only).', '🌐');
+        navigateTo(AppState.currentRoute || 'home');
+      });
+      return;
+    }
+
+    let hiddenBanner = false;
+    try { hiddenBanner = sessionStorage.getItem('sigmacar_hide_static_banner') === '1'; } catch (_) {}
+    if (ApiClient.staticHostDetected && !hiddenBanner) {
+      bar.innerHTML = `
+        <div style="background:linear-gradient(90deg,#0F172A,#1E3A8A); color:#E0F2FE; font-size:12.5px; padding:8px 16px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; text-align:center;">
+          <span>🌐 <strong>Static Preview</strong> — Chưa kết nối Backend Server. Bật Demo Sandbox để trải nghiệm Giỏ hàng, Checkout &amp; Thanh toán QR mô phỏng.</span>
+          <span style="display:inline-flex; gap:6px; align-items:center;">
+            <button type="button" id="btn-demo-enable-bar" style="background:#38BDF8; color:#0F172A; border:none; border-radius:999px; padding:4px 12px; font-size:11.5px; font-weight:800; cursor:pointer;">🧪 Bật Demo Sandbox</button>
+            <button type="button" id="btn-static-banner-dismiss" aria-label="Đóng thông báo" style="background:transparent; color:#BAE6FD; border:none; font-size:14px; cursor:pointer; padding:2px 6px;">✕</button>
+          </span>
+        </div>
+      `;
+      document.getElementById('btn-demo-enable-bar')?.addEventListener('click', () => {
+        ApiClient.setDemoMode(true);
+        showToast('Đã bật Chế độ Demo Sandbox (dữ liệu lưu cục bộ trình duyệt).', '🧪');
+        navigateTo(AppState.currentRoute || 'home');
+      });
+      document.getElementById('btn-static-banner-dismiss')?.addEventListener('click', () => {
+        try { sessionStorage.setItem('sigmacar_hide_static_banner', '1'); } catch (_) {}
+        bar.innerHTML = '';
+      });
+      return;
+    }
+
+    bar.innerHTML = '';
+  }
+
+  function renderAuthDemoHelper(lastErr = null) {
+    const mount = document.getElementById('auth-demo-helper-mount');
+    if (!mount || typeof ApiClient === 'undefined') return;
+    const isOfflineErr = lastErr && (lastErr.code === 'BACKEND_UNAVAILABLE' || lastErr.status === 503);
+    const showHelper = ApiClient.isDemoMode() || ApiClient.staticHostDetected || isOfflineErr;
+    if (!showHelper) {
+      mount.innerHTML = '';
+      return;
+    }
+
+    const isDemo = ApiClient.isDemoMode();
+    mount.innerHTML = `
+      <div style="background:${isDemo ? '#FFFBEB' : '#EFF6FF'}; border:1px solid ${isDemo ? '#FCD34D' : '#93C5FD'}; border-radius:10px; padding:10px 12px; font-size:12px; line-height:1.45; color:${isDemo ? '#78350F' : '#1E3A8A'};">
+        <div style="font-weight:800; margin-bottom:4px;">
+          ${isDemo ? '🧪 Chế độ Demo Sandbox đang bật' : '🌐 Phát hiện Static Hosting (Chưa kết nối Backend)'}
+        </div>
+        <div style="margin-bottom:8px;">
+          ${isDemo
+            ? 'Điền nhanh tài khoản thử nghiệm (hoặc chuyển sang tab <strong>Đăng ký mới</strong> để tạo Buyer sandbox):'
+            : 'Bật <strong>Demo Sandbox</strong> để đăng nhập / đăng ký / đặt hàng mô phỏng ngay trên trình duyệt:'}
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button type="button" id="btn-fill-demo-buyer" style="background:#0EA5E9; color:#FFFFFF; border:none; border-radius:8px; padding:5px 10px; font-size:11.5px; font-weight:700; cursor:pointer;">
+            👤 ${isDemo ? 'Điền Buyer Demo' : 'Bật Demo & Điền Buyer'}
+          </button>
+          <button type="button" id="btn-fill-demo-seller" style="background:#1E293B; color:#FFFFFF; border:none; border-radius:8px; padding:5px 10px; font-size:11.5px; font-weight:700; cursor:pointer;">
+            🏬 ${isDemo ? 'Điền Seller Demo' : 'Bật Demo & Điền Seller'}
+          </button>
+        </div>
+      </div>
+    `;
+
+    const applyDemoCredentials = (email, pass, label) => {
+      if (!ApiClient.isDemoMode()) ApiClient.setDemoMode(true);
+      switchAuthTab('login');
+      const emailEl = document.getElementById('auth-email-input');
+      const pwdEl = document.getElementById('auth-password-input');
+      if (emailEl) emailEl.value = email;
+      if (pwdEl) pwdEl.value = pass;
+      renderDemoStatusBar();
+      renderAuthDemoHelper();
+      showToast(`Đã điền thông tin ${label}. Bấm "Đăng nhập hệ thống" để tiếp tục.`, '🧪');
+    };
+
+    document.getElementById('btn-fill-demo-buyer')?.addEventListener('click', () => {
+      applyDemoCredentials('minhhoang.sigma@example.com', 'Buyer@123456', 'Buyer Demo');
+    });
+    document.getElementById('btn-fill-demo-seller')?.addEventListener('click', () => {
+      applyDemoCredentials('minhphan.seller@sigmacar.vn', 'Seller@123456', 'Seller Demo');
+    });
+  }
+
+  window.addEventListener('sigmacar:demo-mode-changed', () => {
+    AppState.currentUser = ApiClient.getCurrentUser();
+    updateDropdownUserUI();
+    window.SigmaCartView?.updateCartHeaderBadge?.();
+    renderDemoStatusBar();
+    renderAuthDemoHelper();
+  });
+  window.addEventListener('sigmacar:static-host-detected', () => {
+    renderDemoStatusBar();
+    renderAuthDemoHelper();
+  });
+  window.addEventListener('sigmacar:backend-unavailable', () => {
+    renderDemoStatusBar();
+    renderAuthDemoHelper({ code: 'BACKEND_UNAVAILABLE', status: 503 });
+  });
+
   // Close modals
   document.querySelectorAll('.modal-close-btn, .modal-close-btn-alt').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -12153,6 +12283,8 @@ const AppState = {
   }
   updateDropdownUserUI();
   await loadBackendData();
+  renderDemoStatusBar();
+  renderAuthDemoHelper();
   window.SigmaCartView?.updateCartHeaderBadge?.();
   const initial = window.location.hash.replace('#', '') || 'home';
   navigateTo(initial);

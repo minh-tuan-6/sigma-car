@@ -299,6 +299,34 @@
         });
       }
     } catch (err) {
+      const isStaticOffline = err && (err.code === 'BACKEND_UNAVAILABLE' || err.status === 503);
+      if (isStaticOffline && !ApiClient.isDemoMode()) {
+        container.innerHTML = `
+          <div class="container" style="padding:56px 20px; max-width:640px; text-align:center;">
+            <div style="background:#FFFBEB; border:1px solid #FCD34D; border-radius:16px; padding:28px; box-shadow:var(--shadow-sm);">
+              <div style="font-size:38px; margin-bottom:10px;">🧪</div>
+              <h3 style="margin:0 0 8px; color:#92400E;">Chưa kết nối Backend Server (Chế độ Xem Tĩnh)</h3>
+              <p style="color:#78350F; font-size:14px; line-height:1.6; margin:0 0 18px;">
+                ${esc(err.message)}<br>
+                Bạn có thể bật <strong>Chế độ Demo Sandbox</strong> trên trình duyệt để trải nghiệm đầy đủ tính năng Giỏ hàng, Checkout, giữ chỗ 15 phút &amp; Thanh toán QR mô phỏng (không thu tiền thật).
+              </p>
+              <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                <button type="button" class="btn-primary" id="btn-checkout-enable-demo" style="background:linear-gradient(135deg,#0EA5E9,#2563EB);">
+                  🧪 Bật Demo Sandbox &amp; Tiếp tục Checkout
+                </button>
+                <button type="button" class="btn-secondary" onclick="window.location.hash='cart'">Quay lại Giỏ hàng</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.getElementById('btn-checkout-enable-demo')?.addEventListener('click', () => {
+          ApiClient.setDemoMode(true);
+          showToast('Đã bật Chế độ Demo Sandbox (dữ liệu mô phỏng cục bộ trên trình duyệt).', '🧪');
+          renderCheckoutView(container, params, deps);
+        });
+        return;
+      }
+
       container.innerHTML = `
         <div class="container" style="padding:64px 20px; max-width:600px; text-align:center;">
           <div style="background:#FEF2F2; border:1px solid #FCA5A5; border-radius:16px; padding:28px;">
@@ -314,9 +342,14 @@
     let idempotencyKey = newIdempotencyKey('chk');
     let submitting = false;
 
+    const demoBannerHtml = ApiClient.isDemoMode()
+      ? `<div style="background:#FEF3C7; border:1px solid #F59E0B; color:#92400E; padding:10px 14px; border-radius:10px; font-size:12.5px; font-weight:600; margin-bottom:16px;">🧪 CHẾ ĐỘ DEMO SANDBOX — Báo giá, giữ chỗ 15 phút &amp; thanh toán QR chỉ mô phỏng cục bộ trên trình duyệt, không phát sinh giao dịch tiền thật.</div>`
+      : '';
+
     container.innerHTML = `
       <section class="section" style="padding-top:36px; padding-bottom:64px;">
         <div class="container" style="max-width:1040px;">
+          ${demoBannerHtml}
           <h1 style="font-size:28px; font-weight:800; margin:0 0 6px;">⚡ Checkout & Đặt giữ chỗ Chính hãng</h1>
           <p style="font-size:14px; color:var(--text-muted); margin:0 0 24px;">Giá và tồn kho chi nhánh được xác thực theo báo giá <code>${esc(quote.id)}</code> (hiệu lực 15 phút).</p>
 

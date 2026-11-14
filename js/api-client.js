@@ -32,29 +32,38 @@ const ApiClient = {
     }
   },
 
+  staticHostDetected: false,
+
   setDemoMode(enabled) {
     try {
-      if (enabled) localStorage.setItem('sigmacar_demo_mode', 'true');
+      const next = Boolean(enabled);
+      if (next) localStorage.setItem('sigmacar_demo_mode', 'true');
       else localStorage.removeItem('sigmacar_demo_mode');
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('sigmacar:demo-mode-changed', { detail: { enabled: next } }));
+      }
     } catch (_) {}
   },
 
-  // Session token storage
+  // Isolated session token storage (demo sandbox keys kept strictly separate from live API keys)
   getToken() {
-    return localStorage.getItem('sigmacar_auth_token') || null;
+    const key = this.isDemoMode() ? 'sigmacar_demo_auth_token' : 'sigmacar_auth_token';
+    return localStorage.getItem(key) || null;
   },
 
   setToken(token) {
+    const key = this.isDemoMode() ? 'sigmacar_demo_auth_token' : 'sigmacar_auth_token';
     if (token) {
-      localStorage.setItem('sigmacar_auth_token', token);
+      localStorage.setItem(key, token);
     } else {
-      localStorage.removeItem('sigmacar_auth_token');
+      localStorage.removeItem(key);
     }
   },
 
   getCurrentUser() {
     try {
-      const raw = localStorage.getItem('sigmacar_user');
+      const key = this.isDemoMode() ? 'sigmacar_demo_user' : 'sigmacar_user';
+      const raw = localStorage.getItem(key);
       return raw ? JSON.parse(raw) : null;
     } catch (e) {
       return null;
@@ -62,15 +71,20 @@ const ApiClient = {
   },
 
   setCurrentUser(user) {
+    const key = this.isDemoMode() ? 'sigmacar_demo_user' : 'sigmacar_user';
     if (user) {
-      localStorage.setItem('sigmacar_user', JSON.stringify(user));
+      localStorage.setItem(key, JSON.stringify(user));
     } else {
-      localStorage.removeItem('sigmacar_user');
+      localStorage.removeItem(key);
     }
   },
 
   // Central HTTP request handler with AbortController timeout and zero fake fallback in Live Mode
   async request(endpoint, options = {}) {
+    if (this.isDemoMode() && !options.forceLive) {
+      return this.handleStaticFallback(endpoint, options);
+    }
+
     const url = `${API_BASE}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
@@ -158,10 +172,18 @@ const ApiClient = {
   // Read-only static catalog + opt-in local demo sandbox ONLY when explicitly running without backend
   handleStaticFallback(endpoint, options = {}) {
     const method = (options.method || 'GET').toUpperCase();
+    const path = endpoint.split('?')[0];
     let body = {};
     if (options.body) {
       try { body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body; } catch (e) {}
     }
+
+    this.staticHostDetected = true;
+    try {
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('sigmacar:static-host-detected', { detail: { endpoint: path, method } }));
+      }
+    } catch (_) {}
 
     // Read-only public endpoints allowed on static CDN hosting
     if (method === 'GET' && endpoint.startsWith('/vehicles/certified')) {
@@ -242,7 +264,15 @@ const ApiClient = {
       };
     }
 
-    if (endpoint === '/auth/me' && method === 'GET') {
+    const sandbox = typeof window !== 'undefined'
+      ? window.SigmaStaticSandbox
+      : (typeof globalThis !== 'undefined' ? globalThis.SigmaStaticSandbox : null);
+    if (sandbox && typeof sandbox.handlePublic === 'function') {
+      const publicResult = sandbox.handlePublic(endpoint, options, this);
+      if (publicResult) return publicResult;
+    }
+
+    if (path === '/auth/me' && method === 'GET') {
       const cur = this.getCurrentUser();
       if (!cur || !this.getToken()) {
         const err = new Error('Phiên đăng nhập chưa được kích hoạt.');
@@ -261,13 +291,22 @@ const ApiClient = {
 
     // Write/Auth/Private routes NEVER silently spoof success unless user explicitly opted into Sandbox Demo Mode
     if (!this.isDemoMode()) {
+      try {
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+          window.dispatchEvent(new CustomEvent('sigmacar:backend-unavailable', { detail: { endpoint: path, method } }));
+        }
+      } catch (_) {}
       const err = new Error('Không thể kết nối tới máy chủ API SIGMACAR. Website hiện đang chạy ở chế độ xem tĩnh (Static Read-Only).');
       err.status = 503;
       err.code = 'BACKEND_UNAVAILABLE';
       throw err;
     }
 
-    // Opt-in local demo sandbox ONLY (strictly namespaced under sigmacar_demo_*, never bypasses role or password)
+    if (sandbox && typeof sandbox.handleDemo === 'function') {
+      return sandbox.handleDemo(endpoint, options, this);
+    }
+
+    // Opt-in local demo sandbox fallback (strictly namespaced under sigmacar_demo_*, never bypasses role or password)
     if (endpoint === '/auth/login' && method === 'POST') {
       const email = (body.email || '').trim().toLowerCase();
       const password = String(body.password || '');
