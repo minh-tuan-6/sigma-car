@@ -102,9 +102,6 @@ function loadBackend(env, deps) {
     defaults: { staticHostOnly: true }
   });
 
-  // Cloudflare Workers AI binding (wrangler.api.toml [env.*.ai]) — the default AI provider on Cloudflare.
-  if (env.AI && typeof AIService.setWorkersAiBinding === 'function') AIService.setWorkersAiBinding(env.AI);
-
   StorageEngine.configureStorage({ driver: new D1StateStore(env.DB) });
   MediaStorage.setBlobDriver(new D1BlobStore(env.DB));
 

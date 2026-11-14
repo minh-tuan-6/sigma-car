@@ -1066,3 +1066,12 @@ binding is not added to the local default environment, because AI bindings alway
 selectable. Tests: `tests/unit/openai_default.test.js` (6), `tests/unit/workers_ai_binding.test.js` (1); `npm test`
 369/369, `test:worker-runtime` 110 + 1 skipped, `test:workers` 7/7; `wrangler deploy --dry-run` shows the `env.AI`
 binding.
+
+### N.15 Workers AI removed (user request)
+
+Workers AI did not work for the user, so it was removed entirely: provider, `AI` bindings in `wrangler.api.toml`,
+runtime hook, settings option and its test (`tests/unit/workers_ai_binding.test.js` deleted). The default AI provider is
+the built-in local engine (`local-automotive`) again, as before N.13. OpenAI / Gemini / Groq remain selectable in
+"Cấu hình AI" when a key is configured; advisor replies use them through `generateGroundedReply` only in that case,
+otherwise the shortlist template is used. `npm test` 365/365, `test:worker-runtime` 110 + 1 skipped; the staging
+dry-run deploy no longer lists an `env.AI` binding.

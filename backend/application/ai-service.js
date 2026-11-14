@@ -18,7 +18,7 @@ const appConfig = require('../config');
 class AIService {
   constructor() {
     this.config = {
-      provider: appConfig.ai.provider || 'workers-ai',
+      provider: appConfig.ai.provider || 'local-automotive',
       allowLocalFallback: appConfig.ai.allowLocalFallback !== false,
       geminiApiKey: (appConfig.ai.gemini && appConfig.ai.gemini.apiKey) || process.env.GEMINI_API_KEY || '',
       geminiModel: (appConfig.ai.gemini && appConfig.ai.gemini.model) || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
@@ -27,15 +27,11 @@ class AIService {
       groqModel: (appConfig.ai.groq && appConfig.ai.groq.model) || 'llama-3.3-70b-versatile',
       openaiApiKey: (appConfig.ai.openai && appConfig.ai.openai.apiKey) || process.env.OPENAI_API_KEY || '',
       openaiModel: (appConfig.ai.openai && appConfig.ai.openai.model) || 'gpt-4o-mini',
-      workersAiModel: (appConfig.ai.workersAi && appConfig.ai.workersAi.model) || process.env.WORKERS_AI_MODEL || '@cf/aisingapore/gemma-sea-lion-v4-27b-it',
-      workersAiMaxTokens: 1024,
       ollamaEndpoint: (appConfig.ai.ollama && appConfig.ai.ollama.endpoint) || 'http://localhost:11434',
       ollamaModel: (appConfig.ai.ollama && appConfig.ai.ollama.model) || 'qwen2.5:0.5b',
       temperature: 0.7,
       maxOutputTokens: 2048
     };
-
-    this.workersAi = null; // Cloudflare Workers AI binding, injected by backend/cloudflare/runtime.js
 
     this.knowledgeBase = {
       vehicles: [],
@@ -108,7 +104,6 @@ class AIService {
       case 'gemini': return this.config.geminiModel;
       case 'groq': return this.config.groqModel;
       case 'openai': return this.config.openaiModel;
-      case 'workers-ai': return this.workersAi ? this.config.workersAiModel : 'Sigma AI (Nội bộ)';
       case 'ollama': return this.config.ollamaModel;
       default: return 'Sigma AI (Nội bộ)';
     }
@@ -119,9 +114,7 @@ class AIService {
     return {
       provider: this.config.provider,
       activeModel: this._getActiveModelName(),
-      hasApiKey: !!(this.config.geminiApiKey || this.config.groqApiKey || this.config.openaiApiKey || this.workersAi),
-      isWorkersAiConfigured: !!this.workersAi,
-      workersAiModel: this.config.workersAiModel,
+      hasApiKey: !!(this.config.geminiApiKey || this.config.groqApiKey || this.config.openaiApiKey),
       geminiModel: this.config.geminiModel,
       geminiKeyMasked: mask(this.config.geminiApiKey),
       isGeminiConfigured: !!this.config.geminiApiKey,
@@ -139,8 +132,7 @@ class AIService {
         status: this.knowledgeBase.syncStatus
       },
       supportedProviders: [
-        { id: 'workers-ai', name: 'Cloudflare Workers AI (Mặc định - Miễn phí theo hạn mức ngày, không cần API Key)', defaultModel: '@cf/aisingapore/gemma-sea-lion-v4-27b-it', supportedModels: ['@cf/aisingapore/gemma-sea-lion-v4-27b-it', '@cf/meta/llama-3.1-8b-instruct-fp8', '@cf/meta/llama-3.3-70b-instruct-fp8-fast'] },
-        { id: 'local-automotive', name: 'Sigma AI Engine Nội Bộ (Dự phòng - Miễn phí, Không cần API Key)', defaultModel: 'Sigma AI (Nội bộ)' },
+        { id: 'local-automotive', name: 'Sigma AI Engine Nội Bộ (Mặc định - Miễn phí, Siêu tốc, Không cần API Key)', defaultModel: 'Sigma AI (Nội bộ)' },
         { id: 'gemini', name: 'Google Gemini API (Chính thức - Tùy chọn)', defaultModel: 'gemini-2.5-flash', supportedModels: ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'] },
         { id: 'groq', name: 'Groq Cloud (OpenAI-compatible)', defaultModel: 'llama-3.3-70b-versatile', supportedModels: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'] },
         { id: 'openai', name: 'OpenAI (GPT-4o / GPT-4o-mini - cần API key có tín dụng)', defaultModel: 'gpt-4o-mini', supportedModels: ['gpt-4o-mini', 'gpt-4o'] },
@@ -364,18 +356,6 @@ ${automotiveContext}`;
     // =================================================================
     // 2. ALTERNATIVE PROVIDERS (Groq, OpenAI, Ollama)
     // =================================================================
-    if (this.config.provider === 'workers-ai' && this.workersAi) {
-      try {
-        const wResult = await this._callWorkersAI(q, history, currentUser, automotiveContext);
-        return this._formatClientResponse(wResult, isAutomotive, q);
-      } catch (err) {
-        // e.g. daily free allowance used up — answer with the built-in engine instead of an error
-        console.error(`[AIService Diagnostic] Workers AI error: ${err.message}`);
-        const fallback = await this._runSmartLocalEngine(q, history, currentUser);
-        return this._formatClientResponse(fallback, isAutomotive, q);
-      }
-    }
-
     if (this.config.provider === 'groq' && this.config.groqApiKey) {
       try {
         const groqResult = await this._callOpenAICompatible(
@@ -597,10 +577,6 @@ ${automotiveContext}`;
     ].join('\n');
     const prompt = String(message || '').trim() || 'Hãy tư vấn cho tôi dựa trên các tiêu chí đã chọn.';
     try {
-      if (this.config.provider === 'workers-ai' && this.workersAi) {
-        const r = await this._callWorkersAI(prompt, history, currentUser, context);
-        return (r && r.text) || null;
-      }
       if (this.config.provider === 'openai' && this.config.openaiApiKey) {
         const r = await this._callOpenAICompatible(this.config.openaiApiKey, 'https://api.openai.com/v1/chat/completions', this.config.openaiModel, prompt, history, currentUser, context);
         return (r && r.text) || null;
@@ -617,30 +593,6 @@ ${automotiveContext}`;
       console.error(`[AIService Diagnostic] Grounded reply failed (${this.config.provider}): ${err.message}`);
     }
     return null;
-  }
-
-  // Cloudflare Workers AI (binding env.AI, set by backend/cloudflare/runtime.js). No API key; free daily allowance on
-  // the Workers Free plan. Text models answer either { response } or OpenAI-style { choices }.
-  setWorkersAiBinding(binding) {
-    this.workersAi = binding && typeof binding.run === 'function' ? binding : null;
-  }
-
-  async _callWorkersAI(userPrompt, history, currentUser, automotiveContext) {
-    if (!this.workersAi) throw new Error('Workers AI binding (AI) is not configured');
-    const messages = [{ role: 'system', content: this.buildSystemPrompt(currentUser, automotiveContext) }];
-    (history || []).slice(-10).forEach(m => {
-      const content = m.text || m.content || '';
-      if (content) messages.push({ role: m.role === 'assistant' ? 'assistant' : 'user', content });
-    });
-    messages.push({ role: 'user', content: userPrompt });
-    const out = await this.workersAi.run(this.config.workersAiModel, {
-      messages,
-      max_tokens: this.config.workersAiMaxTokens,
-      temperature: this.config.temperature
-    });
-    const text = (out && (out.response || (out.choices && out.choices[0] && out.choices[0].message && out.choices[0].message.content) || (out.result && out.result.response))) || '';
-    if (!String(text).trim()) throw new Error('Workers AI returned an empty response');
-    return { text: String(text).trim() };
   }
 
   async _callOpenAICompatible(apiKey, endpoint, model, userPrompt, history, currentUser, automotiveContext) {

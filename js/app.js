@@ -2707,10 +2707,6 @@ if (typeof window !== 'undefined') {
                   hint.textContent = 'Mô hình suy luận cục bộ: 100% bảo mật, tốc độ tức thì, không cần kết nối mạng hay API Key';
                 } else if (cfg.provider === 'gemini') {
                   hint.textContent = 'Gợi ý cho Gemini: gemini-2.5-flash, gemini-1.5-flash, gemini-1.5-pro';
-                } else if (cfg.provider === 'workers-ai') {
-                  hint.textContent = cfg.isWorkersAiConfigured
-                    ? `Cloudflare Workers AI (mặc định, miễn phí theo hạn mức ngày): ${cfg.workersAiModel || ''}`
-                    : 'Cloudflare Workers AI chỉ hoạt động trên Cloudflare; máy chủ hiện tại đang trả lời bằng Sigma AI nội bộ';
                 } else if (cfg.provider === 'openai') {
                   hint.textContent = 'OpenAI: gpt-4o-mini, gpt-4o (cần OPENAI_API_KEY có tín dụng)';
                 }
@@ -2733,8 +2729,8 @@ if (typeof window !== 'undefined') {
             }
           }
         } catch (e) {
-          if (providerSelect) providerSelect.value = 'workers-ai';
-          if (modelInput) modelInput.value = '@cf/aisingapore/gemma-sea-lion-v4-27b-it';
+          if (providerSelect) providerSelect.value = 'local-automotive';
+          if (modelInput) modelInput.value = 'Sigma AI (Nội bộ)';
           if (epGroup) epGroup.style.display = 'none';
         }
       }
