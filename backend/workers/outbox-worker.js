@@ -5,7 +5,12 @@ const crypto = require('crypto');
 const { runInTransaction } = require('../infrastructure/storage-engine');
 const EmailProvider = require('../infrastructure/email-provider');
 
-const workerId = `wrk_${crypto.randomBytes(4).toString('hex')}`;
+// Generated on first use, not at module load: Cloudflare Workers forbid random values in global scope.
+let workerIdValue = null;
+function workerId() {
+  if (!workerIdValue) workerIdValue = `wrk_${crypto.randomBytes(4).toString('hex')}`;
+  return workerIdValue;
+}
 
 const OutboxWorker = {
   async processOutboxBatch({ nowMs = Date.now(), batchSize = 20, leaseDurationMs = 30000 } = {}) {
@@ -25,7 +30,7 @@ const OutboxWorker = {
       const leaseUntil = new Date(nowMs + leaseDurationMs).toISOString();
       for (const job of candidates) {
         job.status = 'processing';
-        job.leaseOwner = workerId;
+        job.leaseOwner = workerId();
         job.leaseExpiresAt = leaseUntil;
         job.updatedAt = new Date(nowMs).toISOString();
       }
@@ -64,7 +69,7 @@ const OutboxWorker = {
         const stored = state.outboxEvents.find(e => e.id === job.id);
         if (!stored) return;
         // Skip stale update if another worker took over lease after expiry
-        if (stored.leaseOwner && stored.leaseOwner !== workerId) return;
+        if (stored.leaseOwner && stored.leaseOwner !== workerId()) return;
 
         const doneAtIso = new Date().toISOString();
         const linkedNotif = (state.notifications || []).find(n => n.outboxId === stored.id);

@@ -113,8 +113,15 @@ describe('API connectivity through the Pages Function proxy', () => {
     assert.match(ferrari.data.appleAr.usdz[0].url, /^assets\/models\/usdz\/ferrari-f50-1995\/default\.usdz\?v=[0-9a-f]{12}$/);
     assert.strictEqual(ferrari.data.appleAr.onDeviceConversion, true);
 
-    // A model whose USDZ exceeds the Pages file limit (VinFast VF9, 89.7 MB) is still listed for every colour.
     const vf9 = (await (await viaProxy('/api/v1/vehicles/vinfast-vf9/ar-manifest')).json()).data;
+    if (app.runtime === 'worker') {
+      // Cloudflare Workers + Pages: only USDZ files that Pages hosts (<= 25 MiB) or SIGMACAR_USDZ_PUBLIC_BASE_URL serves
+      // are listed — the same manifest as the static snapshot dist/data/ar/vinfast-vf9.json. VF9 converts on the device.
+      assert.deepStrictEqual(vf9.appleAr.usdz, []);
+      assert.strictEqual(vf9.appleAr.onDeviceConversion, true);
+      return;
+    }
+    // A model whose USDZ exceeds the Pages file limit (VinFast VF9, 89.7 MB) is still listed for every colour.
     assert.deepStrictEqual(vf9.appleAr.usdz.map(u => u.colorIndex), [0, 1, 2, 3]);
     assert.ok(vf9.appleAr.usdz.every(u => u.bytes > 25 * 1024 * 1024));
   });

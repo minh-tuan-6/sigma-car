@@ -4,8 +4,13 @@
 // Why: Cloudflare Pages only serves static files. Without this function every /api/v1/* request fell through
 // _redirects (/* /index.html 200) and returned the SPA shell as HTTP 200 text/html (see docs/API_AND_AR_AUDIT.md).
 //
+// Upstream, in order of preference:
+//   SIGMA_API                  service binding to the "sigmacar-api" Worker (Cloudflare Workers + D1, wrangler.api.toml).
+//                              Pages → Settings → Bindings → Service binding. No public hop; the Worker has no public URL.
+//   SIGMA_BACKEND_ORIGIN       HTTP origin of a Node backend (previous architecture; also the rollback path)
+//
 // Environment (Pages → Settings → Variables and Secrets):
-//   SIGMA_BACKEND_ORIGIN       required  e.g. https://api.sigmacar.example  (origin only, https)
+//   SIGMA_BACKEND_ORIGIN       required unless SIGMA_API is bound, e.g. https://api.sigmacar.example  (origin only, https)
 //   SIGMA_PROXY_SHARED_SECRET  optional  secret, sent as X-Sigma-Proxy-Secret; set the same value as
 //                                        PROXY_SHARED_SECRET on the backend so it rejects direct traffic
 //   SIGMA_PROXY_TIMEOUT_MS     optional  upstream timeout, default 25000
@@ -20,6 +25,8 @@ const HOP_BY_HOP = new Set([
 ]);
 
 const PROXY_ERROR_HEADER = 'X-Sigma-Proxy-Error';
+// Placeholder origin for requests sent through the service binding (never resolved by DNS).
+export const SERVICE_BINDING_ORIGIN = 'https://sigmacar-api.internal';
 const DEFAULT_TIMEOUT_MS = 25000;
 const MAX_REQUEST_BODY_BYTES = 10 * 1024 * 1024;
 
@@ -88,15 +95,23 @@ function buildClientHeaders(upstream, upstreamOrigin) {
   return out;
 }
 
+function hasServiceBinding(env) {
+  return Boolean(env && env.SIGMA_API && typeof env.SIGMA_API.fetch === 'function');
+}
+
 export async function handleProxy(request, env = {}, deps = {}) {
-  const fetchImpl = deps.fetch || fetch;
+  const viaBinding = hasServiceBinding(env);
+  // Same request/response handling for both upstreams; only the transport differs.
+  const fetchImpl = viaBinding
+    ? (url, init) => env.SIGMA_API.fetch(new Request(url, init))
+    : (deps.fetch || fetch);
   const inUrl = new URL(request.url);
 
   if (!inUrl.pathname.startsWith('/api/v1/')) {
     return proxyError(404, 'ROUTE_NOT_FOUND', 'Không tìm thấy đường dẫn API.');
   }
 
-  const resolved = resolveBackendOrigin(env);
+  const resolved = viaBinding ? { origin: SERVICE_BINDING_ORIGIN } : resolveBackendOrigin(env);
   if (resolved.error === 'BACKEND_NOT_CONFIGURED') {
     return proxyError(503, 'BACKEND_NOT_CONFIGURED', 'Máy chủ API SIGMACAR chưa được cấu hình cho môi trường này (thiếu SIGMA_BACKEND_ORIGIN).');
   }

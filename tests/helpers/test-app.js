@@ -86,7 +86,90 @@ function createMockFs({ failWriteOnCall = null, errCode = 'ENOSPC', errMessage =
   };
 }
 
+// SIGMACAR_TEST_RUNTIME=worker: /api/v1/* is served by the Cloudflare Worker runtime (backend/cloudflare/runtime.js)
+// with D1 persistence (D1StateStore on a node:sqlite D1 shim) — the same suites then verify the Workers code path.
+// Other paths (static files) still go to server.js, as Pages serves them in production.
+async function startWorkerRuntimeServer({ reseed = true } = {}) {
+  const { D1SqliteShim } = require('./d1-sqlite-shim');
+  const runtime = require('../../backend/cloudflare/runtime');
+  const StorageEngine = require('../../backend/infrastructure/storage-engine');
+  const Security = require('../../backend/infrastructure/security');
+  const nodeServer = require('../../server');
+  const staticListener = nodeServer.listeners('request')[0];
+
+  const shim = new D1SqliteShim();
+  const env = { DB: shim };
+  const lazyBefore = process.env.SIGMACAR_LAZY_INIT;
+  // First request initialises the runtime and loads (dev-seeds) the empty database.
+  await runtime.handle(new Request('http://127.0.0.1/api/v1/health'), env);
+  // The runtime sets SIGMACAR_LAZY_INIT (a Worker safeguard); do not leak it into child processes that suites spawn.
+  if (lazyBefore === undefined) delete process.env.SIGMACAR_LAZY_INIT; else process.env.SIGMACAR_LAZY_INIT = lazyBefore;
+  // The Node harness inherits the boot normalisation (branch inventory, promotions, accessories, policies) from the
+  // JSON file the engine loads at module load; on Workers that normalisation runs when an isolate loads D1.
+  if (reseed) {
+    StorageEngine.seedInitialData();
+    StorageEngine.ensureExtendedCollections();
+    await StorageEngine.flushToDriver();
+  }
+  Security.resetRateLimit();
+
+  const SKIP = new Set(['host', 'connection', 'keep-alive', 'transfer-encoding', 'cf-connecting-ip']);
+  const server = http.createServer(async (req, res) => {
+    if (!req.url.startsWith('/api/v1/')) return staticListener(req, res);
+    try {
+      const chunks = [];
+      for await (const c of req) chunks.push(c);
+      const headers = new Headers();
+      for (const [k, v] of Object.entries(req.headers)) {
+        if (SKIP.has(k) || v === undefined) continue;
+        if (Array.isArray(v)) v.forEach(x => headers.append(k, x)); else headers.set(k, v);
+      }
+      // What the Pages Function forwards: the real client address.
+      headers.set('cf-connecting-ip', (req.socket.remoteAddress || '127.0.0.1').replace(/^::ffff:/, ''));
+      const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+      const request = new Request(`http://127.0.0.1${req.url}`, { method: req.method, headers, body: hasBody ? Buffer.concat(chunks) : undefined });
+      const response = await runtime.handle(request, env);
+      const out = [];
+      response.headers.forEach((value, name) => out.push([name, value]));
+      const body = Buffer.from(await response.arrayBuffer());
+      res.writeHead(response.status, Object.fromEntries(out));
+      res.end(req.method === 'HEAD' ? undefined : body);
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end(`worker test bridge error: ${err.message}`);
+    }
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const addr = server.address();
+  const rootUrl = `http://127.0.0.1:${addr.port}`;
+  return {
+    rootUrl,
+    baseUrl: `${rootUrl}/api/v1`,
+    server,
+    storageEngine: StorageEngine,
+    security: Security,
+    d1: shim,
+    runtime: 'worker',
+    external: false,
+    reset() {
+      StorageEngine.seedInitialData();
+      StorageEngine.ensureExtendedCollections();
+      Security.resetRateLimit();
+      return StorageEngine.flushToDriver();
+    },
+    async close() {
+      await new Promise(resolve => server.close(resolve));
+    }
+  };
+}
+
 async function startTestServer({ mode = 'memory', reseed = true } = {}) {
+  if (process.env.SIGMACAR_TEST_RUNTIME === 'worker' && !process.env.TEST_API_URL) {
+    return startWorkerRuntimeServer({ reseed });
+  }
   if (process.env.TEST_API_URL) {
     assertLocalTestUrl(process.env.TEST_API_URL);
     const parsed = new URL(process.env.TEST_API_URL);

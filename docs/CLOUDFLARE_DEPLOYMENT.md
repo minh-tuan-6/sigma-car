@@ -7,6 +7,9 @@ Two deployables:
 
 Nothing here has been deployed by this change. All steps below require the project owner's accounts.
 
+> **Backend on Cloudflare Workers + D1 (no Node host):** see `CLOUDFLARE_WORKERS_DEPLOYMENT.md`. The Pages Function below
+> uses the `SIGMA_API` service binding when it is configured and the `SIGMA_BACKEND_ORIGIN` proxy described here otherwise.
+
 ## 1. Backend API
 
 The store is a JSON file written atomically to disk, so the host **must** provide a persistent volume and run **one instance** (no horizontal scaling with this storage engine).

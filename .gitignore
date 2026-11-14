@@ -34,3 +34,6 @@ dist/
 
 # Local Cloudflare wrangler state
 .wrangler/
+
+# JSON -> D1 import output (contains user data and password hashes; never commit)
+.d1-migration/

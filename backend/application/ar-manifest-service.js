@@ -32,6 +32,9 @@ const VERIFIED_MATERIAL_OVERRIDES = {
 };
 
 let cache = null;
+// Runtimes without the repository on disk (Cloudflare Workers) inject the three JSON sources, a file-existence check
+// and default options here (backend/cloudflare/runtime.js). Node leaves this null and reads the files.
+let injected = null;
 
 function readJsonSafe(file) {
   try {
@@ -42,6 +45,13 @@ function readJsonSafe(file) {
 }
 
 function loadSources() {
+  if (injected) {
+    return {
+      registry: injected.registry || { vehicles: {} },
+      bindings: injected.bindings || { vehicles: {}, protectedMaterialPatterns: [] },
+      usdzIndex: injected.usdzIndex || { vehicles: {} }
+    };
+  }
   if (!cache) {
     cache = {
       registry: readJsonSafe(REGISTRY_FILE) || { vehicles: {} },
@@ -54,6 +64,17 @@ function loadSources() {
 
 function resetCache() {
   cache = null;
+}
+
+// sources: { registry, bindings, usdzIndex, fileExists(relPath) => boolean, defaults: { staticHostOnly, usdzPublicBaseUrl } }
+function configureSources(sources) {
+  injected = sources || null;
+  cache = null;
+}
+
+function siteFileExists(rel) {
+  if (injected && typeof injected.fileExists === 'function') return Boolean(injected.fileExists(rel));
+  return fs.existsSync(path.join(ROOT_DIR, rel));
 }
 
 // Accepts site-relative asset paths ("assets/models/x.glb") or absolute https URLs to external CDNs.
@@ -162,7 +183,7 @@ function collectUsdz(vehicle, reg, usdzIndex, colors, { publicBase = null, stati
     const external = Boolean(publicBase) && (e.staticHostable === false || Number(e.bytes) > PAGES_MAX_FILE_BYTES);
     // A local file must exist unless it is served from the external base URL (fresh clones do not contain the
     // large files: they are git-ignored build output).
-    if (!external && !fs.existsSync(path.join(ROOT_DIR, rel))) continue;
+    if (!external && !siteFileExists(rel)) continue;
     // Content hash in the query string: the files are served with a 1-year immutable cache.
     const url = prebuiltUsdzUrl(e, rel, { publicBase, staticHostOnly });
     if (url) push(Number.isInteger(e.colorIndex) ? e.colorIndex : null, url, 'prebuilt', e.bytes);
@@ -212,9 +233,10 @@ function buildArManifest(vehicle, opts = {}) {
     .filter(v => v.colorIndex >= 0 && v.glbUrl);
 
   const materials = resolveBodyMaterials(glbUrl, vehicle.id, bindings);
+  const defaults = (injected && injected.defaults) || {};
   const usdz = collectUsdz(vehicle, reg, usdzIndex, colors, {
-    publicBase: usdzPublicBaseUrl(opts.usdzPublicBaseUrl),
-    staticHostOnly: Boolean(opts.staticHostOnly)
+    publicBase: usdzPublicBaseUrl(opts.usdzPublicBaseUrl !== undefined ? opts.usdzPublicBaseUrl : defaults.usdzPublicBaseUrl),
+    staticHostOnly: Boolean(opts.staticHostOnly !== undefined ? opts.staticHostOnly : defaults.staticHostOnly)
   });
 
   return {
@@ -260,5 +282,6 @@ module.exports = {
   usdzPublicBaseUrl,
   buildArManifest,
   sanitizeModelUrl,
-  resetCache
+  resetCache,
+  configureSources
 };

@@ -9,6 +9,8 @@ const { getStorageConfig } = require('./storage-engine');
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 const RUNTIME_MEDIA_DIR = path.join(__dirname, '..', '..', 'data', 'runtime_media');
 const memoryBlobs = new Map();
+// Optional blob driver ({ write(key, buffer), read(key), delete(key) }). Cloudflare Workers: D1BlobStore. Node: null.
+let blobDriver = null;
 
 // Known harmless malware test signature (EICAR) to verify quarantine behavior cleanly
 const EICAR_SIGNATURE = 'X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR';
@@ -114,7 +116,15 @@ const MediaStorage = {
     };
   },
 
+  setBlobDriver(driver) {
+    blobDriver = driver || null;
+  },
+
   async writeBlob(storageKey, buffer) {
+    if (blobDriver) {
+      await blobDriver.write(path.basename(storageKey), Buffer.from(buffer));
+      return { driver: blobDriver.kind || 'driver', key: path.basename(storageKey) };
+    }
     const cfg = getStorageConfig();
     if (cfg.memoryOnly) {
       memoryBlobs.set(storageKey, Buffer.from(buffer));
@@ -128,6 +138,7 @@ const MediaStorage = {
   },
 
   async readBlob(storageKey) {
+    if (blobDriver) return blobDriver.read(path.basename(storageKey));
     const cfg = getStorageConfig();
     if (cfg.memoryOnly) {
       return memoryBlobs.get(storageKey) || null;
@@ -139,6 +150,10 @@ const MediaStorage = {
   },
 
   async deleteBlob(storageKey) {
+    if (blobDriver) {
+      await blobDriver.delete(path.basename(storageKey));
+      return;
+    }
     const cfg = getStorageConfig();
     if (cfg.memoryOnly) {
       memoryBlobs.delete(storageKey);

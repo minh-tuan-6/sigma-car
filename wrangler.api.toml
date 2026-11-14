@@ -1,0 +1,102 @@
+# SIGMACAR API Worker (Cloudflare Workers + D1). Used with: npx.cmd wrangler <command> -c wrangler.api.toml [--env staging|production]
+# Named wrangler.api.toml (not wrangler.toml) so `wrangler pages …` commands for the static site never pick it up.
+# See docs/CLOUDFLARE_WORKERS_DEPLOYMENT.md. No secrets in this file: use `wrangler secret put` (JWT_SECRET, PROXY_SHARED_SECRET, …).
+
+name = "sigmacar-api"
+main = "backend/cloudflare/worker.mjs"
+compatibility_date = "2026-10-01"
+# Required: node:crypto (scrypt/HMAC), Buffer, node:stream/events (request shim), node:url, process.env.
+compatibility_flags = ["nodejs_compat"]
+
+# Reachable only through the Pages Function service binding SIGMA_API: no *.workers.dev URL, no routes.
+workers_dev = false
+preview_urls = false
+
+[define]
+# The storage engine must not try to read data/sigmacar_store.json at module load; D1 is loaded per request.
+"process.env.SIGMACAR_LAZY_INIT" = "'true'"
+# CommonJS modules build file paths from __dirname (.env, data file, AR sources); none of those files is read on
+# Workers (env vars, D1 and bundled JSON are used instead), but the identifiers must exist in the ES module bundle.
+__dirname = "'/bundle'"
+__filename = "'/bundle/worker.mjs'"
+
+[observability]
+enabled = true
+
+# ---------------------------------------------------------------------------------------------------------------
+# Local development (wrangler dev / tests): local D1 (Miniflare), development settings, demo seed on an empty DB.
+# ---------------------------------------------------------------------------------------------------------------
+[vars]
+NODE_ENV = "development"
+TRUST_PROXY = "true"
+PAYMENT_GATEWAY_SANDBOX = "true"
+
+# Optional cross-isolate rate limit (Workers Rate Limiting binding; counted per Cloudflare location). The router's
+# in-memory limiter (240 req/min/IP) still applies per isolate. To enable, uncomment (and repeat under each [env.*]):
+# [[ratelimits]]
+# name = "API_RATE_LIMITER"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 240
+#   period = 60
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sigmacar-local"
+database_id = "00000000-0000-0000-0000-000000000000"   # PLACEHOLDER — local only
+migrations_dir = "backend/infrastructure/d1/migrations"
+
+# ---------------------------------------------------------------------------------------------------------------
+# Staging — create the database first:  npx.cmd wrangler d1 create sigmacar-staging
+# then replace the PLACEHOLDER id below with the id Wrangler prints.
+# ---------------------------------------------------------------------------------------------------------------
+[env.staging]
+name = "sigmacar-api-staging"
+workers_dev = false
+preview_urls = false
+
+[env.staging.define]
+"process.env.SIGMACAR_LAZY_INIT" = "'true'"
+# CommonJS modules build file paths from __dirname (.env, data file, AR sources); none of those files is read on
+# Workers (env vars, D1 and bundled JSON are used instead), but the identifiers must exist in the ES module bundle.
+__dirname = "'/bundle'"
+__filename = "'/bundle/worker.mjs'"
+
+[env.staging.vars]
+NODE_ENV = "production"
+TRUST_PROXY = "true"
+PAYMENT_GATEWAY_SANDBOX = "true"
+SIGMACAR_ALLOW_DEV_SEED = "false"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "sigmacar-staging"
+database_id = "REPLACE-WITH-STAGING-D1-DATABASE-ID"     # PLACEHOLDER
+migrations_dir = "backend/infrastructure/d1/migrations"
+
+# ---------------------------------------------------------------------------------------------------------------
+# Production — only after explicit approval (docs/CLOUDFLARE_WORKERS_DEPLOYMENT.md §8).
+# ---------------------------------------------------------------------------------------------------------------
+[env.production]
+name = "sigmacar-api"
+workers_dev = false
+preview_urls = false
+
+[env.production.define]
+"process.env.SIGMACAR_LAZY_INIT" = "'true'"
+# CommonJS modules build file paths from __dirname (.env, data file, AR sources); none of those files is read on
+# Workers (env vars, D1 and bundled JSON are used instead), but the identifiers must exist in the ES module bundle.
+__dirname = "'/bundle'"
+__filename = "'/bundle/worker.mjs'"
+
+[env.production.vars]
+NODE_ENV = "production"
+TRUST_PROXY = "true"
+PAYMENT_GATEWAY_SANDBOX = "true"
+SIGMACAR_ALLOW_DEV_SEED = "false"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "sigmacar-production"
+database_id = "REPLACE-WITH-PRODUCTION-D1-DATABASE-ID"  # PLACEHOLDER
+migrations_dir = "backend/infrastructure/d1/migrations"

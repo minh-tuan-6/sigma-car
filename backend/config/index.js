@@ -53,11 +53,9 @@ function resolveJwtSecret(nodeEnv) {
     return { jwtSecret: envSecret, isEphemeralJwtSecret: false };
   }
 
-  // Non-production ephemeral random secret generated once per runtime process
-  return {
-    jwtSecret: crypto.randomBytes(32).toString('hex'),
-    isEphemeralJwtSecret: true
-  };
+  // Non-production ephemeral random secret generated once per runtime process — on first use, not at module load
+  // (Cloudflare Workers forbid random values in global scope; the value and its lifetime are unchanged).
+  return { jwtSecret: null, isEphemeralJwtSecret: true };
 }
 
 function buildConfig(envOverrides = {}) {
@@ -185,6 +183,20 @@ function buildConfig(envOverrides = {}) {
 
 const config = buildConfig();
 config.buildConfig = buildConfig;
+if (config.isEphemeralJwtSecret) {
+  let ephemeral = null;
+  Object.defineProperty(config, 'jwtSecret', {
+    enumerable: true,
+    configurable: true,
+    get() {
+      if (!ephemeral) ephemeral = crypto.randomBytes(32).toString('hex');
+      return ephemeral;
+    },
+    set(v) {
+      ephemeral = v;
+    }
+  });
+}
 // server.js historically reads config.env; keep it in sync with nodeEnv.
 config.env = config.nodeEnv;
 

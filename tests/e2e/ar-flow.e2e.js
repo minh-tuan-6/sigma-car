@@ -39,6 +39,11 @@ const UA = {
 const results = [];
 const measurements = {};
 async function step(name, fn) {
+  // E2E_ONLY (optional regex): run a subset of steps in a fresh browser, e.g. on slow local stacks.
+  if (process.env.E2E_ONLY && !new RegExp(process.env.E2E_ONLY).test(name)) {
+    console.log(`  ⏭  ${name} (not selected)`);
+    return;
+  }
   const t0 = Date.now();
   try {
     await fn();
@@ -183,10 +188,17 @@ async function readBytes(page, url) {
     process.exit(2);
   }
   const { inspectUsdz } = await import(pathToFileURL(path.join(ROOT, 'js/ar/apple/usdz-builder.js')).href);
-  const port = await freePort();
-  const base = `http://127.0.0.1:${port}`;
+  // E2E_BASE_URL (optional, local only): test an already running stack instead of server.js — e.g. `wrangler pages dev dist`
+  // with the SIGMA_API service binding to the Worker (docs/CLOUDFLARE_WORKERS_TEST_REPORT.md).
+  const external = process.env.E2E_BASE_URL ? new URL(process.env.E2E_BASE_URL) : null;
+  if (external && !['127.0.0.1', 'localhost'].includes(external.hostname)) {
+    console.log('E2E_BASE_URL must point to a local server.');
+    process.exit(2);
+  }
+  const port = external ? Number(external.port) : await freePort();
+  const base = external ? external.origin : `http://127.0.0.1:${port}`;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sigmacar-e2e-'));
-  const server = spawn(process.execPath, ['server.js'], {
+  const server = external ? { kill() {} } : spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(port), NODE_ENV: 'development', SIGMACAR_DATA_FILE: path.join(tmp, 'store.json'), RATE_LIMIT_MAX_REQUESTS_PER_MINUTE: '5000' },
     stdio: 'ignore'
@@ -246,6 +258,8 @@ async function readBytes(page, url) {
       android: { viewport: { width: 412, height: 915 }, userAgent: UA.android, isMobile: true, hasTouch: true }
     }[kind];
     const ctx = await browser.newContext(opts);
+    // Slow local stacks (wrangler pages dev on Windows) need more time per navigation; assertions are unchanged.
+    if (process.env.E2E_TIMEOUT_MS) ctx.setDefaultTimeout(Number(process.env.E2E_TIMEOUT_MS));
     watch(ctx);
     await routeCdn(ctx);
     if (kind === 'iphone' || kind === 'ipad') await ctx.addInitScript(appleInit(), { quickLook: true, touchPoints: 5 });

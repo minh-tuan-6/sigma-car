@@ -8,6 +8,7 @@ const config = require('./backend/config');
 const { handleApiRequest } = require('./backend/api/router');
 const { authorize, parseBody, sendError } = require('./backend/api/middleware');
 const { ROLES } = require('./backend/domain/constants');
+const { applyCorsAndSecurityHeaders } = require('./backend/api/http-common');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -42,23 +43,6 @@ function isPublicAssetPath(cleanPath) {
   if (cleanPath.includes('..') || cleanPath.includes('\\') || cleanPath.includes('\0')) return false;
   if (ALLOWED_PUBLIC_FILES.has(cleanPath)) return true;
   return ALLOWED_PUBLIC_PREFIXES.some(prefix => cleanPath.startsWith(prefix));
-}
-
-function applyCorsAndSecurityHeaders(req, res) {
-  const origin = req.headers.origin;
-  const allowedOrigins = (config.cors && config.cors.allowedOrigins) || [];
-  if (origin && (allowedOrigins.includes(origin) || (config.env !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)))) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  } else if (config.env !== 'production') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Request-Id, X-Ticket-Token, Idempotency-Key');
-  res.setHeader('Permissions-Policy', 'camera=(self), xr-spatial-tracking=(self), gyroscope=(self), accelerometer=(self), magnetometer=(self)');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 }
 
 const server = http.createServer(async (req, res) => {

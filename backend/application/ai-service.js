@@ -3,7 +3,13 @@
 // Primary LLM: Google Gemini 2.5 Flash via official @google/genai SDK
 // Controlled Fallback: Resilient Smart Local Engine with Real Data Grounding
 
-const { GoogleGenAI } = require('@google/genai');
+// Loaded on first use: the SDK is large and only needed when the Gemini provider is actually called
+// (keeps cold starts cheap on Cloudflare Workers; behaviour is unchanged).
+let GoogleGenAIClass = null;
+function loadGoogleGenAI() {
+  if (!GoogleGenAIClass) GoogleGenAIClass = require('@google/genai').GoogleGenAI;
+  return GoogleGenAIClass;
+}
 const AITools = require('./ai-tools');
 const VehicleRepository = require('../infrastructure/repositories/vehicle-repository');
 const { dbState, runInTransaction } = require('../infrastructure/storage-engine');
@@ -475,7 +481,7 @@ ${automotiveContext}`;
     // 1. Primary: Official @google/genai SDK with hard timeout enforcement
     let timeoutId = null;
     try {
-      const GenAiCtor = this.config.genAiClientClass || GoogleGenAI;
+      const GenAiCtor = this.config.genAiClientClass || loadGoogleGenAI();
       const ai = new GenAiCtor({ apiKey: this.config.geminiApiKey });
       const timeoutMs = Math.max(1000, Number(this.config.timeoutMs) || 15000);
       const timeoutPromise = new Promise((_, reject) => {

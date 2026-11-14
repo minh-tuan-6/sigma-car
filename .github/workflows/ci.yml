@@ -29,6 +29,8 @@ jobs:
           node --check js/api-client.js
           node --check js/app.js
           node --check "functions/api/v1/[[path]].js"
+          node --check backend/cloudflare/runtime.js
+          node --check scripts/d1/json-to-d1.js
           for f in $(find js/ar -name "*.js"); do node --check "$f"; done
 
       - name: Data integrity audit
@@ -42,6 +44,15 @@ jobs:
 
       - name: Run Security Tests
         run: npm run test:security
+
+      # Same integration + security suites, served by the Cloudflare Worker runtime with D1 persistence (node:sqlite shim)
+      - name: Run suites through the Workers runtime (D1 driver)
+        run: npm run test:worker-runtime
+
+      - name: Worker bundle check (no deploy)
+        run: npx wrangler deploy -c wrangler.api.toml --env production --dry-run --outdir .d1-migration/bundle
+        env:
+          WRANGLER_SEND_METRICS: 'false'
 
       - name: Verify SQL Migration Dry-Run
         run: node scripts/migrate-json-to-sql.js --dry-run

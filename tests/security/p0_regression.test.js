@@ -233,7 +233,11 @@ describe('P0 Security, Isolation, Atomic Storage & Boundary Regressions', () => 
     assert.equal(newMeRes.status, 200);
   });
 
-  it('SIG-P0-001: Atomic storage rolls back RAM state on ENOSPC disk failure', async () => {
+  it('SIG-P0-001: Atomic storage rolls back RAM state on ENOSPC disk failure', {
+    skip: process.env.SIGMACAR_TEST_RUNTIME === 'worker'
+      ? 'JSON-file disk failure; the D1 equivalent is tests/unit/d1_state_store.test.js "returns 503 STORAGE_UNAVAILABLE and restores memory when D1 fails during commit"'
+      : false
+  }, async () => {
     const StorageEngine = app.storageEngine;
     const prevConfig = StorageEngine.getStorageConfig();
     const mockFs = createMockFs({ failWriteOnCall: 2, errCode: 'ENOSPC' });

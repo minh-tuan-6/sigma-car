@@ -41,7 +41,12 @@ const storageRuntime = {
   dataFile: DEFAULT_DATA_FILE,
   fsImpl: fs,
   allowDevSeed: config.storage ? config.storage.allowDevSeed : true,
-  memoryOnly: (config.storage && config.storage.mode === 'memory') || false
+  memoryOnly: (config.storage && config.storage.mode === 'memory') || false,
+  // Optional asynchronous persistence driver (Cloudflare Workers: D1StateStore). When set, the JSON file is not used:
+  // syncFromDriver() loads, runInTransaction() commits through the driver. Node keeps driver = null.
+  driver: null,
+  driverLoaded: false,
+  reloadListeners: []
 };
 
 function createEmptyState() {
@@ -87,6 +92,14 @@ function configureStorage(options = {}) {
   if (options.allowDevSeed !== undefined) {
     storageRuntime.allowDevSeed = Boolean(options.allowDevSeed);
   }
+  if (options.driver !== undefined) {
+    storageRuntime.driver = options.driver || null;
+    storageRuntime.driverLoaded = false;
+    if (storageRuntime.driver) {
+      storageRuntime.mode = storageRuntime.driver.kind || 'driver';
+      storageRuntime.memoryOnly = false;
+    }
+  }
   return getStorageConfig();
 }
 
@@ -129,6 +142,10 @@ function ensureAllCollectionArrays() {
 
 // Persistent Storage Management
 function loadFromDisk() {
+  if (storageRuntime.driver) {
+    // Asynchronous driver: state is loaded by syncFromDriver() before each request.
+    return;
+  }
   if (storageRuntime.memoryOnly || storageRuntime.mode === 'memory') {
     if (storageRuntime.allowDevSeed) {
       seedInitialData();
@@ -176,7 +193,8 @@ function saveToDisk() {
   if (!dbState.meta) dbState.meta = {};
   dbState.meta.lastSavedAt = new Date().toISOString();
 
-  if (storageRuntime.memoryOnly || storageRuntime.mode === 'memory') {
+  if (storageRuntime.driver || storageRuntime.memoryOnly || storageRuntime.mode === 'memory') {
+    // Driver mode persists asynchronously (runInTransaction / flushToDriver); nothing touches the file system.
     return;
   }
 
@@ -4742,8 +4760,154 @@ function ensureExtendedCollections() {
   }
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Asynchronous persistence driver (Cloudflare Workers + D1). Unused by the Node server (driver === null).
+// ---------------------------------------------------------------------------------------------------------------
+const DRIVER_MAX_ATTEMPTS = 5;
+
+function isDriverConflict(err) {
+  return Boolean(err) && err.code === 'STORAGE_CONFLICT';
+}
+
+function applyDriverPatch(patch) {
+  for (const [name, arr] of Object.entries(patch.collections || {})) {
+    dbState[name] = arr;
+  }
+  if (patch.fullLoad) {
+    // Collections that exist locally but have no rows in D1 (e.g. emptied) become empty arrays.
+    for (const key of Object.keys(dbState)) {
+      if (key !== 'meta' && Array.isArray(dbState[key]) && !(key in patch.collections)) dbState[key] = [];
+    }
+  }
+  for (const [key, value] of Object.entries(patch.meta || {})) {
+    dbState[key] = value;
+  }
+  ensureAllCollectionArrays();
+}
+
+function notifyReload(changed) {
+  for (const fn of storageRuntime.reloadListeners) {
+    try {
+      fn(changed);
+    } catch (e) {
+      console.error('[storage-engine] reload listener failed:', e.message);
+    }
+  }
+}
+
+// Registers a callback invoked with the Set of collection names reloaded from the driver.
+function onStateReload(fn) {
+  if (typeof fn === 'function') storageRuntime.reloadListeners.push(fn);
+}
+
+// Must be called while holding the lock.
+async function refreshFromDriverLocked() {
+  const driver = storageRuntime.driver;
+  const firstLoad = !storageRuntime.driverLoaded;
+  const patch = await driver.load({ force: firstLoad, current: dbState });
+  if (!patch) return null;
+  applyDriverPatch(patch);
+  storageRuntime.driverLoaded = true;
+
+  if (firstLoad && patch.empty) {
+    // Same as Node when the JSON file does not exist: seed in development, start empty in production.
+    if (storageRuntime.allowDevSeed) {
+      seedInitialData();
+    } else {
+      resetToEmpty();
+      ensureAllCollectionArrays();
+    }
+    if (storageRuntime.allowDevSeed) {
+      if (!dbState.meta) dbState.meta = {};
+      dbState.meta.lastSavedAt = new Date().toISOString();
+      try {
+        await driver.commit(dbState);
+      } catch (err) {
+        if (!isDriverConflict(err)) throw err;
+        // Another isolate initialised the database first: use its data.
+        storageRuntime.driverLoaded = false;
+        resetToEmpty();
+        return refreshFromDriverLocked();
+      }
+    }
+  } else if (firstLoad) {
+    // Same as Node loading the JSON file at boot.
+    ensureExtendedCollections();
+  }
+  notifyReload(patch.changed || new Set());
+  return patch;
+}
+
+// Brings the in-memory state up to date with the driver (one cheap query when nothing changed).
+async function syncFromDriver() {
+  if (!storageRuntime.driver) return null;
+  await acquireLock();
+  try {
+    return await refreshFromDriverLocked();
+  } finally {
+    releaseLock();
+  }
+}
+
+// Persists changes made outside runInTransaction (Node writes them with the next save).
+async function flushToDriver() {
+  const driver = storageRuntime.driver;
+  if (!driver || !storageRuntime.driverLoaded) return { committed: false };
+  await acquireLock();
+  try {
+    for (let attempt = 1; attempt <= DRIVER_MAX_ATTEMPTS; attempt++) {
+      try {
+        return await driver.commit(dbState);
+      } catch (err) {
+        if (!isDriverConflict(err) || attempt === DRIVER_MAX_ATTEMPTS) throw err;
+        await refreshFromDriverLocked();
+      }
+    }
+    return { committed: false };
+  } finally {
+    releaseLock();
+  }
+}
+
+async function runInDriverTransaction(action) {
+  const driver = storageRuntime.driver;
+  await acquireLock();
+  try {
+    for (let attempt = 1; attempt <= DRIVER_MAX_ATTEMPTS; attempt++) {
+      await refreshFromDriverLocked();
+      const snapshot = JSON.stringify(dbState);
+      let result;
+      try {
+        result = await action(dbState);
+        if (!dbState.meta) dbState.meta = {};
+        dbState.meta.lastSavedAt = new Date().toISOString();
+        await driver.commit(dbState);
+        return result;
+      } catch (error) {
+        setDbState(JSON.parse(snapshot));
+        if (isDriverConflict(error) && attempt < DRIVER_MAX_ATTEMPTS) {
+          continue; // another isolate committed first: re-run the action on fresh data
+        }
+        if (isDriverConflict(error)) {
+          const busy = new Error('Hệ thống đang xử lý nhiều yêu cầu đồng thời. Vui lòng thử lại.');
+          busy.statusCode = 503;
+          busy.code = 'STORAGE_BUSY';
+          throw busy;
+        }
+        throw error;
+      }
+    }
+    return undefined;
+  } finally {
+    releaseLock();
+  }
+}
+
 // Transaction execution wrapper ensuring atomic all-or-nothing mutations
 async function runInTransaction(action) {
+  if (storageRuntime.driver) {
+    return runInDriverTransaction(action);
+  }
   await acquireLock();
   // Deep clone snapshot for rollback capability
   const snapshot = JSON.stringify(dbState);
@@ -4778,5 +4942,9 @@ module.exports = {
   getStorageConfig,
   resetToEmpty,
   setDbState,
-  getDefaultCertifiedVehicles
+  getDefaultCertifiedVehicles,
+  ensureExtendedCollections,
+  syncFromDriver,
+  flushToDriver,
+  onStateReload
 };
