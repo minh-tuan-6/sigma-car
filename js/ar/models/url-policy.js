@@ -49,6 +49,36 @@ export function validateModelUrl(raw, { baseUrl, allowedHosts = [] } = {}) {
 }
 
 /**
+ * Validates a USDZ URL for AR Quick Look (same rules as models: https, same-origin, or loopback http for dev).
+ * AR Quick Look downloads the file itself, so CORS is not required for launching — only for in-page probing.
+ * @returns {{ ok: true, url: string, crossOrigin: boolean } | { ok: false, reason: string }}
+ */
+export function validateUsdzUrl(raw, { baseUrl, allowedHosts = [] } = {}) {
+  if (typeof raw !== 'string' || !raw.trim()) return { ok: false, reason: 'EMPTY_URL' };
+  if (raw.length > 2048) return { ok: false, reason: 'URL_TOO_LONG' };
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('//')) return { ok: false, reason: 'PROTOCOL_RELATIVE_URL' };
+  let url;
+  let base;
+  try {
+    base = baseUrl ? new URL(baseUrl) : null;
+    url = base ? new URL(trimmed, base) : new URL(trimmed);
+  } catch (_) {
+    return { ok: false, reason: 'MALFORMED_URL' };
+  }
+  if (url.username || url.password) return { ok: false, reason: 'CREDENTIALS_IN_URL' };
+  const sameOrigin = Boolean(base && url.origin === base.origin);
+  if (!(url.protocol === 'https:' || (url.protocol === 'http:' && (sameOrigin || isLoopbackHost(url.hostname))))) {
+    return { ok: false, reason: 'INSECURE_OR_UNSUPPORTED_PROTOCOL' };
+  }
+  if (!sameOrigin && Array.isArray(allowedHosts) && allowedHosts.length > 0 && !allowedHosts.includes(url.hostname)) {
+    return { ok: false, reason: 'HOST_NOT_ALLOWED' };
+  }
+  if (!url.pathname.toLowerCase().endsWith('.usdz')) return { ok: false, reason: 'UNSUPPORTED_EXTENSION' };
+  return { ok: true, url: url.toString(), crossOrigin: !sameOrigin };
+}
+
+/**
  * Policy for resources referenced *inside* a glTF (buffers, images). glTF JSON is untrusted, so only
  * https / same-origin http / data: / blob: (GLTFLoader uses blob: for GLB-embedded images) are allowed.
  */

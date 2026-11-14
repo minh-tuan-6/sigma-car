@@ -1,13 +1,14 @@
-// tests/e2e/ar-flow.e2e.js — real-browser end-to-end test of the AR page and its website integration.
+// tests/e2e/ar-flow.e2e.js — real-browser end-to-end test of the Apple-only AR page and its website integration.
 //
 // Runs the real server.js and drives the locally installed Google Chrome (or Edge) through playwright-core.
 //   npm run test:e2e            (CHROME_PATH=... to pick a browser binary; E2E_HEADED=1 to watch)
 //
 // What this can and cannot prove:
-//   * Desktop Chrome has no spatially tracked WebXR AR, so the correct behaviour here is the explicit 3D-preview
-//     fallback. Real camera AR / hit-test / placement must be validated on a physical ARCore device
-//     (see docs/AR_TEST_REPORT.md). The "WebXR wiring" case below mocks navigator.xr ONLY to verify that the page
-//     requests the right session and handles a permission denial — it does not claim AR works.
+//   * Chrome is not iOS. "iPhone"/"iPad" cases emulate the user agent + touch and make WebKit's
+//     relList.supports('ar') return true, then RECORD the AR Quick Look launch (anchor rel="ar", href, <img> child,
+//     download attribute, fragment parameters) instead of performing it. The USDZ that would be opened is fetched
+//     and validated structurally. Whether Quick Look / ARKit renders, places and tracks the car correctly can only
+//     be verified on a physical iPhone/iPad (docs/AR_TEST_REPORT.md).
 
 const { chromium } = require('playwright-core');
 const { spawn } = require('child_process');
@@ -16,6 +17,7 @@ const fs = require('fs');
 const net = require('net');
 const os = require('os');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const CANDIDATES = [
@@ -26,6 +28,13 @@ const CANDIDATES = [
   '/usr/bin/chromium',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 ].filter(Boolean);
+
+const UA = {
+  iphone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1',
+  ipadDesktop: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
+  iphoneInApp: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/480.0]',
+  android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'
+};
 
 const results = [];
 const measurements = {};
@@ -68,15 +77,69 @@ function externalGltf() {
   return { json: JSON.stringify(json), bin };
 }
 
-function externalManifest(id, glbUrl) {
+function externalManifest(id, glbUrl, usdz = []) {
   return {
     success: true,
     data: {
-      schemaVersion: 1, vehicleId: id, name: `External CDN test (${id})`,
+      schemaVersion: 2, vehicleId: id, name: `External CDN test (${id})`,
       model: { glbUrl, scaleMode: 'fit-to-length', dimensionsMeters: { length: 4.4, width: 1.8, height: 1.4 } },
       colors: [{ index: 0, name: 'Đỏ', hex: '#DC2626' }, { index: 1, name: 'Xanh', hex: '#0284C7' }],
-      variants: [], wheels: [], materials: { body: ['Ext_Body'], rims: [] }, animations: {}, hotspots: [],
-      features: { changeColor: true, changeWheels: false, doorAnimations: false, hotspots: false }
+      variants: [], materials: { body: ['Ext_Body'] },
+      appleAr: { usdz, onDeviceConversion: true },
+      features: { changeColor: true, quickLook: true }
+    }
+  };
+}
+
+// Emulates the WebKit capability and records Quick Look launches (Chrome cannot run Quick Look).
+function appleInit({ quickLook = true, touchPoints = 5 } = {}) {
+  return ({ quickLook, touchPoints }) => {
+    window.__qlLaunches = [];
+    window.__xrCalls = 0;
+    window.__gumCalls = 0;
+    if (quickLook) {
+      const orig = DOMTokenList.prototype.supports;
+      DOMTokenList.prototype.supports = function (token) {
+        if (token === 'ar') return true;
+        try { return orig.call(this, token); } catch (_) { return false; }
+      };
+    }
+    Object.defineProperty(Navigator.prototype, 'maxTouchPoints', { configurable: true, get: () => touchPoints });
+    const origClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.getAttribute('rel') === 'ar') {
+        window.__qlLaunches.push({
+          href: this.getAttribute('href'),
+          download: this.getAttribute('download'),
+          firstChild: this.firstElementChild ? this.firstElementChild.tagName : null,
+          connected: this.isConnected,
+          userActivation: navigator.userActivation ? navigator.userActivation.isActive : null
+        });
+        return undefined;
+      }
+      return origClick.call(this);
+    };
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia = async () => { window.__gumCalls++; throw new DOMException('blocked by test', 'NotAllowedError'); };
+    }
+  };
+}
+
+// Android with a WebXR runtime that *claims* immersive-ar: the page must ignore it.
+function androidInit() {
+  return () => {
+    window.__qlLaunches = [];
+    window.__xrCalls = 0;
+    window.__gumCalls = 0;
+    Object.defineProperty(navigator, 'xr', {
+      configurable: true,
+      value: {
+        isSessionSupported: async () => { window.__xrCalls++; return true; },
+        requestSession: async () => { window.__xrCalls++; throw new Error('must not be called'); }
+      }
+    });
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia = async () => { window.__gumCalls++; throw new DOMException('blocked by test', 'NotAllowedError'); };
     }
   };
 }
@@ -84,10 +147,22 @@ function externalManifest(id, glbUrl) {
 async function waitForAr(page, predicate = 'ready', timeout = 60000) {
   if (predicate === 'ready') {
     await page.waitForFunction(() => window.__sigmaAr && window.__sigmaAr.vehicle && window.__sigmaAr.vehicle.loadedUrl && document.getElementById('ar-root').dataset.state === 'ready', null, { timeout });
+  } else if (predicate === 'ar-settled') {
+    await page.waitForFunction(() => window.__sigmaAr && ['ready', 'unavailable', 'unsupported'].includes(window.__sigmaAr.ar.state), null, { timeout });
   } else {
     await page.waitForFunction(() => document.getElementById('ar-root').dataset.state === 'error', null, { timeout });
   }
   return page.evaluate(() => JSON.parse(JSON.stringify(window.__sigmaAr || null)));
+}
+
+async function readBytes(page, url) {
+  const b64 = await page.evaluate(async (u) => {
+    const buf = new Uint8Array(await (await fetch(u)).arrayBuffer());
+    let s = '';
+    for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    return btoa(s);
+  }, url);
+  return new Uint8Array(Buffer.from(b64, 'base64'));
 }
 
 (async () => {
@@ -96,6 +171,7 @@ async function waitForAr(page, predicate = 'ready', timeout = 60000) {
     console.log('SKIPPED: no Chrome/Edge binary found (set CHROME_PATH).');
     process.exit(2);
   }
+  const { inspectUsdz } = await import(pathToFileURL(path.join(ROOT, 'js/ar/apple/usdz-builder.js')).href);
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sigmacar-e2e-'));
@@ -114,10 +190,9 @@ async function waitForAr(page, predicate = 'ready', timeout = 60000) {
     headless: !process.env.E2E_HEADED,
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
   });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, acceptDownloads: true });
   const pageErrors = [];
   const consoleErrors = [];
-  context.on('page', (p) => {
+  const watch = (ctx) => ctx.on('page', (p) => {
     p.on('pageerror', (e) => pageErrors.push(`${p.url()} :: ${e.message}`));
     p.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(`${p.url()} :: ${m.text()}`); });
   });
@@ -125,154 +200,284 @@ async function waitForAr(page, predicate = 'ready', timeout = 60000) {
   // Fake external CDN (cross-origin HTTPS) served through request interception in the real browser.
   const ext = externalGltf();
   const cdnHits = [];
-  await context.route('https://cdn.sigma-e2e.example/**', (route) => {
-    const url = new URL(route.request().url());
-    cdnHits.push(url.pathname);
-    const cors = { 'Access-Control-Allow-Origin': '*' };
-    if (url.pathname === '/cars/car.gltf') return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'model/gltf+json' }, body: ext.json });
-    if (url.pathname === '/cars/car.bin') return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'application/octet-stream' }, body: ext.bin });
-    return route.fulfill({ status: 404, headers: cors, body: '' });
-  });
-  await context.route('**/api/v1/vehicles/e2e-external/ar-manifest', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(externalManifest('e2e-external', 'https://cdn.sigma-e2e.example/cars/car.gltf')) }));
+  const cybertruckUsdz = fs.readFileSync(path.join(ROOT, 'assets/models/usdz/tesla-cybertruck/0.usdz'));
+  async function routeCdn(ctx) {
+    await ctx.route('https://cdn.sigma-e2e.example/**', (route) => {
+      const url = new URL(route.request().url());
+      cdnHits.push(url.pathname);
+      const cors = { 'Access-Control-Allow-Origin': '*' };
+      if (url.pathname === '/cars/car.gltf') return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'model/gltf+json' }, body: ext.json });
+      if (url.pathname === '/cars/car.bin') return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'application/octet-stream' }, body: ext.bin });
+      if (url.pathname === '/cars/red.usdz') return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'model/vnd.usdz+zip' }, body: cybertruckUsdz });
+      if (url.pathname === '/cars/blue.usdz') return route.fulfill({ status: 200, headers: { ...cors, 'Content-Type': 'text/html' }, body: '<!DOCTYPE html><html>SPA</html>' });
+      return route.fulfill({ status: 404, headers: cors, body: '' });
+    });
+    await ctx.route('**/api/v1/vehicles/e2e-external/ar-manifest', (route) => route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify(externalManifest('e2e-external', 'https://cdn.sigma-e2e.example/cars/car.gltf', [
+        { colorIndex: 0, url: 'https://cdn.sigma-e2e.example/cars/red.usdz' },
+        { colorIndex: 1, url: 'https://cdn.sigma-e2e.example/cars/blue.usdz' }
+      ]))
+    }));
+    await ctx.route('**/api/v1/vehicles/e2e-nocors/ar-manifest', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(externalManifest('e2e-nocors', noCorsUrl)) }));
+  }
   // Playwright interception bypasses CORS, so the CORS failure uses a genuinely cross-origin server without ACAO.
   const noCors = require('http').createServer((req, res) => res.writeHead(200, { 'Content-Type': 'model/gltf-binary' }).end(fs.readFileSync(path.join(ROOT, 'assets/models/ar/tesla_cybertruck_ar_v1.glb'))));
   await new Promise(r => noCors.listen(0, '127.0.0.1', r));
   const noCorsUrl = `http://localhost:${noCors.address().port}/nocors/car.glb`;
-  await context.route('**/api/v1/vehicles/e2e-nocors/ar-manifest', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(externalManifest('e2e-nocors', noCorsUrl)) }));
 
-  const page = await context.newPage();
-  console.log(`\n🧪 SIGMACAR AR end-to-end (${path.basename(exe)}, ${base})\n`);
+  async function newContext(kind) {
+    const opts = {
+      desktop: { viewport: { width: 1280, height: 800 } },
+      iphone: { viewport: { width: 390, height: 844 }, userAgent: UA.iphone, isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
+      ipad: { viewport: { width: 1024, height: 1366 }, userAgent: UA.ipadDesktop, isMobile: false, hasTouch: true, deviceScaleFactor: 2 },
+      iphoneInApp: { viewport: { width: 390, height: 844 }, userAgent: UA.iphoneInApp, isMobile: true, hasTouch: true },
+      android: { viewport: { width: 412, height: 915 }, userAgent: UA.android, isMobile: true, hasTouch: true }
+    }[kind];
+    const ctx = await browser.newContext(opts);
+    watch(ctx);
+    await routeCdn(ctx);
+    if (kind === 'iphone' || kind === 'ipad') await ctx.addInitScript(appleInit(), { quickLook: true, touchPoints: 5 });
+    if (kind === 'iphoneInApp') await ctx.addInitScript(appleInit(), { quickLook: false, touchPoints: 5 });
+    if (kind === 'android') await ctx.addInitScript(androidInit());
+    if (kind === 'desktop') await ctx.addInitScript(appleInit(), { quickLook: false, touchPoints: 0 });
+    return ctx;
+  }
 
-  await step('1-3. Open vehicle detail and select a configuration (colour #2) through the site router', async () => {
+  const desktop = await newContext('desktop');
+  const page = await desktop.newPage();
+  console.log(`\n🧪 SIGMACAR Apple AR end-to-end (${path.basename(exe)}, ${base})\n`);
+
+  await step('Detail page: select colour #2; "Xem AR" button keeps its appearance and opens /ar/:vehicleId', async () => {
     await page.goto(`${base}/#detail?carId=tesla-cybertruck&colorIdx=2`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.AppState && window.AppState.currentRoute === 'detail' && document.querySelector('[onclick*="openArLive"]'), null, { timeout: 30000 });
-    const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('sigmacar_vehicle_configs_v1') || '{}')['tesla-cybertruck']);
-    assert.strictEqual(saved && saved.colorIdx, 2, 'configuration must be persisted for the AR page');
-  });
-
-  let arState;
-  await step('4-5. "Xem AR" opens the dedicated full-screen route /ar/:vehicleId with the configuration', async () => {
-    await Promise.all([page.waitForURL(/\/ar\/tesla-cybertruck\?/), page.locator('[onclick*="openArLive"]').first().click()]);
+    const btn = page.locator('[onclick*="openArLive"]').first();
+    measurements.arButton = { text: (await btn.textContent()).trim().replace(/\s+/g, ' '), className: await btn.getAttribute('class') };
+    await Promise.all([page.waitForURL(/\/ar\/tesla-cybertruck\?/), btn.click()]);
     const u = new URL(page.url());
     assert.strictEqual(u.pathname, '/ar/tesla-cybertruck');
     assert.strictEqual(u.searchParams.get('color'), '2');
     assert.strictEqual(u.searchParams.get('return'), '/#detail');
-    assert.strictEqual(await page.locator('#ar-root').count(), 1);
-    assert.strictEqual(await page.locator('#app-views, .main-header').count(), 0, 'AR page is separate from the showroom shell');
+    assert.strictEqual(await page.locator('#app-views, .main-header').count(), 0, 'AR page is separate from the website shell');
   });
 
-  await step('6. Loads the model (colour-variant GLB) with progress, real-world size and capabilities', async () => {
-    arState = await waitForAr(page);
-    assert.match(arState.vehicle.loadedUrl, /tesla_cybertruck_ar_ceramic_white\.glb$/, 'colour #2 → ceramic white variant');
-    assert.ok(Math.abs(arState.vehicle.sizeMeters.length - 5.682) < 0.06);
-    assert.strictEqual(arState.vehicle.capabilities.changeColor, true);
-    assert.strictEqual(arState.vehicle.capabilities.changeWheels, true);
-    assert.strictEqual(arState.vehicle.capabilities.doorAnimations, false);
-    assert.strictEqual(arState.manifestSource, 'api');
-    measurements.cybertruck = { capabilityMs: arState.metrics.capabilityMs, manifestMs: arState.metrics.manifestMs, modelMs: arState.metrics.modelMs, modelBytes: arState.metrics.modelBytes };
+  let st;
+  await step('Desktop: loads the selected colour, shows the compatibility message + QR, never launches AR or the camera', async () => {
+    st = await waitForAr(page);
+    assert.match(st.vehicle.loadedUrl, /tesla_cybertruck_ar_ceramic_white\.glb$/, 'colour #2 → ceramic white variant');
+    assert.ok(Math.abs(st.vehicle.sizeMeters.length - 5.682) < 0.06, 'real-world length');
+    assert.strictEqual(st.support.canLaunchAr, false);
+    assert.strictEqual(st.support.reason, 'DESKTOP');
+    assert.strictEqual(st.ar.state, 'unsupported');
+    assert.match(await page.locator('#ar-notice-text').textContent(), /AR Camera chỉ khả dụng trên iPhone\/iPad tương thích/);
+    assert.strictEqual(await page.locator('#ar-qr svg path').count(), 1, 'QR code to open the page on an iPhone/iPad');
+    assert.ok(!(await page.locator('#ar-launch').isVisible()), 'no AR button on desktop');
+    await page.waitForTimeout(300);
+    const calls = await page.evaluate(() => ({ ql: window.__qlLaunches.length, gum: window.__gumCalls }));
+    assert.deepStrictEqual(calls, { ql: 0, gum: 0 });
+    measurements.desktopCybertruck = { manifestMs: st.metrics.manifestMs, modelMs: st.metrics.modelMs, modelBytes: st.metrics.modelBytes };
   });
 
-  await step('7(desktop). No WebXR AR on desktop → explicit 3D preview, never presented as AR; QR hand-off rendered', async () => {
-    assert.strictEqual(arState.experience.mode, 'preview-3d');
-    assert.strictEqual(arState.experience.reason, 'DESKTOP');
-    assert.strictEqual(await page.locator('#ar-mode-badge').textContent(), 'Xem 3D (không phải AR)');
-    assert.ok(await page.locator('#ar-fallback').isVisible());
-    assert.match(await page.locator('#ar-fallback-text').textContent(), /không thể chạy AR thật/);
-    assert.ok(await page.locator('#ar-qr svg path').count() === 1, 'QR code rendered');
-    assert.ok(!(await page.locator('#ar-primary').isVisible()), 'no "start AR" button where AR is impossible');
-    const camPerm = await page.evaluate(() => navigator.permissions.query({ name: 'camera' }).then(p => p.state).catch(() => 'n/a'));
-    assert.notStrictEqual(camPerm, 'granted', 'camera must not be requested on load');
+  await step('Full-screen, vehicle-first layout: canvas fills the viewport; only close, colour bar and notice are shown', async () => {
+    const box = await page.locator('#ar-stage canvas').boundingBox();
+    const vp = page.viewportSize();
+    assert.ok(Math.abs(box.width - vp.width) <= 1 && Math.abs(box.height - vp.height) <= 1, `canvas ${box.width}x${box.height} vs ${vp.width}x${vp.height}`);
+    const visibleButtons = await page.evaluate(() => Array.from(document.querySelectorAll('button, a')).filter(el => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
+    }).map(el => el.id || el.className));
+    assert.deepStrictEqual(visibleButtons.filter(x => x !== 'ar-swatch'), ['ar-close'], `unexpected controls: ${visibleButtons}`);
+    assert.strictEqual(visibleButtons.filter(x => x === 'ar-swatch').length, 4);
+    assert.strictEqual(await page.locator('nav, header, .ar-diagnostics, [id*="debug"]').count(), 0);
   });
 
-  await step('10a. Configure in AR page: colour swap (variant GLB), wheel finish, hotspot info, component pick', async () => {
-    await page.click('#ar-btn-config');
+  await step('Colour bar: switching colour loads that colour\'s authored GLB, persists the choice, and labels it', async () => {
     await page.locator('#ar-colors .ar-swatch').nth(3).click();
-    await page.waitForFunction(() => /tactical_green/.test(window.__sigmaAr.vehicle.loadedUrl), null, { timeout: 30000 });
-    await page.locator('#ar-wheels .ar-chip').nth(2).click();
+    await page.waitForFunction(() => /tactical_green/.test(window.__sigmaAr.vehicle.loadedUrl) && window.__sigmaAr.colorIdx === 3, null, { timeout: 30000 });
     const cfg = await page.evaluate(() => JSON.parse(sessionStorage.getItem('sigmacar_vehicle_configs_v1'))['tesla-cybertruck']);
     assert.strictEqual(cfg.colorIdx, 3);
-    assert.strictEqual(cfg.wheelId, 'wheel-22-forged');
-    assert.match(await page.locator('#ar-config-summary').textContent(), /Mâm: 22" Forged/);
-    await page.click('#ar-btn-config');
-
-    const hs = page.locator('.ar-hotspot');
-    assert.ok(await hs.count() > 0);
-    await page.waitForFunction(() => Array.from(document.querySelectorAll('.ar-hotspot')).some(b => b.style.opacity === '1'));
-    await page.evaluate(() => Array.from(document.querySelectorAll('.ar-hotspot')).find(b => b.style.opacity === '1').click());
-    assert.ok(await page.locator('#ar-info').isVisible());
-    assert.ok((await page.locator('#ar-info-title').textContent()).length > 0);
-    await page.click('#ar-info-close');
-
-    // Tap the centre of the car → raycast component selection
-    const box = await page.locator('#ar-stage canvas').boundingBox();
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.5);
-    await page.waitForTimeout(200);
-    const info = await page.locator('#ar-info').isVisible();
-    measurements.componentPickHit = info;
+    assert.strictEqual(await page.locator('#ar-colors .ar-swatch[aria-checked="true"]').count(), 1);
+    assert.match(await page.locator('#ar-color-name').textContent(), /Tactical Green/);
   });
 
-  await step('10b. Screenshot in preview mode produces a downloadable JPEG', async () => {
-    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.click('#ar-btn-capture')]);
-    const file = await dl.path();
-    const head = fs.readFileSync(file).subarray(0, 3);
-    assert.deepStrictEqual(Array.from(head), [0xff, 0xd8, 0xff], 'JPEG magic');
-    measurements.screenshotBytes = fs.statSync(file).size;
-  });
-
-  await step('Performance sample (desktop, SwiftShader software GL — not representative of phones)', async () => {
-    await page.waitForTimeout(4500);
-    const s = await page.evaluate(() => JSON.parse(JSON.stringify(window.__sigmaAr.metrics)));
-    measurements.previewFps = s.fps;
-    measurements.cacheBytes = await page.evaluate(() => window.__sigmaAr.cache.bytes);
-  });
-
-  await step('11-12. Exit returns to the showroom page with configuration preserved', async () => {
-    await Promise.all([page.waitForURL(/#detail\?/), page.click('#ar-back')]);
+  await step('Close returns to the showroom detail page with the colour chosen in AR', async () => {
+    await Promise.all([page.waitForURL(/#detail\?/), page.click('#ar-close')]);
     const u = new URL(page.url());
     assert.strictEqual(u.pathname, '/');
     assert.match(u.hash, /carId=tesla-cybertruck/);
-    // The site router normalises the hash to detail?carId=…; the configuration itself must be restored:
     await page.waitForFunction(() => window.AppState && window.AppState.currentRoute === 'detail');
-    const appCfg = await page.evaluate(() => {
-      const c = window.AppState.vehicleConfigs['tesla-cybertruck'];
-      return c && { colorIdx: c.colorIdx, wheelId: c.wheelId };
-    });
-    assert.deepStrictEqual(appCfg, { colorIdx: 3, wheelId: 'wheel-22-forged' });
+    const c = await page.evaluate(() => window.AppState.vehicleConfigs['tesla-cybertruck'].colorIdx);
+    assert.strictEqual(c, 3);
   });
 
-  await step('Draco-compressed GLB with textures decodes in the browser (vinfast-vf9)', async () => {
-    const p = await context.newPage();
+  await step('Paint tint path (no per-colour GLB): colour change re-tints body paint in place, no model reload', async () => {
+    const p = await desktop.newPage();
+    await p.goto(`${base}/ar/honda-civic-eg6-1991?color=0`);
+    const s0 = await waitForAr(p);
+    assert.strictEqual(s0.vehicle.capabilities.changeColor, true);
+    const misses0 = s0.cache.misses;
+    await p.locator('#ar-colors .ar-swatch').nth(3).click();
+    await p.waitForFunction(() => window.__sigmaAr.colorIdx === 3);
+    const s1 = await p.evaluate(() => JSON.parse(JSON.stringify(window.__sigmaAr)));
+    assert.strictEqual(s1.vehicle.loadedUrl, s0.vehicle.loadedUrl, 'same model');
+    assert.strictEqual(s1.cache.misses, misses0, 'no new download');
+    await p.close();
+  });
+
+  const iphone = await newContext('iphone');
+  await step('iPhone (Safari, rel="ar" supported): pre-built USDZ for the selected colour, launched from the tap', async () => {
+    const p = await iphone.newPage();
+    await p.goto(`${base}/ar/tesla-cybertruck?color=1&return=%2F%23detail`);
+    const s = await waitForAr(p, 'ar-settled');
+    assert.strictEqual(s.support.canLaunchAr, true);
+    assert.strictEqual(s.support.device.kind, 'iphone');
+    assert.strictEqual(s.ar.state, 'ready');
+    assert.strictEqual(s.ar.kind, 'prebuilt');
+    assert.match(s.ar.url, /\/assets\/models\/usdz\/tesla-cybertruck\/1\.usdz\?v=[0-9a-f]{12}$/);
+    assert.strictEqual(s.metrics.usdz.probe.status, 'valid');
+    assert.ok(await p.locator('#ar-launch').isVisible());
+    assert.ok(!(await p.locator('#ar-notice').isVisible()), 'no compatibility notice on a supported iPhone');
+    assert.strictEqual(await p.evaluate(() => window.__qlLaunches.length), 0, 'Quick Look is never opened without a tap');
+    await p.locator('#ar-launch').tap();
+    const launches = await p.evaluate(() => window.__qlLaunches);
+    assert.strictEqual(launches.length, 1);
+    const l = launches[0];
+    assert.strictEqual(l.firstChild, 'IMG', 'WebKit requires an <img> child');
+    assert.strictEqual(l.download, null, 'https USDZ needs no download attribute');
+    assert.strictEqual(l.userActivation, true, 'launched inside the user gesture');
+    const [file, frag] = l.href.split('#');
+    assert.ok(file.endsWith(s.ar.url.replace(base, '')) || file === s.ar.url);
+    const params = new URLSearchParams(frag);
+    assert.strictEqual(params.get('allowsContentScaling'), '0', 'real-world scale is locked');
+    assert.match(params.get('canonicalWebPageURL'), /\/ar\/tesla-cybertruck\?color=1$/);
+    const bytes = await readBytes(p, s.ar.url);
+    const check = inspectUsdz(bytes);
+    assert.ok(check.ok, check.problems.join(','));
+    assert.strictEqual(check.firstFile, 'model.usda');
+    const text = Buffer.from(bytes).toString('latin1');
+    assert.match(text, /metersPerUnit = 1/);
+    assert.match(text, /preliminary:planeAnchoring:alignment = "horizontal"/);
+    assert.strictEqual(await p.evaluate(() => window.__gumCalls), 0, 'the page never opens the camera itself');
+    measurements.prebuiltUsdzBytes = bytes.length;
+
+    // Colour change → the matching USDZ, no stale file.
+    await p.locator('#ar-colors .ar-swatch').nth(3).tap();
+    await p.waitForFunction(() => window.__sigmaAr.ar.state === 'ready' && window.__sigmaAr.ar.colorIdx === 3, null, { timeout: 30000 });
+    assert.match(await p.evaluate(() => window.__sigmaAr.ar.url), /tesla-cybertruck\/3\.usdz/);
+    await p.close();
+  });
+
+  await step('iPhone, no USDZ file: converts the shown model (selected paint) on the device and launches a blob USDZ', async () => {
+    const p = await iphone.newPage();
+    await p.goto(`${base}/ar/honda-civic-eg6-1991?color=3`);
+    const s = await waitForAr(p, 'ar-settled', 90000);
+    assert.strictEqual(s.ar.state, 'ready', JSON.stringify(s.metrics.warnings));
+    assert.strictEqual(s.ar.kind, 'generated');
+    assert.match(s.ar.url, /^blob:/);
+    measurements.onDeviceConversion = { vehicle: 'honda-civic-eg6-1991', ms: s.metrics.usdz.report.ms, bytes: s.metrics.usdz.bytes, estimatedBytes: s.metrics.usdz.report.estimatedBytes };
+    await p.locator('#ar-launch').tap();
+    const l = (await p.evaluate(() => window.__qlLaunches))[0];
+    assert.match(l.href, /^blob:.*#allowsContentScaling=0&canonicalWebPageURL=/);
+    assert.strictEqual(l.download, 'honda-civic-eg6-1991.usdz', 'blob USDZ needs the download attribute');
+    const bytes = await readBytes(p, s.ar.url);
+    const check = inspectUsdz(bytes);
+    assert.ok(check.ok, check.problems.join(','));
+    // The selected colour must be the diffuse colour of the paint material only (USD stores linear RGB).
+    const colorHex = (await (await fetch(`${base}/api/v1/vehicles/honda-civic-eg6-1991/ar-manifest`)).json()).data.colors[3].hex;
+    const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+    const want = [1, 3, 5].map(i => toLinear(parseInt(colorHex.slice(i, i + 2), 16) / 255));
+    const text = Buffer.from(bytes).toString('latin1');
+    const diffuse = Array.from(text.matchAll(/color3f inputs:diffuseColor = \(([^)]*)\)/g)).map(m => m[1].split(',').map(Number));
+    const painted = diffuse.filter(v => v.every((x, i) => Math.abs(x - want[i]) < 0.002));
+    measurements.onDeviceConversion.paint = { hex: colorHex, linear: want.map(x => +x.toFixed(4)), materials: diffuse.length, painted: painted.length };
+    assert.ok(painted.length >= 1, `selected paint ${colorHex} present in the USDZ`);
+    assert.ok(painted.length < diffuse.length, 'other materials keep their own colours');
+
+    // Switching back to an already converted colour reuses the cached file.
+    const firstUrl = s.ar.url;
+    await p.locator('#ar-colors .ar-swatch').nth(0).tap();
+    await p.waitForFunction(() => window.__sigmaAr.ar.state === 'ready' && window.__sigmaAr.ar.colorIdx === 0, null, { timeout: 60000 });
+    await p.locator('#ar-colors .ar-swatch').nth(3).tap();
+    await p.waitForFunction(() => window.__sigmaAr.ar.state === 'ready' && window.__sigmaAr.ar.colorIdx === 3, null, { timeout: 60000 });
+    assert.strictEqual(await p.evaluate(() => window.__sigmaAr.ar.url), firstUrl, 'cached per colour');
+    await p.close();
+  });
+
+  await step('iPhone, model too detailed to convert on the device: AR disabled with the reason (no crash, no fake)', async () => {
+    const p = await iphone.newPage();
     await p.goto(`${base}/ar/vinfast-vf9`);
-    const st = await waitForAr(p);
-    assert.match(st.vehicle.loadedUrl, /vinfast_vf9\.glb$/);
-    assert.ok(st.vehicle.sizeMeters.length > 4 && st.vehicle.sizeMeters.length < 6);
-    measurements.vf9 = { modelMs: st.metrics.modelMs, modelBytes: st.metrics.modelBytes };
+    const s = await waitForAr(p, 'ar-settled', 90000);
+    assert.strictEqual(s.ar.state, 'unavailable');
+    assert.strictEqual(s.ar.error, 'MODEL_TOO_LARGE_FOR_CONVERSION');
+    assert.ok(await p.locator('#ar-launch').isDisabled());
+    assert.match(await p.locator('#ar-launch-note').textContent(), /cần tệp USDZ dựng sẵn/);
     await p.close();
   });
 
-  await step('External HTTPS CDN .gltf (+ .bin, CORS) loads; missing texture is reported, not fatal', async () => {
-    const p = await context.newPage();
-    await p.goto(`${base}/ar/e2e-external`);
-    const st = await waitForAr(p);
-    assert.strictEqual(st.vehicle.loadedUrl, 'https://cdn.sigma-e2e.example/cars/car.gltf');
+  await step('External USDZ URLs: valid CDN file is used as-is; an HTML response is rejected and conversion takes over', async () => {
+    const p = await iphone.newPage();
+    await p.goto(`${base}/ar/e2e-external?color=0`);
+    let s = await waitForAr(p, 'ar-settled');
+    assert.strictEqual(s.vehicle.loadedUrl, 'https://cdn.sigma-e2e.example/cars/car.gltf', 'external glTF + .bin loaded');
     assert.ok(cdnHits.includes('/cars/car.bin'));
-    assert.ok(Math.abs(st.vehicle.sizeMeters.length - 4.4) < 0.01, 'fit-to-length');
-    assert.ok(st.metrics.warnings.some(w => /MISSING_RESOURCE|textures\/missing\.png/.test(w)) || cdnHits.includes('/cars/textures/missing.png'));
-    assert.strictEqual(st.vehicle.capabilities.changeColor, true);
+    assert.strictEqual(s.ar.kind, 'external');
+    assert.strictEqual(s.ar.url, 'https://cdn.sigma-e2e.example/cars/red.usdz');
+    await p.locator('#ar-colors .ar-swatch').nth(1).tap();
+    await p.waitForFunction(() => window.__sigmaAr.ar.state !== 'preparing' && window.__sigmaAr.ar.colorIdx === 1, null, { timeout: 30000 });
+    s = await p.evaluate(() => JSON.parse(JSON.stringify(window.__sigmaAr)));
+    assert.strictEqual(s.ar.kind, 'generated');
+    assert.ok(s.metrics.warnings.some(w => /USDZ_INVALID: .*blue\.usdz \(HTML_INSTEAD_OF_USDZ\)/.test(w)));
     await p.close();
   });
 
-  await step('Model host without CORS → explicit NETWORK_OR_CORS error state with retry', async () => {
-    const p = await context.newPage();
+  await step('iPad (iPadOS desktop-class user agent, touch) is detected as Apple AR capable', async () => {
+    const ctx = await newContext('ipad');
+    const p = await ctx.newPage();
+    await p.goto(`${base}/ar/tesla-cybertruck`);
+    const s = await waitForAr(p, 'ar-settled');
+    assert.strictEqual(s.support.device.kind, 'ipad');
+    assert.strictEqual(s.support.canLaunchAr, true);
+    assert.strictEqual(s.ar.state, 'ready');
+    await ctx.close();
+  });
+
+  await step('iPhone in-app browser without rel="ar": no launch, asks to open in Safari', async () => {
+    const ctx = await newContext('iphoneInApp');
+    const p = await ctx.newPage();
+    await p.goto(`${base}/ar/tesla-cybertruck`);
+    const s = await waitForAr(p, 'ar-settled');
+    assert.strictEqual(s.support.reason, 'APPLE_NO_QUICK_LOOK');
+    assert.ok(!(await p.locator('#ar-launch').isVisible()));
+    assert.match(await p.locator('#ar-notice-text').textContent(), /Safari/);
+    await ctx.close();
+  });
+
+  await step('Android (even with a WebXR runtime claiming immersive-ar): no ARCore/WebXR/Scene Viewer, simple message', async () => {
+    const ctx = await newContext('android');
+    const p = await ctx.newPage();
+    const navigations = [];
+    p.on('framenavigated', (f) => { if (f === p.mainFrame()) navigations.push(f.url()); });
+    await p.goto(`${base}/ar/tesla-cybertruck`);
+    const s = await waitForAr(p, 'ar-settled');
+    assert.strictEqual(s.support.reason, 'ANDROID');
+    assert.strictEqual(s.ar.state, 'unsupported');
+    assert.strictEqual(await p.locator('#ar-notice-text').textContent(), 'AR Camera chỉ khả dụng trên iPhone/iPad tương thích.');
+    assert.ok(!(await p.locator('#ar-launch').isVisible()));
+    assert.ok(!(await p.locator('#ar-qr-wrap').isVisible()), 'no QR on a phone');
+    await p.locator('#ar-colors .ar-swatch').nth(1).tap();
+    await p.waitForFunction(() => window.__sigmaAr.colorIdx === 1, null, { timeout: 30000 });
+    const calls = await p.evaluate(() => ({ xr: window.__xrCalls, gum: window.__gumCalls, ql: window.__qlLaunches.length }));
+    assert.deepStrictEqual(calls, { xr: 0, gum: 0, ql: 0 });
+    assert.ok(navigations.every(u => !u.startsWith('intent:')), 'no Scene Viewer intent');
+    await ctx.close();
+  });
+
+  await step('Model loading errors: host without CORS, invalid id and unknown vehicle fail with explicit states', async () => {
+    const p = await desktop.newPage();
     await p.goto(`${base}/ar/e2e-nocors`);
-    const st = await waitForAr(p, 'error');
-    assert.strictEqual(st.metrics.error, 'NETWORK_OR_CORS');
+    let s = await waitForAr(p, 'error');
+    assert.strictEqual(s.metrics.error, 'NETWORK_OR_CORS');
     assert.ok(await p.locator('#ar-retry').isVisible());
-    await p.close();
-  });
-
-  await step('Invalid and unknown vehicles fail safely', async () => {
-    const p = await context.newPage();
     await p.goto(`${base}/ar/BAD%20ID!`);
     await waitForAr(p, 'error');
     assert.match(await p.locator('#ar-status-detail').textContent(), /INVALID_VEHICLE_ID/);
@@ -282,51 +487,43 @@ async function waitForAr(page, predicate = 'ready', timeout = 60000) {
     await p.close();
   });
 
-  await step('WebXR wiring (mocked navigator.xr): requests immersive-ar + hit-test on user gesture; handles denial', async () => {
-    const p = await context.newPage();
+  await step('3D showroom: AR mode button opens the dedicated AR page; viewer refuses WebXR immersive-ar', async () => {
+    const p = await desktop.newPage();
     await p.addInitScript(() => {
-      window.__xrRequests = [];
+      window.__xrRequests = 0;
       Object.defineProperty(navigator, 'xr', {
         configurable: true,
-        value: {
-          isSessionSupported: async (mode) => mode === 'immersive-ar',
-          requestSession: async (mode, init) => {
-            window.__xrRequests.push({ mode, init: { requiredFeatures: init.requiredFeatures, optionalFeatures: init.optionalFeatures, hasDomOverlay: Boolean(init.domOverlay) } });
-            throw new DOMException('Permission denied', 'NotAllowedError');
-          }
-        }
+        value: { isSessionSupported: async () => true, requestSession: async () => { window.__xrRequests++; throw new Error('no'); } }
       });
     });
-    await p.goto(`${base}/ar/tesla-cybertruck`);
-    const st = await waitForAr(p);
-    assert.strictEqual(st.experience.mode, 'webxr');
-    assert.strictEqual(await p.evaluate(() => window.__xrRequests.length), 0, 'no XR/camera request before a user gesture');
-    assert.match(await p.locator('#ar-primary').textContent(), /Bắt đầu AR/);
-    await p.click('#ar-primary');
-    await p.waitForFunction(() => window.__xrRequests.length === 1);
-    const req = await p.evaluate(() => window.__xrRequests[0]);
-    assert.strictEqual(req.mode, 'immersive-ar');
-    assert.deepStrictEqual(req.init.requiredFeatures, ['hit-test']);
-    assert.ok(req.init.optionalFeatures.includes('dom-overlay') && req.init.hasDomOverlay);
-    await p.waitForFunction(() => document.getElementById('ar-status-title').textContent === 'Không mở được AR');
-    assert.match(await p.locator('#ar-status-detail').textContent(), /Quyền camera/);
-    assert.match(await p.locator('#ar-primary').textContent(), /Bắt đầu AR/, 'user can retry');
+    await p.goto(`${base}/#vr-ar?carId=tesla-cybertruck`);
+    await p.waitForFunction(() => window.AppState.currentRoute === 'vr-ar' && window._activeCar3DViewer, null, { timeout: 30000 });
+    const res = await p.evaluate(async () => {
+      const r = await window._activeCar3DViewer.enterWebXR({ ar: true });
+      const c = await window._activeCar3DViewer.checkWebXRSupport();
+      return { r, c, xr: window.__xrRequests };
+    });
+    assert.strictEqual(res.r.mode, 'apple-quick-look-only');
+    assert.strictEqual(res.c.supported, false);
+    assert.strictEqual(res.xr, 0);
+    await Promise.all([p.waitForURL(/\/ar\/tesla-cybertruck/), p.click('#btn-mode-ar')]);
     await p.close();
   });
 
   await step('Legacy #ar-live links redirect to the dedicated AR page', async () => {
-    const p = await context.newPage();
+    const p = await desktop.newPage();
     await p.goto(`${base}/#ar-live?carId=tesla-cybertruck`);
     await p.waitForURL(/\/ar\/tesla-cybertruck/, { timeout: 30000 });
     await p.close();
   });
 
-  await step('Regression: home, 3D showroom (#vr-ar) and cart still render', async () => {
-    const p = await context.newPage();
+  await step('Regression: home, 3D showroom (#vr-ar), 360°/VR controls and cart still render', async () => {
+    const p = await desktop.newPage();
     await p.goto(`${base}/#home`);
     await p.waitForFunction(() => window.AppState && window.AppState.currentRoute === 'home');
     await p.goto(`${base}/#vr-ar?carId=tesla-cybertruck`);
     await p.waitForFunction(() => window.AppState.currentRoute === 'vr-ar' && document.querySelector('#app-views canvas, canvas'), null, { timeout: 30000 });
+    assert.ok(await p.locator('#btn-mode-360').count() === 1 && await p.locator('#btn-vr-hud-webxr').count() === 1);
     await p.goto(`${base}/#cart`);
     await p.waitForFunction(() => window.AppState.currentRoute === 'cart');
     await p.close();

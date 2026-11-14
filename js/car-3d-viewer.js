@@ -2062,20 +2062,26 @@
 
     async enterWebXR(opts = {}) {
       const preferAR = opts.ar !== undefined ? !!opts.ar : !!(this.options.arMode || this.options.transparent || this.isCameraActive);
-      if (!preferAR) {
-        this.setVRStudioMode(true);
+      // AR camera is Apple AR Quick Look only (dedicated page /ar/:vehicleId, js/ar/). The showroom viewer never
+      // starts a WebXR immersive-ar session; only the VR-headset path (immersive-vr) remains here.
+      if (preferAR) {
+        return {
+          mode: 'apple-quick-look-only',
+          supported: false,
+          immersiveActive: false,
+          active: false,
+          message: 'AR Camera chỉ khả dụng trên iPhone/iPad tương thích qua trang AR riêng.'
+        };
       }
+      this.setVRStudioMode(true);
       if (typeof navigator !== 'undefined' && navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
-        const sessionMode = preferAR ? 'immersive-ar' : 'immersive-vr';
+        const sessionMode = 'immersive-vr';
         try {
           const supported = await navigator.xr.isSessionSupported(sessionMode);
           if (supported && this.renderer && this.renderer.xr) {
             const session = await navigator.xr.requestSession(sessionMode, {
-              optionalFeatures: preferAR
-                ? ['local-floor', 'hit-test', 'dom-overlay']
-                : ['local-floor', 'bounded-floor', 'hand-tracking']
+              optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
             });
-            if (preferAR) this.setTransparentMode(true);
             this._xrSession = session;
             this._xrSessionMode = sessionMode;
             this.renderer.xr.enabled = true;
@@ -2095,7 +2101,7 @@
               });
             }
             return {
-              mode: preferAR ? 'webxr-ar' : 'webxr-headset',
+              mode: 'webxr-headset',
               supported: true,
               immersiveActive: true,
               active: true
@@ -2106,10 +2112,10 @@
         }
       }
       return {
-        mode: preferAR ? 'ar-world-lock' : 'virtual-studio',
+        mode: 'virtual-studio',
         supported: false,
         immersiveActive: false,
-        active: !preferAR,
+        active: true,
         message: 'Trình duyệt/thiết bị hiện chưa có WebXR Headset; hiển thị chế độ 3D Studio tương tác.'
       };
     }
@@ -2754,15 +2760,8 @@
     }
 
     async checkWebXRSupport() {
-      if (typeof navigator !== 'undefined' && navigator.xr && typeof navigator.xr.isSessionSupported === 'function') {
-        try {
-          const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-          return { supported: !!arSupported, type: 'immersive-ar' };
-        } catch (e) {
-          return { supported: false, error: e.message };
-        }
-      }
-      return { supported: false, reason: 'WebXR not available' };
+      // WebXR AR is intentionally not used (Apple AR Quick Look only, see js/ar/apple/). Kept for API compatibility.
+      return { supported: false, type: 'immersive-ar', reason: 'APPLE_QUICK_LOOK_ONLY' };
     }
 
     async toggleCamera() {

@@ -1,8 +1,10 @@
-// Unit tests for the modular AR engine (js/ar/**). Browser ES modules are imported dynamically; `three`
+// Unit tests for the Apple-only AR engine (js/ar/**). Browser ES modules are imported dynamically; `three`
 // resolves to the same pinned version that is vendored for the browser (node_modules/three@0.170.0).
+// AR Quick Look / ARKit behaviour itself cannot run here; see tests/e2e/ar-flow.e2e.js and docs/AR_TEST_REPORT.md.
 
 const { describe, it, before } = require('node:test');
 const assert = require('node:assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -11,7 +13,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const mod = (rel) => import(pathToFileURL(path.join(ROOT, rel)).href);
 
 describe('AR: showroom entry point', () => {
-  it('opens spatial AR for the displayed car even when the preview viewer is unavailable', () => {
+  it('opens the dedicated AR page for the displayed car even when the preview viewer is unavailable', () => {
     const source = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
     const start = source.indexOf("    document.getElementById('btn-mode-ar')?.addEventListener");
     const end = source.indexOf("    document.getElementById('btn-vr-hud-webxr')", start);
@@ -31,29 +33,27 @@ describe('AR: showroom entry point', () => {
   });
 });
 
-let THREE, urlPolicy, fetchMod, AssetCache, validator, normalizeVehicle, placement, hit, gestures, MaterialConfigurator,
-  AnimationController, capability, session, manifestSchema, manifestClient, configSync, fallback, tracker, HotspotManagerMod;
+let THREE, urlPolicy, fetchMod, AssetCache, validator, normalizeVehicle, MaterialConfigurator, VehicleController,
+  appleSupport, quickLook, usdzBuilder, UsdzResolver, manifestSchema, manifestClient, configSync, tracker, GLTFLoader;
 
 before(async () => {
   THREE = await import('three');
+  ({ GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js'));
   urlPolicy = await mod('js/ar/models/url-policy.js');
   fetchMod = await mod('js/ar/models/fetch-with-progress.js');
   ({ AssetCache } = await mod('js/ar/models/asset-cache.js'));
   validator = await mod('js/ar/models/model-validator.js');
   ({ normalizeVehicle } = await mod('js/ar/models/model-normalizer.js'));
-  placement = await mod('js/ar/core/placement-controller.js');
-  hit = await mod('js/ar/core/hit-test-manager.js');
-  gestures = await mod('js/ar/core/interaction-manager.js');
   ({ MaterialConfigurator } = await mod('js/ar/vehicle/material-configurator.js'));
-  ({ AnimationController } = await mod('js/ar/vehicle/animation-controller.js'));
-  capability = await mod('js/ar/core/capability-detector.js');
-  session = await mod('js/ar/core/session-manager.js');
+  ({ VehicleController } = await mod('js/ar/vehicle/vehicle-controller.js'));
+  appleSupport = await mod('js/ar/apple/apple-ar-support.js');
+  quickLook = await mod('js/ar/apple/quick-look.js');
+  usdzBuilder = await mod('js/ar/apple/usdz-builder.js');
+  ({ UsdzResolver } = await mod('js/ar/apple/usdz-resolver.js'));
   manifestSchema = await mod('js/ar/manifest/manifest-schema.js');
   manifestClient = await mod('js/ar/manifest/manifest-client.js');
   configSync = await mod('js/ar/config/config-sync.js');
-  fallback = await mod('js/ar/fallback/platform-fallback.js');
   tracker = await mod('js/ar/core/resource-tracker.js');
-  HotspotManagerMod = await mod('js/ar/vehicle/hotspot-manager.js');
 });
 
 // ---------------------------------------------------------------- helpers
@@ -278,342 +278,394 @@ describe('AR: model validation and normalisation', () => {
   });
 });
 
-// ---------------------------------------------------------------- materials, animations, hotspots
-describe('AR: vehicle configuration', () => {
-  it('binds paint/rim materials by verified name and disables what is missing', () => {
+// ---------------------------------------------------------------- paint
+describe('AR: vehicle paint configuration', () => {
+  it('re-tints only the declared body paint; glass, rims and lights keep colour, metalness and roughness', () => {
     const root = new THREE.Group();
-    const body = new THREE.MeshStandardMaterial({ name: 'Material_Body', color: 0x999999 });
-    const rims = new THREE.MeshStandardMaterial({ name: 'Material_Rims', roughness: 0.5, metalness: 0.5 });
-    const glass = new THREE.MeshStandardMaterial({ name: 'Material_Glass' });
+    const body = new THREE.MeshPhysicalMaterial({ name: 'Material_Body', color: 0x999999, metalness: 0.9, roughness: 0.35, clearcoat: 1 });
+    const rims = new THREE.MeshStandardMaterial({ name: 'Material_Rims', color: 0xcccccc, roughness: 0.22, metalness: 0.92 });
+    const glass = new THREE.MeshStandardMaterial({ name: 'Material_Glass', color: 0x223344 });
     for (const m of [body, rims, glass]) root.add(new THREE.Mesh(new THREE.BoxGeometry(), m));
 
-    const cfg = new MaterialConfigurator(root, { body: ['Material_Body', 'Body_Paint_Missing'], rims: ['material_rims'], protectedPatterns: ['glass'] });
+    const cfg = new MaterialConfigurator(root, { body: ['material_body', 'Body_Paint_Missing'], protectedPatterns: ['glass'] });
     assert.strictEqual(cfg.capabilities.paint, true);
+    assert.deepStrictEqual(cfg.capabilities.matchedBody, ['Material_Body'], 'case-insensitive exact match');
     assert.deepStrictEqual(cfg.capabilities.missingBody, ['Body_Paint_Missing']);
-    assert.deepStrictEqual(cfg.capabilities.matchedRims, ['Material_Rims'], 'case-insensitive exact match');
     assert.ok(cfg.setPaint('#3F6212'));
     assert.strictEqual(body.color.getHexString(), new THREE.Color('#3F6212').getHexString());
-    assert.ok(cfg.setRimFinish({ color: '#B45309', roughness: 0.3, metalness: 0.95 }));
-    assert.strictEqual(rims.roughness, 0.3);
-    assert.strictEqual(cfg.classify(body), 'body');
-    assert.strictEqual(cfg.classify(glass), 'other');
+    assert.deepStrictEqual([body.metalness, body.roughness, body.clearcoat], [0.9, 0.35, 1], 'reflection properties preserved');
+    assert.strictEqual(rims.color.getHex(), 0xcccccc);
+    assert.strictEqual(glass.color.getHex(), 0x223344);
     assert.strictEqual(cfg.setPaint('red'), false, 'only #RRGGBB accepted');
     cfg.reset();
     assert.strictEqual(body.color.getHex(), 0x999999);
 
-    const none = new MaterialConfigurator(root, { body: ['Material_Glass'], rims: [], protectedPatterns: ['glass'] });
+    const none = new MaterialConfigurator(root, { body: ['Material_Glass'], protectedPatterns: ['glass'] });
     assert.strictEqual(none.capabilities.paint, false, 'protected materials can never be repainted');
-    assert.strictEqual(none.setPaint('#FFFFFF'), false);
   });
 
-  it('enables doors only when the named clip exists, and plays it forward/reverse', () => {
-    const root = new THREE.Group();
-    const door = new THREE.Object3D();
-    door.name = 'Door';
-    root.add(door);
-    const clip = new THREE.AnimationClip('Door_Open', 1, [new THREE.NumberKeyframeTrack('Door.rotation[y]', [0, 1], [0, 1.2])]);
-
-    const missing = new AnimationController(root, [clip], { openDoors: 'Doors_Open_DoesNotExist' });
-    assert.strictEqual(missing.capabilities.doors, false);
-    assert.deepStrictEqual(missing.capabilities.missingClips, ['Doors_Open_DoesNotExist']);
-    assert.strictEqual(missing.toggleDoors(), false);
-
-    const ok = new AnimationController(root, [clip], { openDoors: 'Door_Open' });
-    assert.strictEqual(ok.toggleDoors(), true);
-    for (let i = 0; i < 12; i++) ok.update(0.1);
-    assert.ok(Math.abs(door.rotation.y - 1.2) < 1e-6, 'door fully open');
-    ok.toggleDoors();
-    for (let i = 0; i < 12; i++) ok.update(0.1);
-    assert.ok(Math.abs(door.rotation.y) < 1e-6, 'door closed again by reverse playback');
-    ok.dispose();
-
-    const noClips = new AnimationController(root, [], {});
-    assert.strictEqual(noClips.capabilities.doors, false);
-  });
-
-  it('projects hotspots to screen and hides them behind the camera / when the vehicle is hidden', () => {
-    const els = [];
-    const mkEl = () => {
-      const el = { style: {}, attrs: {}, children: [], className: '', type: '', setAttribute(k, v) { this.attrs[k] = v; }, appendChild(c) { this.children.push(c); }, addEventListener() {}, remove() {} };
-      els.push(el);
-      return el;
+  it('colour without its own GLB re-tints in place (no reload); a colour with a variant GLB loads that file', async () => {
+    const loads = [];
+    const make = () => {
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.4, 4.5), new THREE.MeshStandardMaterial({ name: 'Body_Paint' })));
+      return g;
     };
-    const layer = { ownerDocument: { createElement: mkEl }, appendChild() {} };
-    const hm = new HotspotManagerMod.HotspotManager({ layer, hotspots: [{ id: 'h', name: 'Pin', position: [0, 1, 0] }] });
-    const cam = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-    cam.position.set(0, 1, 5);
-    cam.lookAt(0, 1, 0);
-    cam.updateMatrixWorld();
+    const loader = {
+      baseUrl: 'https://sigma-car.pages.dev/',
+      load: async (url) => { loads.push(url); return { scene: make(), animations: [], url: new URL(url, 'https://sigma-car.pages.dev/').toString(), bytes: 1, warnings: [] }; }
+    };
+    const manifest = {
+      model: { glbUrl: 'assets/models/car.glb', scaleMode: 'fit-to-length', dimensionsMeters: { length: 4.5, width: 1.9, height: 1.4 } },
+      colors: [{ index: 0, name: 'A', hex: '#DC2626' }, { index: 1, name: 'B', hex: '#0284C7' }, { index: 2, name: 'C', hex: '#111111' }],
+      variants: [{ colorIndex: 2, glbUrl: 'assets/models/car_black.glb' }],
+      materials: { body: ['Body_Paint'], protectedPatterns: [] },
+      features: { changeColor: true }
+    };
     const anchor = new THREE.Group();
-    anchor.updateMatrixWorld();
-    hm.update(cam, anchor, { width: 400, height: 400 });
-    const btn = hm.items[0].el;
-    assert.strictEqual(btn.style.opacity, '1');
-    assert.match(btn.style.transform, /translate3d\(200\.0px, 200\.0px/);
-    anchor.visible = false;
-    hm.update(cam, anchor, { width: 400, height: 400 });
-    assert.strictEqual(btn.style.opacity, '0');
+    const v = new VehicleController({ loader, anchor, manifest });
+    await v.load(0);
+    assert.deepStrictEqual(loads, ['assets/models/car.glb']);
+    const paint = () => v.pivot.getObjectByProperty('type', 'Mesh').material.color.getHexString();
+    assert.strictEqual(paint(), new THREE.Color('#DC2626').getHexString());
+    assert.deepStrictEqual(await v.setColor(1), { changed: true, reloaded: false });
+    assert.strictEqual(loads.length, 1, 'no reload for a tint');
+    assert.strictEqual(paint(), new THREE.Color('#0284C7').getHexString());
+    assert.deepStrictEqual(await v.setColor(2), { changed: true, reloaded: true });
+    assert.deepStrictEqual(loads, ['assets/models/car.glb', 'assets/models/car_black.glb']);
+    assert.strictEqual(anchor.children.length, 1, 'previous model replaced, not stacked');
+    v.dispose();
   });
 });
 
-// ---------------------------------------------------------------- hit test + placement + gestures
-describe('AR: surface detection, placement and gestures', () => {
-  it('accepts horizontal floors and rejects walls / missing poses', () => {
-    const floor = new THREE.Matrix4().makeTranslation(0.5, -1.2, -2).toArray();
-    const r = hit.evaluateHitPose(floor);
-    assert.strictEqual(r.valid, true);
-    assert.ok(Math.abs(r.position.y + 1.2) < 1e-9);
-    const wall = new THREE.Matrix4().makeRotationX(Math.PI / 2).toArray();
-    assert.strictEqual(hit.evaluateHitPose(wall).reason, 'NOT_HORIZONTAL');
-    const tilted = new THREE.Matrix4().makeRotationX((10 * Math.PI) / 180).toArray();
-    assert.strictEqual(hit.evaluateHitPose(tilted).valid, true, 'small slopes are fine');
-    assert.strictEqual(hit.evaluateHitPose(null).reason, 'NO_POSE');
+// ---------------------------------------------------------------- Apple support
+describe('AR: Apple AR support detection (iOS / iPadOS only)', () => {
+  const doc = (relAr) => ({
+    createElement: (tag) => (tag === 'a'
+      ? { relList: { supports: (t) => { if (relAr === 'throw') throw new TypeError('no supported tokens'); return relAr && t === 'ar'; } } }
+      : { getContext: () => ({}) })
+  });
+  const UA = {
+    iphone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1',
+    ipad: 'Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+    mac: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15',
+    android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    windows: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    fbIos: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/480.0]'
+  };
+  const detect = (ua, { relAr = false, touch = 0, platform = '', secure = true } = {}) => appleSupport.detectAppleArSupport({
+    navigator: { userAgent: ua, maxTouchPoints: touch, platform },
+    document: doc(relAr),
+    window: { isSecureContext: secure }
   });
 
-  it('requires several consecutive hits before reporting a stable surface and tolerates brief dropouts', () => {
-    const f = new hit.SurfaceStabilityFilter({ framesToConfirm: 3, framesToLose: 2 });
-    assert.deepStrictEqual([true, true].map(v => f.push(v)), [false, false]);
-    assert.strictEqual(f.push(true), true);
-    assert.strictEqual(f.push(false), true, 'one dropped frame does not hide the reticle');
-    assert.strictEqual(f.push(false), false);
+  it('launches only on iPhone / iPad with AR Quick Look (rel="ar") in a secure context', () => {
+    const iphone = detect(UA.iphone, { relAr: true, touch: 5 });
+    assert.deepStrictEqual([iphone.canLaunchAr, iphone.reason, iphone.device.kind], [true, 'QUICK_LOOK', 'iphone']);
+    const ipad = detect(UA.ipad, { relAr: true, touch: 5 });
+    assert.deepStrictEqual([ipad.canLaunchAr, ipad.device.kind], [true, 'ipad']);
+    const ipadDesktopUa = detect(UA.mac, { relAr: true, touch: 5, platform: 'MacIntel' });
+    assert.deepStrictEqual([ipadDesktopUa.canLaunchAr, ipadDesktopUa.device.kind], [true, 'ipad'], 'iPadOS 13+ desktop-class UA');
   });
 
-  it('HitTestManager consumes real XR frame shapes and smooths the reticle', async () => {
-    let cancelled = false;
-    const sessionMock = { requestHitTestSource: async () => ({ cancel: () => { cancelled = true; } }) };
-    const htm = await new hit.HitTestManager({ session: sessionMock, viewerSpace: {} }).init();
-    const pose = (y) => ({ transform: { matrix: new THREE.Matrix4().makeTranslation(0, y, -1.5).toArray() } });
-    const frame = (results) => ({ getHitTestResults: () => results });
-    let s;
-    for (let i = 0; i < 3; i++) s = htm.update(frame([{ getPose: () => pose(-1) }]), {});
-    assert.strictEqual(s.stable, true);
-    assert.ok(Math.abs(s.position.y + 1) < 1e-9);
-    s = htm.update(frame([]), {});
-    assert.strictEqual(s.valid, false);
-    assert.strictEqual(s.stable, true, 'debouncing must not be mistaken for a current valid hit');
-    htm.reset();
-    assert.strictEqual(htm.latest.valid, false);
-    assert.strictEqual(htm.latest.stable, false, 'reset immediately invalidates the previous surface');
-    s = htm.update(frame([{ getPose: () => pose(-2) }]), {});
-    assert.strictEqual(s.stable, false, 'a reset requires fresh confirmation');
-    assert.strictEqual(s.position.y, -2, 'new scan must not blend with the old surface');
-    htm.dispose();
-    assert.strictEqual(cancelled, true);
+  it('feature detection decides: an iPhone UA without rel="ar" (in-app browser) cannot launch', () => {
+    const inApp = detect(UA.fbIos, { relAr: false, touch: 5 });
+    assert.deepStrictEqual([inApp.canLaunchAr, inApp.reason, inApp.device.inAppBrowser], [false, 'APPLE_NO_QUICK_LOOK', true]);
+    const throws = detect(UA.iphone, { relAr: 'throw', touch: 5 });
+    assert.strictEqual(throws.canLaunchAr, false, 'DOMTokenList.supports throwing is handled');
+    assert.strictEqual(detect(UA.iphone, { relAr: true, touch: 5, secure: false }).reason, 'INSECURE_CONTEXT');
   });
 
-  it('placement state machine: no placement without a stable surface, no accidental re-placement, reset/move/rotate', () => {
-    let now = 0;
-    const pc = new placement.PlacementController({ cooldownMs: 600, now: () => now });
-    const states = [];
-    pc.on('change', (e) => states.push(e.state));
-    assert.strictEqual(pc.place({ x: 0, y: 0, z: 0 }).ok, false, 'idle');
-    pc.sessionStarted();
-    assert.strictEqual(pc.place({ x: 0, y: 0, z: 0 }).reason, 'NO_STABLE_SURFACE');
-    pc.surfaceUpdate(true);
-    assert.strictEqual(pc.state, 'surface-found');
-    assert.strictEqual(pc.place({ x: 1, y: -1, z: -2 }, 0.5).ok, true);
-    assert.strictEqual(pc.yaw, 0.5);
-    assert.strictEqual(pc.place({ x: 9, y: 9, z: 9 }).reason, 'ALREADY_PLACED', 'taps after placement are interactions');
-    assert.ok(pc.rotate(0.25));
-    assert.ok(Math.abs(pc.yaw - 0.75) < 1e-12);
-    assert.ok(pc.startMove());
-    now += 100;
-    assert.strictEqual(pc.place({ x: 2, y: -1, z: -2 }).reason, 'COOLDOWN');
-    now += 1000;
-    assert.strictEqual(pc.place({ x: 2, y: -1, z: -2 }).ok, true);
-    assert.ok(Math.abs(pc.yaw - 0.75) < 1e-12, 'moving keeps orientation');
-    pc.surfaceUpdate(false);
-    pc.reset();
-    assert.strictEqual(pc.state, 'scanning');
-    pc.sessionEnded();
-    assert.strictEqual(pc.state, 'idle');
-    assert.deepStrictEqual(states, ['scanning', 'surface-found', 'placed', 'moving', 'placed', 'scanning', 'idle']);
-    assert.ok(Number.isFinite(placement.yawFacing({ x: 0, z: 0 }, { x: 0, z: 3 })));
-  });
-
-  it('gesture arbiter separates tap, drag-rotate and two-finger twist', () => {
-    let now = 0;
-    const g = new gestures.GestureArbiter({ now: () => now });
-    const taps = [];
-    const rot = [];
-    g.on('tap', (e) => taps.push(e));
-    g.on('rotate', (e) => rot.push(e.delta));
-
-    g.pointerDown(1, 100, 100); now += 80; g.pointerUp(1, 102, 101);
-    assert.strictEqual(taps.length, 1);
-
-    g.pointerDown(1, 100, 100); g.pointerMove(1, 140, 100); g.pointerMove(1, 180, 100); now += 400; g.pointerUp(1, 180, 100);
-    assert.strictEqual(taps.length, 1, 'a drag never ends as a tap');
-    assert.ok(rot.length >= 1 && rot.every(d => d > 0));
-    assert.ok(g.recentlyDragged(), 'used to drop the XR select that follows a drag');
-
-    rot.length = 0;
-    g.pointerDown(1, 0, 0); g.pointerDown(2, 100, 0); g.pointerMove(2, 100, 100);
-    g.pointerUp(2, 100, 100); g.pointerUp(1, 0, 0);
-    assert.strictEqual(rot.length, 1);
-    assert.strictEqual(taps.length, 1, 'lifting fingers after a twist is not a tap');
-
-    g.pointerDown(1, 0, 0); now += 1000; g.pointerUp(1, 0, 0);
-    assert.strictEqual(taps.length, 1, 'long press is not a tap');
+  it('Android, Windows/Linux desktop and Mac never launch AR (even if a browser claimed rel="ar")', () => {
+    const android = detect(UA.android, { relAr: true, touch: 5 });
+    assert.deepStrictEqual([android.canLaunchAr, android.reason], [false, 'ANDROID']);
+    const windows = detect(UA.windows, { relAr: false });
+    assert.deepStrictEqual([windows.canLaunchAr, windows.reason], [false, 'DESKTOP']);
+    const mac = detect(UA.mac, { relAr: true, touch: 0, platform: 'MacIntel' });
+    assert.deepStrictEqual([mac.canLaunchAr, mac.reason], [false, 'MAC'], 'real Mac: Quick Look has no AR camera');
+    assert.strictEqual(appleSupport.SUPPORT_MESSAGES.ANDROID, 'AR Camera chỉ khả dụng trên iPhone/iPad tương thích.');
   });
 });
 
-// ---------------------------------------------------------------- XR session lifecycle
-describe('AR: XR session lifecycle', () => {
-  function fakeXr({ fail } = {}) {
-    let requests = 0;
-    const listeners = {};
-    const sess = {
-      enabledFeatures: ['hit-test', 'dom-overlay', 'light-estimation'],
-      domOverlayState: { type: 'screen' },
-      addEventListener: (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); },
-      removeEventListener: (t, fn) => { listeners[t] = (listeners[t] || []).filter(f => f !== fn); },
-      requestReferenceSpace: async () => ({ type: 'viewer' }),
-      end: async () => { (listeners.end || []).slice().forEach(f => f()); },
-      fire: (t) => (listeners[t] || []).slice().forEach(f => f())
+// ---------------------------------------------------------------- Quick Look
+describe('AR: Quick Look launcher', () => {
+  it('builds the documented fragment parameters (real scale locked, canonical page for sharing)', () => {
+    const href = quickLook.buildQuickLookHref('https://cdn.example/car.usdz?v=1#old', { canonicalWebPageURL: 'https://sigma-car.pages.dev/ar/tesla-cybertruck?color=1' });
+    assert.strictEqual(href, 'https://cdn.example/car.usdz?v=1#allowsContentScaling=0&canonicalWebPageURL=https%3A%2F%2Fsigma-car.pages.dev%2Far%2Ftesla-cybertruck%3Fcolor%3D1');
+    assert.strictEqual(quickLook.buildQuickLookHref('blob:https://x/1', {}), 'blob:https://x/1#allowsContentScaling=0');
+    for (const bad of ['http://evil.example/a.usdz', 'javascript:alert(1)', 'data:model/vnd.usdz+zip;base64,AA==', '']) {
+      assert.throws(() => quickLook.buildQuickLookHref(bad), bad || 'empty');
+    }
+  });
+
+  it('activates <a rel="ar"> with an <img> first child; blob files get the download attribute', () => {
+    const created = [];
+    const el = (tag) => {
+      const e = { tagName: tag.toUpperCase(), attrs: {}, children: [], style: {}, clicks: 0,
+        setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return this.attrs[k] ?? null; }, removeAttribute(k) { delete this.attrs[k]; },
+        appendChild(c) { this.children.push(c); }, click() { this.clicks++; } };
+      if (tag === 'a') created.push(e);
+      return e;
     };
-    const xr = {
-      requestSession: async (mode, init) => {
-        requests++;
-        xr.lastInit = init;
-        await new Promise(r => setTimeout(r, 5));
-        if (fail) throw Object.assign(new Error('denied'), { name: fail });
-        return sess;
-      }
-    };
-    const renderer = { xr: { setReferenceSpaceType() {}, setSession: async () => {}, getReferenceSpace: () => ({ type: 'local' }) } };
-    return { xr, sess, renderer, count: () => requests };
+    const body = { children: [], appendChild(c) { this.children.push(c); c.id && (byId[c.id] = c); } };
+    const byId = {};
+    const fakeDoc = { createElement: el, body, getElementById: (id) => byId[id] || null };
+
+    const a = quickLook.launchQuickLook('https://x/car.usdz#allowsContentScaling=0', { document: fakeDoc });
+    assert.strictEqual(a.getAttribute('rel'), 'ar');
+    assert.strictEqual(a.children[0].tagName, 'IMG');
+    assert.strictEqual(a.getAttribute('download'), null);
+    assert.strictEqual(a.clicks, 1);
+    const b = quickLook.launchQuickLook('blob:https://x/9#allowsContentScaling=0', { document: fakeDoc, fileName: 'car.usdz' });
+    assert.strictEqual(b, a, 'one anchor re-used');
+    assert.strictEqual(b.getAttribute('download'), 'car.usdz');
+    assert.strictEqual(created.length, 1);
+  });
+});
+
+// ---------------------------------------------------------------- USDZ
+function storedZip(entries, { method = 0 } = {}) {
+  const parts = [];
+  for (const [name, data] of entries) {
+    const n = Buffer.from(name);
+    const h = Buffer.alloc(30);
+    h.writeUInt32LE(0x04034b50, 0);
+    h.writeUInt16LE(method, 8);
+    h.writeUInt32LE(data.length, 18);
+    h.writeUInt32LE(data.length, 22);
+    h.writeUInt16LE(n.length, 26);
+    h.writeUInt16LE(0, 28);
+    parts.push(h, n, data);
   }
+  return new Uint8Array(Buffer.concat(parts));
+}
 
-  it('requests immersive-ar with hit-test required and dom-overlay/light-estimation optional; never twice', async () => {
-    const f = fakeXr();
-    const m = new session.XRSessionManager({ xr: f.xr, renderer: f.renderer, overlayRoot: { id: 'overlay' } });
-    const [s1, s2] = await Promise.all([m.start(), m.start()]);
-    assert.strictEqual(s1, s2);
-    assert.strictEqual(f.count(), 1, 'duplicate XR sessions are prevented');
-    assert.deepStrictEqual(f.xr.lastInit.requiredFeatures, ['hit-test']);
-    assert.ok(f.xr.lastInit.optionalFeatures.includes('dom-overlay'));
-    assert.ok(f.xr.lastInit.optionalFeatures.includes('light-estimation'));
-    assert.deepStrictEqual(f.xr.lastInit.domOverlay, { root: { id: 'overlay' } });
-    assert.strictEqual(m.isRunning, true);
-    assert.strictEqual(m.domOverlayActive, true);
-    await m.start();
-    assert.strictEqual(f.count(), 1);
+describe('AR: USDZ conversion and validation', () => {
+  const loadCybertruck = async () => {
+    const b = fs.readFileSync(path.join(ROOT, 'assets/models/ar/tesla_cybertruck_ar_v1.glb'));
+    const gltf = await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '');
+    return normalizeVehicle(gltf.scene, { dimensionsMeters: { length: 5.682, width: 2.2, height: 1.791 }, scaleMode: 'certified' });
+  };
+
+  it('converts the real Cybertruck (selected paint, metres, horizontal anchoring) into a spec-valid USDZ', async () => {
+    const norm = await loadCybertruck();
+    assert.ok(Math.abs(norm.sizeMeters.length - 5.682) < 0.06, 'real-world length before export');
+    new MaterialConfigurator(norm.pivot, { body: ['Material_Body'] }).setPaint('#3F6212');
+    const out = await usdzBuilder.buildVehicleUsdz(norm.pivot);
+    const check = usdzBuilder.inspectUsdz(out.bytes);
+    assert.ok(check.ok, check.problems.join(','));
+    assert.strictEqual(check.firstFile, 'model.usda');
+    assert.strictEqual(out.report.exported, out.report.meshes);
+    assert.ok(out.warnings.some(w => w.startsWith('USDZ_SINGLE_SIDED')), 'double-sided loss is reported, not hidden');
+    assert.ok(out.report.estimatedBytes >= out.bytes.length * 0.85 && out.report.estimatedBytes <= out.bytes.length * 1.5, 'size estimate calibrated');
+    const text = Buffer.from(out.bytes).toString('latin1');
+    assert.match(text, /metersPerUnit = 1\b/);
+    assert.match(text, /upAxis = "Y"/);
+    assert.match(text, /preliminary:anchoring:type = "plane"/);
+    assert.match(text, /preliminary:planeAnchoring:alignment = "horizontal"/);
+    const c = new THREE.Color('#3F6212');
+    const diffuse = Array.from(text.matchAll(/color3f inputs:diffuseColor = \(([^)]*)\)/g)).map(m => m[1].split(',').map(Number));
+    const painted = diffuse.filter(v => Math.abs(v[0] - c.r) < 1e-4 && Math.abs(v[1] - c.g) < 1e-4 && Math.abs(v[2] - c.b) < 1e-4);
+    assert.strictEqual(painted.length, 1, 'exactly the body paint material carries the selected colour');
+    assert.ok(diffuse.length >= 8);
   });
 
-  it('distinguishes user exit from system interruption and is idempotent on end()', async () => {
-    const f = fakeXr();
-    const m = new session.XRSessionManager({ xr: f.xr, renderer: f.renderer });
-    const ends = [];
-    m.on('end', (e) => ends.push(e.byUser));
-    await m.start();
-    f.sess.fire('end'); // system ended it (app switch / tracking loss)
-    assert.deepStrictEqual(ends, [false]);
-    assert.strictEqual(m.state, 'idle');
-    await m.start();
-    await m.end();
-    await m.end();
-    assert.deepStrictEqual(ends, [false, true]);
+  it('rejects HTML, non-zip, compressed, misordered and truncated archives', () => {
+    const html = new TextEncoder().encode('<!DOCTYPE html><html><body>SPA</body></html>');
+    assert.deepStrictEqual(usdzBuilder.inspectUsdz(html).problems, ['HTML_INSTEAD_OF_USDZ']);
+    assert.strictEqual(usdzBuilder.inspectUsdzHeader(html).problem, 'HTML_INSTEAD_OF_USDZ');
+    assert.deepStrictEqual(usdzBuilder.inspectUsdz(new Uint8Array(64)).problems, ['NOT_A_ZIP']);
+    assert.ok(usdzBuilder.inspectUsdz(storedZip([['model.usda', Buffer.from('#usda 1.0')]], { method: 8 })).problems.includes('COMPRESSED_ENTRY:model.usda'));
+    assert.ok(usdzBuilder.inspectUsdz(storedZip([['textures/a.png', Buffer.alloc(10)], ['model.usda', Buffer.alloc(10)]])).problems.includes('FIRST_ENTRY_NOT_USD_LAYER'));
+    assert.strictEqual(usdzBuilder.inspectUsdzHeader(storedZip([['textures/a.png', Buffer.alloc(4)]])).problem, 'FIRST_ENTRY_NOT_USD_LAYER');
+    const ok = storedZip([['model.usda', Buffer.alloc(100)]]);
+    assert.ok(usdzBuilder.inspectUsdz(ok.subarray(0, 60)).problems.includes('TRUNCATED'));
   });
 
-  it('maps permission and support errors to actionable codes', async () => {
-    for (const [name, code] of [['NotAllowedError', 'PERMISSION_DENIED'], ['NotSupportedError', 'UNSUPPORTED'], ['SecurityError', 'PERMISSION_DENIED'], ['Weird', 'START_FAILED']]) {
-      const f = fakeXr({ fail: name });
-      const m = new session.XRSessionManager({ xr: f.xr, renderer: f.renderer });
-      await assert.rejects(m.start(), (e) => e.code === code, name);
-      assert.strictEqual(m.state, 'idle');
+  it('refuses conversions it cannot do well instead of producing a broken file', async () => {
+    const big = new THREE.Group();
+    big.add(new THREE.Mesh(new THREE.BoxGeometry(4.5, 1.4, 1.9, 40, 40, 40), new THREE.MeshStandardMaterial()));
+    await assert.rejects(usdzBuilder.buildVehicleUsdz(big, { maxEstimatedBytes: 1000 }), (e) => e.code === 'MODEL_TOO_LARGE_FOR_CONVERSION');
+    const unlit = new THREE.Group();
+    unlit.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()));
+    await assert.rejects(usdzBuilder.buildVehicleUsdz(unlit), (e) => e.code === 'NOTHING_EXPORTABLE');
+    const ktx = new THREE.Group();
+    const tex = new THREE.CompressedTexture([], 4, 4);
+    ktx.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ map: tex })));
+    await assert.rejects(usdzBuilder.buildVehicleUsdz(ktx), (e) => e.code === 'COMPRESSED_TEXTURES');
+  });
+
+  it('pre-built USDZ files in the repository are valid and match data/usdz-assets.json', () => {
+    const index = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/usdz-assets.json'), 'utf8'));
+    const entries = Object.values(index.vehicles).flat();
+    assert.ok(entries.length >= 4);
+    for (const e of entries) {
+      const bytes = fs.readFileSync(path.join(ROOT, e.path));
+      assert.strictEqual(bytes.length, e.bytes, e.path);
+      assert.strictEqual(crypto.createHash('sha256').update(bytes).digest('hex'), e.sha256, `${e.path} is stale — re-run npm run usdz:build`);
+      assert.ok(usdzBuilder.inspectUsdz(new Uint8Array(bytes)).ok, e.path);
+      assert.ok(bytes.length < 25 * 1024 * 1024, 'within the Cloudflare Pages file limit');
     }
   });
 });
 
-// ---------------------------------------------------------------- capabilities & fallbacks
-describe('AR: capability detection and platform strategy', () => {
-  const UA = {
-    androidChrome: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36',
-    iphone: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
-    desktop: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36',
-    zalo: 'Mozilla/5.0 (Linux; Android 13; SM-A536E; wv) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36 Zalo iOS/1.0'
+// ---------------------------------------------------------------- resolver
+describe('AR: USDZ selection for the chosen colour', () => {
+  const base = 'https://sigma-car.pages.dev/';
+  const usdzHead = storedZip([['model.usda', Buffer.from('#usda 1.0\n')]]);
+  const res = (status, bytes, type = 'model/vnd.usdz+zip') => ({ ok: status < 300, status, headers: { get: () => type }, body: null, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) });
+  const manifest = (usdz, onDeviceConversion = true, colors = 3) => ({
+    colors: Array.from({ length: colors }, (_, i) => ({ index: i, name: `C${i}`, hex: '#111111' })),
+    appleAr: { usdz, onDeviceConversion },
+    features: { changeColor: true }
+  });
+  const fakeBuild = () => {
+    const calls = [];
+    return { calls, build: async (pivot) => { calls.push(pivot); return { bytes: usdzHead, warnings: [], report: {} }; } };
   };
-  const doc = (arRel) => ({
-    createElement: (t) => (t === 'a'
-      ? { relList: { supports: (v) => arRel && v === 'ar' } }
-      : { getContext: () => ({}) })
-  });
-  const detect = (ua, { xr = false, arRel = false, platform = '', touch = 0, secure = true } = {}) => capability.detectCapabilities({
-    navigator: { userAgent: ua, platform, maxTouchPoints: touch, xr: xr ? { isSessionSupported: async (m) => m === 'immersive-ar' } : undefined },
-    window: { isSecureContext: secure },
-    document: doc(arRel)
-  });
-  const manifest = (usdz) => ({ model: { usdzUrl: usdz ? 'x.usdz' : null } });
+  let n = 0;
+  const urls = { createObjectURL: () => `blob:${base}${++n}`, revokeObjectURL: () => {} };
 
-  it('Android Chrome with ARCore → WebXR (Scene Viewer kept as alternative)', async () => {
-    const caps = await detect(UA.androidChrome, { xr: true });
-    const exp = capability.chooseExperience(caps, manifest(false));
-    assert.strictEqual(exp.mode, 'webxr');
-    assert.deepStrictEqual(exp.alternatives, ['scene-viewer']);
-  });
-
-  it('Android without WebXR → Scene Viewer; in-app browser → explicit 3D-only explanation', async () => {
-    assert.strictEqual(capability.chooseExperience(await detect(UA.androidChrome), manifest(false)).mode, 'scene-viewer');
-    const zalo = capability.chooseExperience(await detect(UA.zalo), manifest(false));
-    assert.deepStrictEqual([zalo.mode, zalo.reason], ['preview-3d', 'IN_APP_BROWSER']);
+  it('uses the exact-colour file when it really is a USDZ; otherwise converts on the device', async () => {
+    const { build, calls } = fakeBuild();
+    const fetchImpl = async (u) => (u.endsWith('/0.usdz') ? res(200, usdzHead) : res(200, new TextEncoder().encode('<!doctype html><html>'), 'text/html'));
+    const r = new UsdzResolver({ manifest: manifest([{ colorIndex: 0, url: 'assets/models/usdz/x/0.usdz', source: 'prebuilt' }, { colorIndex: 1, url: 'https://cdn.example/1.usdz', source: 'external' }]), baseUrl: base, fetchImpl, build, ...urls });
+    const a = await r.prepare(0, { getPivot: () => ({}) });
+    assert.deepStrictEqual([a.kind, a.url, a.colorMatch], ['prebuilt', `${base}assets/models/usdz/x/0.usdz`, true]);
+    const b = await r.prepare(1, { getPivot: () => ({ id: 'pivot' }) });
+    assert.strictEqual(b.kind, 'generated');
+    assert.match(b.url, /^blob:/);
+    assert.ok(b.warnings.some(w => /USDZ_INVALID: .*1\.usdz \(HTML_INSTEAD_OF_USDZ\)/.test(w)));
+    assert.strictEqual(calls.length, 1);
+    const again = await r.prepare(1, { getPivot: () => ({}) });
+    assert.strictEqual(again.url, b.url, 'generated file cached per colour');
+    assert.strictEqual(calls.length, 1);
   });
 
-  it('iOS → Quick Look only with a USDZ asset; otherwise honest 3D preview (no fake AR)', async () => {
-    const caps = await detect(UA.iphone, { arRel: true });
-    assert.strictEqual(capability.chooseExperience(caps, manifest(true)).mode, 'quick-look');
-    const noUsdz = capability.chooseExperience(caps, manifest(false));
-    assert.deepStrictEqual([noUsdz.mode, noUsdz.reason], ['preview-3d', 'IOS_NO_USDZ_ASSET']);
-    const ipad = await detect('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Version/17.0 Safari/605.1.15', { platform: 'MacIntel', touch: 5, arRel: true });
-    assert.strictEqual(ipad.platform.ios, true, 'iPadOS desktop UA is still iOS');
+  it('cross-origin files that cannot be inspected (no CORS) are still launched — Quick Look fetches them itself', async () => {
+    const r = new UsdzResolver({ manifest: manifest([{ colorIndex: 0, url: 'https://cdn.example/0.usdz' }]), baseUrl: base, fetchImpl: async () => { throw new TypeError('Failed to fetch'); }, ...urls });
+    const a = await r.prepare(0, {});
+    assert.deepStrictEqual([a.kind, a.probe.status], ['external', 'unverified']);
   });
 
-  it('desktop → 3D preview; insecure context never offers AR', async () => {
-    const d = capability.chooseExperience(await detect(UA.desktop), manifest(false));
-    assert.deepStrictEqual([d.mode, d.reason], ['preview-3d', 'DESKTOP']);
-    const insecure = capability.chooseExperience(await detect(UA.androidChrome, { xr: true, secure: false }), manifest(false));
-    assert.deepStrictEqual([insecure.mode, insecure.reason], ['preview-3d', 'INSECURE_CONTEXT']);
+  it('falls back to a colour-independent file only with an explicit "default colour" flag, and fails honestly', async () => {
+    const r = new UsdzResolver({ manifest: manifest([{ colorIndex: null, url: 'https://cdn.example/any.usdz' }], false), baseUrl: base, fetchImpl: async () => res(200, usdzHead), ...urls });
+    const a = await r.prepare(2, {});
+    assert.deepStrictEqual([a.kind, a.colorMatch], ['generic', false]);
+    const single = new UsdzResolver({ manifest: manifest([{ colorIndex: null, url: 'https://cdn.example/any.usdz' }], false, 1), baseUrl: base, fetchImpl: async () => res(200, usdzHead), ...urls });
+    assert.strictEqual((await single.prepare(0, {})).colorMatch, true, 'a single-colour vehicle is always a match');
+    const none = new UsdzResolver({ manifest: manifest([], false), baseUrl: base, ...urls });
+    await assert.rejects(none.prepare(0, {}), (e) => e.code === 'NO_USDZ');
+    const unsafe = new UsdzResolver({ manifest: manifest([{ colorIndex: 0, url: 'http://evil.example/0.usdz' }], false), baseUrl: base, ...urls });
+    await assert.rejects(unsafe.prepare(0, {}), (e) => e.code === 'NO_USDZ', 'insecure URLs are never used');
   });
 
-  it('builds a Scene Viewer intent that keeps real scale and requires HTTPS', () => {
-    const intent = fallback.buildSceneViewerIntent('https://sigma-car.pages.dev/assets/models/ar/tesla_cybertruck_ar_v1.glb', { title: 'Tesla Cybertruck', fallbackUrl: 'https://sigma-car.pages.dev/ar/tesla-cybertruck' });
-    assert.match(intent, /^intent:\/\/arvr\.google\.com\/scene-viewer\/1\.0\?/);
-    assert.match(intent, /mode=ar_preferred/);
-    assert.match(intent, /resizable=false/);
-    assert.match(intent, /S\.browser_fallback_url=https%3A%2F%2Fsigma-car/);
-    assert.throws(() => fallback.buildSceneViewerIntent('http://insecure/x.glb'));
+  it('drops a conversion whose colour was changed meanwhile, and revokes generated files on dispose', async () => {
+    const revoked = [];
+    const { build } = fakeBuild();
+    const r = new UsdzResolver({ manifest: manifest([]), baseUrl: base, build, createObjectURL: () => 'blob:x/1', revokeObjectURL: (u) => revoked.push(u) });
+    assert.strictEqual(await r.prepare(0, { getPivot: () => ({}), isCurrent: () => false }), null);
+    await r.prepare(1, { getPivot: () => ({}) });
+    r.dispose();
+    assert.deepStrictEqual(revoked, ['blob:x/1']);
+  });
+
+  it('URL policy for USDZ: https, same-origin or loopback only; .usdz only; no credentials', () => {
+    const ok = urlPolicy.validateUsdzUrl('assets/models/usdz/a/0.usdz?v=1', { baseUrl: base });
+    assert.deepStrictEqual([ok.ok, ok.crossOrigin], [true, false]);
+    assert.ok(urlPolicy.validateUsdzUrl('https://cdn.example/car.usdz', { baseUrl: base }).ok);
+    for (const [u, reason] of [['http://cdn.example/car.usdz', 'INSECURE_OR_UNSUPPORTED_PROTOCOL'], ['https://u:p@cdn.example/car.usdz', 'CREDENTIALS_IN_URL'], ['https://cdn.example/car.glb', 'UNSUPPORTED_EXTENSION'], ['//cdn.example/car.usdz', 'PROTOCOL_RELATIVE_URL']]) {
+      assert.strictEqual(urlPolicy.validateUsdzUrl(u, { baseUrl: base }).reason, reason, u);
+    }
+  });
+});
+
+// ---------------------------------------------------------------- removal of the old engine
+describe('AR: obsolete AR integrations are removed from the active flow', () => {
+  const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+  const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })
+    .flatMap(d => (d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]));
+
+  it('WebXR / ARCore / Scene Viewer / camera-overlay modules no longer exist', () => {
+    for (const f of [
+      'js/ar-adapter.js', 'js/ar/core/session-manager.js', 'js/ar/core/hit-test-manager.js', 'js/ar/core/placement-reticle.js',
+      'js/ar/core/placement-controller.js', 'js/ar/core/interaction-manager.js', 'js/ar/core/capability-detector.js',
+      'js/ar/fallback/platform-fallback.js', 'js/ar/capture/capture-manager.js', 'js/ar/vehicle/hotspot-manager.js',
+      'js/ar/vehicle/animation-controller.js', 'js/vendor/three/addons/webxr/XREstimatedLight.js'
+    ]) assert.ok(!fs.existsSync(path.join(ROOT, f)), `${f} should be removed`);
+  });
+
+  it('the AR page code never touches WebXR, the camera or Android intents', () => {
+    const files = [...walk('js/ar'), 'ar.html'];
+    for (const f of files) {
+      const src = read(f).replace(/\/\/.*$/gm, '');
+      for (const banned of ['navigator.xr', 'requestSession', 'immersive-ar', 'intent://', 'scene-viewer', 'getUserMedia', 'XREstimatedLight', 'hit-test']) {
+        assert.ok(!src.includes(banned), `${f} contains ${banned}`);
+      }
+    }
+  });
+
+  it('the shared 3D showroom viewer only requests immersive-vr (VR headset), never immersive-ar', () => {
+    const src = read('js/car-3d-viewer.js');
+    assert.match(src, /const sessionMode = 'immersive-vr';/);
+    assert.ok(!/requestSession\(\s*'immersive-ar'/.test(src) && !/\?\s*'immersive-ar'/.test(src));
+    assert.match(src, /mode: 'apple-quick-look-only'/);
+  });
+
+  it('Pages headers: no camera / XR permissions on the AR page; a single USDZ rule with the USDZ media type', () => {
+    const h = read('_headers').replace(/\r\n/g, '\n');
+    const arBlock = h.split('\n\n').find(b => b.startsWith('/ar/*'));
+    assert.ok(arBlock && !/Permissions-Policy/.test(arBlock));
+    const usdzRules = h.split('\n\n').filter(b => /\.usdz|usdz\//.test(b.split('\n').find(l => !l.startsWith('#')) || ''));
+    assert.strictEqual(usdzRules.length, 1);
+    assert.match(usdzRules[0], /Content-Type: model\/vnd\.usdz\+zip/);
   });
 });
 
 // ---------------------------------------------------------------- manifest + config sync
-describe('AR: manifest validation, source fallback and configuration sync', () => {
+describe('AR: manifest (schema v2), source fallback and configuration sync', () => {
   const good = () => ({
-    schemaVersion: 1, vehicleId: 'tesla-cybertruck', name: 'Tesla Cybertruck',
+    schemaVersion: 2, vehicleId: 'tesla-cybertruck', name: 'Tesla Cybertruck',
     model: { glbUrl: 'assets/models/ar/tesla_cybertruck_ar_v1.glb', scaleMode: 'certified', dimensionsMeters: { length: 5.682, width: 2.2, height: 1.791 } },
-    colors: [{ index: 0, name: 'Steel', hex: '#94A3B8' }],
-    variants: [], wheels: [{ id: 'wheel-21-sport', label: '21"', finish: { color: '#D0D5DD', roughness: 0.2, metalness: 0.9 } }],
-    materials: { body: ['Material_Body'], rims: ['Material_Rims'] },
-    animations: { openDoors: null }, hotspots: [{ id: 'h', name: 'H', position: [1, 0.5, 0] }],
-    features: { changeColor: true, changeWheels: true, doorAnimations: true, hotspots: true }
+    colors: [{ index: 0, name: 'Steel', hex: '#94A3B8' }, { index: 1, name: 'Black', hex: '#1E293B' }],
+    variants: [],
+    materials: { body: ['Material_Body'] },
+    appleAr: { usdz: [{ colorIndex: 0, url: 'assets/models/usdz/tesla-cybertruck/0.usdz?v=abc', source: 'prebuilt', bytes: 988109 }], onDeviceConversion: true },
+    features: { changeColor: true, quickLook: true }
   });
 
   it('accepts a valid manifest and re-derives features from the data actually present', () => {
     const m = manifestSchema.validateManifest(good(), 'tesla-cybertruck');
     assert.strictEqual(m.features.changeColor, true);
-    assert.strictEqual(m.features.doorAnimations, false, 'declared true but no clip name → disabled');
+    assert.strictEqual(m.features.quickLook, true);
+    assert.deepStrictEqual(m.appleAr.usdz, [{ colorIndex: 0, url: 'assets/models/usdz/tesla-cybertruck/0.usdz?v=abc', source: 'prebuilt', bytes: 988109 }]);
+    assert.strictEqual(m.appleAr.allowsContentScaling, false);
     const noBody = good();
     noBody.materials.body = [];
     assert.strictEqual(manifestSchema.validateManifest(noBody, 'tesla-cybertruck').features.changeColor, false);
+    const noAr = good();
+    noAr.appleAr = { usdz: [], onDeviceConversion: false };
+    assert.strictEqual(manifestSchema.validateManifest(noAr, 'tesla-cybertruck').features.quickLook, false, 'declared true but no file/conversion → off');
   });
 
-  it('rejects unsafe or mismatched manifests', () => {
+  it('rejects unsafe or mismatched manifests and USDZ entries', () => {
     const bad = good();
     bad.model.glbUrl = 'javascript:alert(1)';
     assert.throws(() => manifestSchema.validateManifest(bad, 'tesla-cybertruck'), (e) => e.code === 'INVALID_MANIFEST');
     assert.throws(() => manifestSchema.validateManifest(good(), 'other-car'), /không khớp/);
-    const h = good();
-    h.hotspots = [{ name: '<img onerror>', position: [1e9, 0, 0] }];
-    assert.strictEqual(manifestSchema.validateManifest(h, 'tesla-cybertruck').hotspots.length, 0, 'out-of-range hotspot dropped');
+    const v1 = good();
+    v1.schemaVersion = 1;
+    assert.throws(() => manifestSchema.validateManifest(v1, 'tesla-cybertruck'), /schemaVersion 1/);
+    const u = good();
+    u.appleAr.usdz = [
+      { colorIndex: 0, url: 'javascript:alert(1)//.usdz' },
+      { colorIndex: 1, url: 'http://evil.example/1.usdz' },
+      { colorIndex: 7, url: 'https://cdn.example/7.usdz' },
+      { colorIndex: 1, url: 'https://cdn.example/model.glb' },
+      { colorIndex: 1, url: 'https://cdn.example/1.usdz' },
+      { colorIndex: 1, url: 'https://cdn.example/1-duplicate.usdz' }
+    ];
+    assert.deepStrictEqual(manifestSchema.validateManifest(u, 'tesla-cybertruck').appleAr.usdz.map(e => e.url), ['https://cdn.example/1.usdz']);
     assert.ok(!manifestSchema.isValidVehicleId('../etc/passwd'));
   });
 

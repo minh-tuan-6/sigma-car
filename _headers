@@ -26,11 +26,9 @@
   Content-Type: model/gltf-binary
   Cache-Control: public, max-age=31536000, immutable
 
+# AR Quick Look files (scripts/build_usdz.js → assets/models/usdz/<id>/<colour>.usdz). One rule only: Pages joins
+# values of overlapping rules with a comma, which would corrupt Content-Type. URLs carry ?v=<sha256>.
 /assets/models/*.usdz
-  Content-Type: model/vnd.usdz+zip
-  Cache-Control: public, max-age=31536000, immutable
-
-/assets/models/ar/*.usdz
   Content-Type: model/vnd.usdz+zip
   Cache-Control: public, max-age=31536000, immutable
 
@@ -43,7 +41,6 @@
 
 /ar/*
   Cache-Control: no-cache, no-store, must-revalidate
-  Permissions-Policy: camera=(self), xr-spatial-tracking=(self), gyroscope=(self), accelerometer=(self), magnetometer=(self)
 
 /js/ar/*
   Cache-Control: public, max-age=0, must-revalidate

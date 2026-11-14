@@ -12,7 +12,8 @@
     "test:security": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/security/*.test.js",
     "tunnel": ".\\cloudflared.exe tunnel --url http://localhost:3000 --protocol http2",
     "test:e2e": "node tests/e2e/ar-flow.e2e.js",
-    "vendor:ar": "node scripts/vendor_ar_libs.js"
+    "vendor:ar": "node scripts/vendor_ar_libs.js",
+    "usdz:build": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/build_usdz.js"
   },
   "keywords": [
     "sigmacar",

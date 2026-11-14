@@ -1,5 +1,6 @@
 // scripts/vendor_ar_libs.js
-// Copies the pinned, MIT-licensed browser libraries used by the dedicated AR page (ar.html)
+// Copies the pinned, MIT-licensed browser libraries used by the dedicated AR page (ar.html) — GLTFLoader +
+// decoders for the 3D view and USDZExporter for AR Quick Look conversion —
 // from node_modules into js/vendor/. Re-run after bumping the pinned devDependency versions:
 //   npm install && node scripts/vendor_ar_libs.js
 // The vendored copies are committed so Cloudflare Pages / server.js serve them first-party
@@ -28,7 +29,8 @@ const ADDONS = [
   'libs/draco/gltf/draco_wasm_wrapper.js',
   'controls/OrbitControls.js',
   'environments/RoomEnvironment.js',
-  'webxr/XREstimatedLight.js',
+  'exporters/USDZExporter.js',
+  'libs/fflate.module.js',
   'utils/BufferGeometryUtils.js',
   'utils/WorkerPool.js',
   'math/ColorSpaces.js'

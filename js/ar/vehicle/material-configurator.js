@@ -1,6 +1,8 @@
-// js/ar/vehicle/material-configurator.js — Vehicle Material Configurator.
-// Binds to materials by the exact names declared in the manifest and verified to exist in the loaded GLB.
-// Nothing is guessed: if a declared name is absent, the corresponding control is disabled.
+// js/ar/vehicle/material-configurator.js — vehicle paint configurator.
+// Binds to body-paint materials by the exact names declared in the manifest and verified to exist in the
+// loaded GLB. Nothing is guessed: if no declared name is present, colour change is disabled.
+// Only the base colour of those materials changes; metalness, roughness, clearcoat, maps and every other
+// material (glass, lights, tyres, rims, trim) are left exactly as authored.
 
 import { Color } from 'three';
 
@@ -37,44 +39,23 @@ function resolveNames(byName, names, protectedPatterns) {
 export class MaterialConfigurator {
   /**
    * @param {THREE.Object3D} root
-   * @param {{ body: string[], rims: string[], protectedPatterns?: string[] }} names
+   * @param {{ body: string[], protectedPatterns?: string[] }} names
    */
-  constructor(root, { body = [], rims = [], protectedPatterns = [] } = {}) {
+  constructor(root, { body = [], protectedPatterns = [] } = {}) {
     const byName = collectMaterials(root);
     this.allMaterialNames = Array.from(byName.keys()).filter(Boolean);
-    const protectedLower = protectedPatterns.map(p => String(p).toLowerCase());
-    // Body names must never be protected materials (glass, lights, tyres…).
-    this.body = resolveNames(byName, body, protectedLower);
-    // Rims are allowed to match 'chrome'-like patterns, so only glass/light/tyre-style protections apply.
-    this.rims = resolveNames(byName, rims, protectedLower.filter(p => !['chrome', 'brake', 'disk', 'disc', 'caliper'].includes(p)));
-    this._original = new Map();
-    for (const m of [...this.body.materials, ...this.rims.materials]) {
-      this._original.set(m, {
-        color: m.color ? m.color.clone() : null,
-        roughness: m.roughness,
-        metalness: m.metalness
-      });
-    }
-    this.state = { paintHex: null, rimFinish: null };
+    // Body names must never resolve to protected materials (glass, lights, tyres…).
+    this.body = resolveNames(byName, body, protectedPatterns.map(p => String(p).toLowerCase()));
+    this._original = new Map(this.body.materials.map(m => [m, m.color ? m.color.clone() : null]));
+    this.state = { paintHex: null };
   }
 
   get capabilities() {
     return {
       paint: this.body.materials.length > 0,
-      rims: this.rims.materials.length > 0,
       matchedBody: this.body.matched.slice(),
-      missingBody: this.body.missing.slice(),
-      matchedRims: this.rims.matched.slice(),
-      missingRims: this.rims.missing.slice()
+      missingBody: this.body.missing.slice()
     };
-  }
-
-  /** Classifies a material for component selection. */
-  classify(material) {
-    if (!material) return 'other';
-    if (this.body.materials.includes(material)) return 'body';
-    if (this.rims.materials.includes(material)) return 'wheel';
-    return 'other';
   }
 
   setPaint(hex) {
@@ -82,32 +63,15 @@ export class MaterialConfigurator {
     const c = new Color(hex);
     for (const m of this.body.materials) {
       if (m.color) m.color.copy(c);
-      m.needsUpdate = true;
     }
     this.state.paintHex = hex.toUpperCase();
     return true;
   }
 
-  setRimFinish(finish) {
-    if (!this.capabilities.rims || !finish || !/^#[0-9a-f]{6}$/i.test(finish.color)) return false;
-    const c = new Color(finish.color);
-    for (const m of this.rims.materials) {
-      if (m.color) m.color.copy(c);
-      if (typeof m.roughness === 'number' && Number.isFinite(finish.roughness)) m.roughness = finish.roughness;
-      if (typeof m.metalness === 'number' && Number.isFinite(finish.metalness)) m.metalness = finish.metalness;
-      m.needsUpdate = true;
-    }
-    this.state.rimFinish = { ...finish };
-    return true;
-  }
-
   reset() {
-    for (const [m, o] of this._original) {
-      if (o.color && m.color) m.color.copy(o.color);
-      if (o.roughness !== undefined) m.roughness = o.roughness;
-      if (o.metalness !== undefined) m.metalness = o.metalness;
-      m.needsUpdate = true;
+    for (const [m, color] of this._original) {
+      if (color && m.color) m.color.copy(color);
     }
-    this.state = { paintHex: null, rimFinish: null };
+    this.state = { paintHex: null };
   }
 }

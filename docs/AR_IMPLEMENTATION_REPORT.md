@@ -1,3 +1,5 @@
+> **Historical document.** It describes an earlier AR implementation that has since been removed. Current design: `APPLE_AR_ARCHITECTURE.md`; current test status: `AR_TEST_REPORT.md`.
+
 # BÁO CÁO TOÀN DIỆN TRIỂN KHAI AR SHOWROOM SIGMACAR
 **SIGMACAR — Augmented Reality (AR) Implementation Final Report**  
 *Thời gian hoàn tất: 10/11/2026 (Asia/Bangkok) | Nền tảng: SIGMACAR E-Commerce Full-Stack Platform*

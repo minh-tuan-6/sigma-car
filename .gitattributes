@@ -1,0 +1,6 @@
+# 3D assets must never go through line-ending conversion (core.autocrlf): a USDZ is an uncompressed zip whose
+# text layers would otherwise be rewritten and its 64-byte alignment broken.
+*.usdz binary
+*.usdc binary
+*.glb binary
+*.wasm binary

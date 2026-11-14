@@ -1,0 +1,69 @@
+{
+  "vehicles": {
+    "tesla-cybertruck": [
+      {
+        "colorIndex": 0,
+        "path": "assets/models/usdz/tesla-cybertruck/0.usdz",
+        "bytes": 988109,
+        "sha256": "92bf0c6057c7a0001471f7964b997934061b20373c7a0f1521f4cf9903f37b26",
+        "sourceGlb": "assets/models/ar/tesla_cybertruck_ar_v1.glb",
+        "sizeMeters": {
+          "length": 5.682,
+          "width": 1.996,
+          "height": 1.886
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 14 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 1,
+        "path": "assets/models/usdz/tesla-cybertruck/1.usdz",
+        "bytes": 988016,
+        "sha256": "53ecaff4fe599478b6902ddae1225c8721504588a88e1836b1cb5697e48bffb5",
+        "sourceGlb": "assets/models/ar/tesla_cybertruck_ar_stealth_black.glb",
+        "sizeMeters": {
+          "length": 5.682,
+          "width": 1.996,
+          "height": 1.886
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 14 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 2,
+        "path": "assets/models/usdz/tesla-cybertruck/2.usdz",
+        "bytes": 988017,
+        "sha256": "2206c4c9fb34cd9a782e06ffafd4116b8dce87d07086b02bf06dad54afd49a5f",
+        "sourceGlb": "assets/models/ar/tesla_cybertruck_ar_ceramic_white.glb",
+        "sizeMeters": {
+          "length": 5.682,
+          "width": 1.996,
+          "height": 1.886
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 14 vật liệu hai mặt được xuất một mặt."
+        ]
+      },
+      {
+        "colorIndex": 3,
+        "path": "assets/models/usdz/tesla-cybertruck/3.usdz",
+        "bytes": 988138,
+        "sha256": "77c251a98f4c5b4c10a0bab5107274a4172791b5f2aa951a41bb497a3f2afbce",
+        "sourceGlb": "assets/models/ar/tesla_cybertruck_ar_tactical_green.glb",
+        "sizeMeters": {
+          "length": 5.682,
+          "width": 1.996,
+          "height": 1.886
+        },
+        "warnings": [
+          "USDZ_SINGLE_SIDED: 14 vật liệu hai mặt được xuất một mặt."
+        ]
+      }
+    ]
+  },
+  "generator": "scripts/build_usdz.js (three.js USDZExporter 0.170.0)",
+  "generatedAt": "2026-11-14T11:04:59.927Z",
+  "note": "Structural USDZ checks only. Rendering in AR Quick Look must be verified on an iPhone/iPad."
+}

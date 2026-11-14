@@ -1,16 +1,16 @@
 // backend/application/ar-manifest-service.js
 // Builds the per-vehicle AR manifest served at GET /api/v1/vehicles/:vehicleId/ar-manifest.
 //
-// Sources (all real repository data, nothing invented):
-//   - vehicle record (VehicleRepository)            → name, colours, model3d.glbPath, hotspots
-//   - data/ar-manifest.json (generate_ar_manifest)  → AR GLB, per-colour variants, dimensions, readiness
-//   - assets/models/manifests/bindings.json         → paint / rim material names detected in each GLB
+// Schema v2 — Apple AR Quick Look only (the WebXR / Scene Viewer / wheel / hotspot / door fields of v1 were removed).
 //
-// Capability flags are derived from what the assets actually contain. Features whose data is missing
-// (e.g. door animations — no current GLB has any) are reported as false so the client disables them.
+// Sources (all real repository data, nothing invented):
+//   - vehicle record (VehicleRepository)            → name, colours, model3d.glbPath, model3d.usdzPath
+//   - data/ar-manifest.json (generate_ar_manifest)  → AR GLB, per-colour variants, dimensions, readiness, usdzUrl
+//   - assets/models/manifests/bindings.json         → paint material names detected in each GLB
+//   - data/usdz-assets.json (scripts/build_usdz.js) → USDZ files pre-built from those GLBs, per colour
 //
 // The same builder is used by scripts/build_dist.js to emit static snapshots (dist/data/ar/<id>.json)
-// so the AR page can still load models on static hosting when the API is unreachable.
+// so the AR page still works on static hosting when the API is unreachable.
 
 const fs = require('fs');
 const path = require('path');
@@ -18,29 +18,17 @@ const path = require('path');
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const REGISTRY_FILE = path.join(ROOT_DIR, 'data', 'ar-manifest.json');
 const BINDINGS_FILE = path.join(ROOT_DIR, 'assets', 'models', 'manifests', 'bindings.json');
+const USDZ_INDEX_FILE = path.join(ROOT_DIR, 'data', 'usdz-assets.json');
 
-const SCHEMA_VERSION = 1;
-
-// Legacy hotspot coordinates in vehicle.model3d.hotspots are authored in the 3D showroom frame, which
-// normalises every model to a 4.4 m maximum dimension (js/car-3d-viewer.js setupLoadedModel).
-const SHOWROOM_NORMALIZED_MAX_DIM_M = 4.4;
-
-// Wheel options mirror js/data.js SIGMA_DATA.wheels (ids/labels) and the rim finishes applied by the
-// showroom (js/car-3d-viewer.js setWheelType). They change the rim *finish*; no GLB ships alternative
-// wheel geometry, so size/design swaps are not modelled.
-const WHEEL_FINISH_OPTIONS = [
-  { id: 'wheel-21-sport', label: '21" Sport', name: '21" Sport Wheels', finish: { color: '#D0D5DD', roughness: 0.22, metalness: 0.92 } },
-  { id: 'wheel-20-aero', label: '20" Aero', name: '20" Aero Wheels', finish: { color: '#334155', roughness: 0.5, metalness: 0.75 } },
-  { id: 'wheel-22-forged', label: '22" Forged', name: '22" Forged Performance', finish: { color: '#B45309', roughness: 0.3, metalness: 0.95 } }
-];
+const SCHEMA_VERSION = 2;
 
 // Material names verified by parsing the GLB JSON chunk of the listed files (2026-11-14 audit).
-// bindings.json mis-classifies these files (Material_Body not detected as paint, Material_Trim matched /rim/).
+// bindings.json does not detect Material_Body as the paint material in these files.
 const VERIFIED_MATERIAL_OVERRIDES = {
-  'assets/models/ar/tesla_cybertruck_ar_v1.glb': { body: ['Material_Body'], rims: ['Material_Rims'] },
-  'assets/models/ar/tesla_cybertruck_ar_stealth_black.glb': { body: ['Material_Body'], rims: ['Material_Rims'] },
-  'assets/models/ar/tesla_cybertruck_ar_ceramic_white.glb': { body: ['Material_Body'], rims: ['Material_Rims'] },
-  'assets/models/ar/tesla_cybertruck_ar_tactical_green.glb': { body: ['Material_Body'], rims: ['Material_Rims'] }
+  'assets/models/ar/tesla_cybertruck_ar_v1.glb': { body: ['Material_Body'] },
+  'assets/models/ar/tesla_cybertruck_ar_stealth_black.glb': { body: ['Material_Body'] },
+  'assets/models/ar/tesla_cybertruck_ar_ceramic_white.glb': { body: ['Material_Body'] },
+  'assets/models/ar/tesla_cybertruck_ar_tactical_green.glb': { body: ['Material_Body'] }
 };
 
 let cache = null;
@@ -57,7 +45,8 @@ function loadSources() {
   if (!cache) {
     cache = {
       registry: readJsonSafe(REGISTRY_FILE) || { vehicles: {} },
-      bindings: readJsonSafe(BINDINGS_FILE) || { vehicles: {}, protectedMaterialPatterns: [] }
+      bindings: readJsonSafe(BINDINGS_FILE) || { vehicles: {}, protectedMaterialPatterns: [] },
+      usdzIndex: readJsonSafe(USDZ_INDEX_FILE) || { vehicles: {} }
     };
   }
   return cache;
@@ -68,7 +57,7 @@ function resetCache() {
 }
 
 // Accepts site-relative asset paths ("assets/models/x.glb") or absolute https URLs to external CDNs.
-// Anything else (javascript:, data:, protocol-relative, path traversal, non-model extensions) is dropped.
+// Anything else (javascript:, data:, protocol-relative, path traversal, other extensions) is dropped.
 function sanitizeModelUrl(raw, allowedExtensions = ['.glb', '.gltf']) {
   if (typeof raw !== 'string') return null;
   const s = raw.trim();
@@ -112,41 +101,50 @@ function finiteDims(d) {
   return out;
 }
 
-function resolveMaterials(glbUrl, carId, bindings) {
+function resolveBodyMaterials(glbUrl, carId, bindings) {
   if (VERIFIED_MATERIAL_OVERRIDES[glbUrl]) {
-    const o = VERIFIED_MATERIAL_OVERRIDES[glbUrl];
-    return { body: [...o.body], rims: [...o.rims], source: 'verified-override' };
+    return { body: [...VERIFIED_MATERIAL_OVERRIDES[glbUrl].body], source: 'verified-override' };
   }
   const entry = Object.values(bindings.vehicles || {}).find(b => b && b.carId === carId && (b.studioGlbUrl === glbUrl || b.glbUrl === glbUrl))
     || (bindings.vehicles || {})[carId];
-  if (!entry) return { body: [], rims: [], source: 'none' };
-  return {
-    body: entry.fallbackPaintUsed ? [] : uniqueStrings(entry.paintMaterials),
-    // Drop names that matched /rim/ only as a substring of "trim".
-    rims: uniqueStrings(entry.rimMaterials).filter(n => !/trim/i.test(n)),
-    source: 'bindings'
-  };
+  if (!entry) return { body: [], source: 'none' };
+  return { body: entry.fallbackPaintUsed ? [] : uniqueStrings(entry.paintMaterials), source: 'bindings' };
 }
 
-function buildHotspots(vehicle, dims) {
-  const list = (vehicle && vehicle.model3d && Array.isArray(vehicle.model3d.hotspots)) ? vehicle.model3d.hotspots : [];
-  const scale = dims ? Math.max(dims.length, dims.width, dims.height) / SHOWROOM_NORMALIZED_MAX_DIM_M : 1;
-  return list
-    .filter(h => h && Array.isArray(h.pos) && h.pos.length === 3 && h.pos.every(n => Number.isFinite(Number(n))))
-    .slice(0, 12)
-    .map((h, i) => ({
-      id: cleanText(h.id || `hotspot-${i + 1}`, 64),
-      name: cleanText(h.name, 120),
-      category: cleanText(h.category, 80),
-      description: cleanText(h.desc || h.description, 600),
-      // Converted to real-world metres in the model's ground-centred frame.
-      position: h.pos.map(n => Math.round(Number(n) * scale * 1000) / 1000)
-    }));
+// USDZ files for AR Quick Look, in priority order per colour:
+//   1. pre-built by scripts/build_usdz.js (data/usdz-assets.json) — only if the file exists on disk;
+//   2. declared in data: registry configurations[].usdzUrl (per colour), registry usdzUrl / model3d.usdzPath (any colour).
+function collectUsdz(vehicle, reg, usdzIndex, colors) {
+  const out = [];
+  const seen = new Set();
+  const colorIdx = new Set(colors.map(c => c.index));
+  const push = (colorIndex, url, source, bytes) => {
+    const key = String(colorIndex);
+    if (!url || seen.has(key)) return;
+    if (colorIndex !== null && !colorIdx.has(colorIndex)) return;
+    seen.add(key);
+    out.push({ colorIndex, url, source, bytes: Number.isFinite(Number(bytes)) && Number(bytes) > 0 ? Number(bytes) : null });
+  };
+
+  const built = (usdzIndex && usdzIndex.vehicles && usdzIndex.vehicles[vehicle.id]) || [];
+  for (const e of Array.isArray(built) ? built : []) {
+    const rel = sanitizeModelUrl(e && e.path, ['.usdz']);
+    if (!rel || /^https:/i.test(rel) || !fs.existsSync(path.join(ROOT_DIR, rel))) continue;
+    // Content hash in the query string: the files are served with a 1-year immutable cache.
+    const url = e.sha256 ? `${rel}?v=${String(e.sha256).slice(0, 12)}` : rel;
+    push(Number.isInteger(e.colorIndex) ? e.colorIndex : null, url, 'prebuilt', e.bytes);
+  }
+  for (const c of (reg && Array.isArray(reg.configurations)) ? reg.configurations : []) {
+    if (Number.isInteger(c.colorIndex)) push(c.colorIndex, sanitizeModelUrl(c.usdzUrl, ['.usdz']), 'external', null);
+  }
+  const model3d = vehicle.model3d || {};
+  push(null, sanitizeModelUrl(reg && reg.usdzUrl, ['.usdz']) || sanitizeModelUrl(model3d.usdzPath, ['.usdz']), 'external', null);
+  return out;
 }
 
 /**
  * @param {object} vehicle  vehicle record from VehicleRepository
- * @param {object} [opts]   { registry, bindings } overrides for tests
+ * @param {object} [opts]   { registry, bindings, usdzIndex } overrides for tests
  * @returns {object|null}   manifest, or null when the vehicle has no usable 3D model
  */
 function buildArManifest(vehicle, opts = {}) {
@@ -154,6 +152,7 @@ function buildArManifest(vehicle, opts = {}) {
   const sources = loadSources();
   const registry = opts.registry || sources.registry;
   const bindings = opts.bindings || sources.bindings;
+  const usdzIndex = opts.usdzIndex || sources.usdzIndex;
   const reg = (registry.vehicles || {})[vehicle.id] || null;
 
   const model3d = vehicle.model3d || {};
@@ -174,35 +173,23 @@ function buildArManifest(vehicle, opts = {}) {
     .map(c => ({
       colorIndex: Number.isInteger(c.colorIndex) ? c.colorIndex : -1,
       name: cleanText(c.name, 120),
-      hex: sanitizeHex(c.hex),
       glbUrl: sanitizeModelUrl(c.glbUrl)
     }))
     .filter(v => v.colorIndex >= 0 && v.glbUrl);
 
-  const materials = resolveMaterials(glbUrl, vehicle.id, bindings);
-  const usdzUrl = sanitizeModelUrl(reg && reg.usdzUrl, ['.usdz']) || sanitizeModelUrl(model3d.usdzPath, ['.usdz']);
-  const hotspots = buildHotspots(vehicle, dims);
-
-  // Door animation clip names are only reported when the data explicitly declares them.
-  // No current GLB contains door clips; the client additionally verifies the clip exists after loading.
-  const animations = {
-    openDoors: cleanText(model3d.animations && model3d.animations.openDoors, 120) || null,
-    closeDoors: cleanText(model3d.animations && model3d.animations.closeDoors, 120) || null
-  };
+  const materials = resolveBodyMaterials(glbUrl, vehicle.id, bindings);
+  const usdz = collectUsdz(vehicle, reg, usdzIndex, colors);
 
   return {
     schemaVersion: SCHEMA_VERSION,
     vehicleId: vehicle.id,
     name: cleanText(vehicle.name, 160),
     brand: cleanText(vehicle.brand, 80),
-    category: cleanText(vehicle.category, 80),
     priceFormatted: cleanText(vehicle.priceFormatted || vehicle.salePriceFormatted, 60),
     readiness: certified ? 'verified' : 'unverified',
     model: {
       glbUrl,
-      usdzUrl,
       unit: 'meters',
-      scale: 1,
       // certified: the file is authored 1:1, ground at y=0 — use as is.
       // fit-to-length: rescale so the longest horizontal extent equals dimensionsMeters.length.
       scaleMode: certified ? 'certified' : (dims ? 'fit-to-length' : 'as-authored'),
@@ -211,31 +198,27 @@ function buildArManifest(vehicle, opts = {}) {
     },
     variants,
     colors,
-    wheels: WHEEL_FINISH_OPTIONS.map(w => ({ ...w, finish: { ...w.finish } })),
     materials: {
       body: materials.body,
-      rims: materials.rims,
       source: materials.source,
       protectedPatterns: uniqueStrings(bindings.protectedMaterialPatterns)
     },
-    animations,
-    hotspots,
+    appleAr: {
+      usdz,
+      // The AR page can convert the GLB it shows into USDZ on the iPhone/iPad (three.js USDZExporter) when no
+      // file exists for the selected colour. The client re-checks the loaded model (e.g. KTX2 textures block it).
+      onDeviceConversion: true,
+      allowsContentScaling: false
+    },
     features: {
       changeColor: colors.length > 0 && (materials.body.length > 0 || variants.length > 0),
-      changeWheels: materials.rims.length > 0,
-      doorAnimations: Boolean(animations.openDoors),
-      hotspots: hotspots.length > 0,
-      quickLook: Boolean(usdzUrl),
-      sceneViewer: true,
-      webxr: true
+      quickLook: true
     }
   };
 }
 
 module.exports = {
   SCHEMA_VERSION,
-  SHOWROOM_NORMALIZED_MAX_DIM_M,
-  WHEEL_FINISH_OPTIONS,
   buildArManifest,
   sanitizeModelUrl,
   resetCache

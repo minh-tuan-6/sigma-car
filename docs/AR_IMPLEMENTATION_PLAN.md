@@ -1,5 +1,7 @@
 # AR & API Implementation Tracker
 
+> **2026-11-14 update:** rows D–H (WebXR engine, Scene Viewer, hotspots, doors, capture) were replaced by the Apple-only AR Quick Look rewrite. See `AR_REWRITE_PLAN.md` and `APPLE_AR_ARCHITECTURE.md`. Rows A–C (API) still apply.
+
 Status legend: ✅ done & verified locally · 🟡 done, needs physical-device or production verification · ⛔ blocked (external) · ➖ not applicable / intentionally not done
 
 | # | Task | Status | Files | Notes / test evidence | Outstanding |

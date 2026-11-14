@@ -62,6 +62,8 @@ Ruled out: DNS/TLS (Pages responds normally), CORS (same-origin requests; no pre
 
 ## 3. Existing AR implementation — findings
 
+> Audit of the state on `7e0a38a`. The AR engine was later rewritten twice: first as WebXR, then as Apple AR Quick Look only (`APPLE_AR_ARCHITECTURE.md`).
+
 | Component | What it actually does | Problem |
 |---|---|---|
 | `js/ar-adapter.js` (1,414 lines) — "AR Trực tiếp" (`#ar-live`) | `getUserMedia` camera `<video>`/2D canvas with a transparent WebGL canvas on top; "world lock" is simulated from `deviceorientation` gyro data. | **Not spatially tracked AR.** No surface detection, no real-world scale anchoring; the car floats over the video. The brief explicitly forbids presenting this as AR. |

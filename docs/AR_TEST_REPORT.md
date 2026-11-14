@@ -1,85 +1,70 @@
-# AR & API Test Report
+# AR & API Test Report (Apple AR Quick Look)
 
 Run on 2026-11-14 on Windows 11 with Node v23.11.0 and Google Chrome (installed build, headless, SwiftShader software GL).
+**No physical iPhone or iPad was available.** Nothing below shows that AR Quick Look opens, places, tracks or renders the vehicle correctly on a device.
 
 ## Commands and results
 
 | Command | Result |
 |---|---|
-| `npm test` (unit + integration + security) | **202 / 202 pass** (137 pre-existing + 65 new) |
-| `npm run test:e2e` (real Chrome via playwright-core 1.49.1) | **16 / 16 pass** |
-| `npm run build` | OK. 24 static AR manifests, no forbidden files, every file < 25 MiB |
-| `node tests/test_ar_full_suite.js` (legacy) | 7/7. The "dist/ must exist" check also failed on the untouched original until a build had run |
-| `node tests/test_ar_phase1.js`, `test_gyro.js`, `test_models.js`, `test_viewer_camera_integration.js` (legacy) | all exit 0 |
-| `npx wrangler@3.99.0 pages dev dist` + local backend | Routing verified (see API_FIX_REPORT §4) |
-| `node --check` on `functions/**` and `js/ar/**` | OK |
+| `npm test` (unit + integration + security) | **207 / 207 pass** |
+| `npm run test:e2e` (real Chrome via playwright-core 1.49.1) | **18 / 18 pass** |
+| `npm run build` | OK. 24 static AR manifests (schema v2), 4 USDZ files shipped, no forbidden files, every file < 25 MiB |
+| `npx wrangler@3.99.0 pages dev dist` | `/ar/tesla-cybertruck` → `ar.html`; USDZ served with a single `Content-Type: model/vnd.usdz+zip` + immutable cache; `USDZExporter.js` served; manifest falls back to the static snapshot when the API is unreachable |
+| `node tests/test_ar_full_suite.js`, `test_ar_phase1.js`, `test_gyro.js`, `test_models.js`, `test_viewer_camera_integration.js` (legacy) | 7/7, 6/6, 12/12, 10/10, 8/8 |
+| `npm run usdz:build` (Tesla Cybertruck) | 4 files written and validated |
+| `node scripts/build_usdz.js --all --dry-run` | All 24 vehicles converted in Chrome; sizes in `APPLE_AR_ARCHITECTURE.md` §5 |
 
-New test files: `tests/unit/pages_proxy.test.js` (9), `tests/unit/api_client_connectivity.test.js` (5), `tests/unit/ar_engine.test.js` (36), `tests/integration/api_proxy_ar_manifest.test.js` (10), `tests/integration/ar_model_loading.test.js` (6), `tests/e2e/ar-flow.e2e.js` (16 steps).
+`npm test` still rewrites `data/sigmacar_store.json`. This happens on the original commit too. Restore it with `git checkout -- data/sigmacar_store.json`.
 
-Legacy scripts updated: `test_ar_full_suite.js` and `test_gyro.js` (assertions about the deleted adapter replaced). `test_camera_ar.js` was deleted because it only tested the removed `getUserMedia` overlay.
+## Coverage against the brief (§10)
 
-## Coverage against the brief
-
-| Area | Covered by |
+| Requirement | Test |
 |---|---|
-| API base URL, health, JSON validation, auth passthrough, proxy behaviour, backend unavailable | unit + integration + wrangler |
-| CORS | proxy is same-origin; backend production CORS verified (no `*`); model CORS failure in Chrome |
-| Cart/checkout | cart through the proxy; checkout hand-off URL; existing P1/P4 commerce suites unchanged and passing |
-| Model URL loading / invalid URLs / download failures | unit (mock fetch) + HTTP integration + Chrome (external origin) |
-| Missing textures | Chrome: missing `textures/missing.png` → warning, model still shown |
-| Missing buffers | Node HTTP: `.bin` 404 → `MISSING_RESOURCE` |
-| Incorrect dimensions | unit: cm-authored, Z-up, sideways, certified mismatch, degenerate |
-| Missing animation clips | unit: named clip absent → doors disabled |
-| Material configuration | unit + Chrome (variant GLB swap, rim finish) |
-| Unsupported WebXR devices | unit matrix (Android/iOS/iPadOS/desktop/in-app/insecure) + Chrome desktop |
-| Session lifecycle | unit (single session, user vs system end, error mapping) + Chrome with mocked `navigator.xr` (gesture-gated request, permission denial) |
-| Hit-test handling / placement state | unit with XR-shaped frame objects |
-| Interaction controls | unit (gesture arbiter) + Chrome preview (hotspot, component pick) |
-| Resource cleanup | unit (dispose counts, idempotent tracker) |
-| Navigation showroom ↔ AR with config preserved | Chrome E2E steps 1–12 |
+| iOS/iPadOS compatibility detection | Unit: iPhone, iPad, iPadOS desktop-class UA, in-app browser, `supports()` throwing, insecure context. E2E: iPhone and iPad emulation |
+| Unsupported Android and desktop | Unit: Android/Windows/Mac (Mac with `rel="ar"` still refused). E2E: Android with a WebXR runtime claiming `immersive-ar` → 0 XR calls, 0 camera calls, 0 Quick Look launches, no `intent:` navigation, exact message; desktop → message + QR, no AR button |
+| Dedicated AR route | E2E: detail → `/ar/tesla-cybertruck?color=2&return=/#detail`; full-screen canvas = viewport; only ✕ + swatches visible; no nav/header/debug; `wrangler` routing |
+| External model loading | E2E: external CDN `.gltf` + `.bin` (missing texture is non-fatal); unit + integration: URL policy, progress, retry, timeout, abort, cache, HTML sniffing |
+| USDZ availability | Unit: manifest v2 sanitising, resolver order, URL policy, pre-built files match `data/usdz-assets.json` (size + SHA-256 + structure). Integration: API lists 4 pre-built files, served as `model/vnd.usdz+zip` with zip magic. E2E: pre-built, external, HTML-instead-of-USDZ → conversion, model too large → disabled with reason |
+| Vehicle colour selection | Unit: only body paint changes (metalness/roughness/clearcoat, glass, rims kept); tint without reload vs. variant GLB. E2E: variant swap, in-place tint with no new download, paint colour verified inside the generated USDZ (1 of 10 materials) |
+| Selected colour persistence | E2E: colour from the detail page → AR page; colour changed in AR → back on the detail page (`AppState.vehicleConfigs`) |
+| Quick Look launch behaviour | Unit: href builder and anchor contract. E2E (recorded, not executed): `rel="ar"`, `<img>` first child, `download` only for blob, `allowsContentScaling=0`, `canonicalWebPageURL`, launched with active user activation, never without a tap |
+| Model loading errors | E2E: no-CORS host → `NETWORK_OR_CORS` + retry; invalid id; unknown vehicle → `NOT_FOUND` |
+| Navigation back to the showroom | E2E: ✕ → `/#detail?carId=…&colorIdx=3` |
+| Removal of obsolete integrations | Unit: removed files absent; no WebXR/camera/intent API in `js/ar` or `ar.html`; viewer only `immersive-vr`; `_headers`. E2E: `enterWebXR({ar:true})` makes 0 `requestSession` calls |
+| Regression | E2E: home, 3D showroom, 360°/VR controls, cart, legacy `#ar-live` redirect, no uncaught page errors; full `npm test` |
 
 ## Bugs found by these tests and fixed
 
-1. Manifest asset paths were resolved against `/ar/:id`, so every model 404'd (`/ar/assets/...`). Now resolved against the site root.
-2. A slow drag that paused before release could slip through as a placement. Drag is now timestamped at release.
-3. Desktop screenshots opened a Web Share sheet instead of saving. Share is now used on mobile only.
-4. `isSessionSupported('immersive-ar')` stalled about 11 s on desktop Chrome/Windows. It is now bounded to 2.5 s and overlapped with model download.
-5. `/ar/* /ar/index.html 200` is ignored by Pages as a loop. Changed to `/ar/* /ar 200` with `ar.html`.
-6. On Pages, a missing `.glb` returns `index.html` labelled `model/gltf-binary`. The loader now sniffs the body for HTML.
+1. `inspectUsdzHeader()` reported a short HTML body (< 30 bytes) as `TOO_SHORT` instead of `HTML_INSTEAD_OF_USDZ` (unit test).
+2. The first framing cut off the vehicle's bumper on a 390 px-wide iPhone and left the car low on screen (seen in screenshots; camera distance and target fixed; the vehicle's scale is untouched).
+3. Two overlapping `_headers` rules for `.usdz` would have joined `Content-Type` values with a comma on Pages; reduced to one rule and verified with `wrangler`.
+4. Found during asset preparation: three.js `USDZExporter` writes text USDA, so VinFast VF9 (1.9 MB Draco GLB) became an 89.7 MB USDZ. A pre-export size guard (24 MiB) and a 25 MiB build limit were added instead of shipping or generating such files.
 
-## Measurements (real, but not representative of phones)
+## Measurements (real, but not representative of iPhones)
 
-From the E2E run (desktop Chrome, **SwiftShader software rendering**, local server):
-
-| Metric | Value |
-|---|---|
-| Manifest API (Cybertruck) | 10–14 ms |
-| Capability detection (desktop, XR query hits the 2.5 s bound) | ~2,505 ms (runs in parallel with loading) |
-| Cybertruck AR GLB (407,164 B): download + parse | 838–963 ms |
-| VinFast VF9 GLB (1,981,208 B, Draco + texture) | 398–870 ms |
-| Preview FPS with software GL | 12–13 fps (CPU rasteriser; GPU devices will differ) |
-| Memory cache after two Cybertruck variants | 814,328 B |
-| Preview screenshot | 46,605 B JPEG |
-
-No phone FPS, memory, or AR tracking numbers were recorded, because no AR-capable device was available.
+| Metric | Value | Conditions |
+|---|---|---|
+| Manifest API | 14–26 ms (3 runs) | local server |
+| Cybertruck GLB download + parse | 35–41 ms (3 runs) | local server, desktop Chrome |
+| Pre-built Cybertruck USDZ | 988,016–988,138 B | per colour |
+| On-device conversion, Honda Civic EG6 | 2.2–3.4 s (3 runs), 4,485,812 B | desktop Chrome, SwiftShader. iPhone time unknown |
+| Conversion of all 24 vehicles (dry run) | 0.06–7.2 s each | desktop Chrome |
+| Size estimate vs. real USDZ | 0.29×–1.08× | 24 vehicles |
 
 ## Not tested: physical device checklist (required before claiming AR works)
 
-Android (Chrome, ARCore-certified phone, HTTPS deployment):
-1. `/ar/tesla-cybertruck` → "Bắt đầu AR" → camera permission prompt only after the tap.
-2. Real camera feed, scanning hint, reticle and footprint appear only on floors (not on walls or tables at an angle).
-3. Tap / "Đặt xe" places the car; it stays anchored while walking around; size matches a tape measure (5.68 m).
-4. Drag and twist rotate; tapping the car does not re-place it; "Di chuyển" and "Đặt lại" work.
-5. Colour swap while placed keeps position; wheel finish; hotspots track the car; info card.
-6. Lighting with light estimation; shadow under the car.
-7. Switch apps mid-session → interruption notice → restart works.
-8. Capture: check whether `camera-access` is granted, and whether the saved photo contains the camera image (experimental path).
-9. Exit → back to the detail page with colour/wheels preserved.
-10. Scene Viewer button on a non-WebXR Android browser.
-11. Record FPS from the diagnostics panel ("Chẩn đoán") and memory from `chrome://inspect`.
+iPhone (Safari, iOS 15+) and iPad (Safari, iPadOS desktop-class mode):
 
-iOS: verify the labelled 3D-preview fallback. Quick Look cannot be tested until USDZ assets exist.
+1. Open `/ar/tesla-cybertruck` from the detail page. Check the full-screen car, colour bar and "Xem AR" button, with no camera prompt from the page.
+2. Tap "Xem AR". AR Quick Look should open in AR mode with the colour selected on the page.
+3. Place the car on the floor. Check it is anchored when walking around, and measure the size against a tape measure (5.68 m). Check that pinch does **not** resize it (`allowsContentScaling=0`).
+4. Close Quick Look, pick another colour, tap again. The new colour should open.
+5. Open `/ar/honda-civic-eg6-1991` and pick a colour. Watch for "Đang chuẩn bị AR…" and record the conversion time. Then open Quick Look. Check the generated file opens, its colour, and any missing faces caused by single-sided export.
+6. `/ar/vinfast-vf9`: the AR button is disabled with the reason.
+7. Tap Share in Quick Look. It should share the `/ar/...` page URL, not a blob.
+8. Open the page from Facebook/Zalo in-app browsers. Expect the "mở bằng Safari" message, or check whether Quick Look works there.
+9. Return to the showroom with ✕. The colour should be kept.
+10. Check memory and stability on an older device (e.g. iPhone XR) during conversion.
 
-## Pre-existing issue (not introduced here)
-
-`npm test` rewrites `data/sigmacar_store.json` (the store's on-load schema migration persists to the repo file). The same happens on the original commit. Restore it with `git checkout -- data/sigmacar_store.json` after test runs.
+Android phone: open `/ar/...`. Expect the message only, no camera, no Scene Viewer.

@@ -44,6 +44,8 @@ function modelPath(v, exts) {
   return s;
 }
 
+export const MANIFEST_SCHEMA_VERSION = 2;
+
 /**
  * @param {unknown} raw
  * @param {string} expectedVehicleId
@@ -52,7 +54,7 @@ function modelPath(v, exts) {
 export function validateManifest(raw, expectedVehicleId) {
   const problems = [];
   if (!raw || typeof raw !== 'object') throw new ManifestError('INVALID_MANIFEST', 'Manifest AR rỗng.');
-  if (raw.schemaVersion !== 1) problems.push(`schemaVersion ${raw.schemaVersion} không được hỗ trợ`);
+  if (raw.schemaVersion !== MANIFEST_SCHEMA_VERSION) problems.push(`schemaVersion ${raw.schemaVersion} không được hỗ trợ`);
   if (!isValidVehicleId(raw.vehicleId)) problems.push('vehicleId không hợp lệ');
   if (expectedVehicleId && raw.vehicleId !== expectedVehicleId) problems.push('vehicleId không khớp với xe được yêu cầu');
 
@@ -77,53 +79,36 @@ export function validateManifest(raw, expectedVehicleId) {
     .filter(v => v.colorIndex >= 0 && v.glbUrl)
     .slice(0, 16);
 
-  const wheels = (Array.isArray(raw.wheels) ? raw.wheels : [])
-    .filter(w => w && /^[a-z0-9-]{1,40}$/.test(String(w.id || '')) && w.finish && HEX_RE.test(String(w.finish.color || '')))
-    .slice(0, 8)
-    .map(w => ({
-      id: w.id,
-      label: text(w.label, 40) || w.id,
-      name: text(w.name, 80),
-      finish: {
-        color: String(w.finish.color).toUpperCase(),
-        roughness: num(w.finish.roughness, 0, 1) ?? 0.3,
-        metalness: num(w.finish.metalness, 0, 1) ?? 0.9
-      }
-    }));
-
   const materials = raw.materials && typeof raw.materials === 'object' ? raw.materials : {};
   const body = strList(materials.body);
-  const rims = strList(materials.rims);
   const protectedPatterns = strList(materials.protectedPatterns, 64).map(s => s.toLowerCase());
 
-  const anim = raw.animations && typeof raw.animations === 'object' ? raw.animations : {};
-  const animations = { openDoors: text(anim.openDoors, 120) || null, closeDoors: text(anim.closeDoors, 120) || null };
-
-  const hotspots = (Array.isArray(raw.hotspots) ? raw.hotspots : [])
-    .filter(h => h && Array.isArray(h.position) && h.position.length === 3 && h.position.every(n => num(n, -20, 20) !== null))
-    .slice(0, 12)
-    .map((h, i) => ({
-      id: text(h.id, 64) || `hotspot-${i + 1}`,
-      name: text(h.name, 120) || `Điểm ${i + 1}`,
-      category: text(h.category, 80),
-      description: text(h.description, 600),
-      position: h.position.map(Number)
-    }));
-
-  const usdzUrl = modelPath(model.usdzUrl, ['.usdz']);
+  const apple = raw.appleAr && typeof raw.appleAr === 'object' ? raw.appleAr : {};
+  const colorIndexes = new Set(colors.map(c => c.index));
+  const seen = new Set();
+  const usdz = (Array.isArray(apple.usdz) ? apple.usdz : [])
+    .map(u => ({
+      colorIndex: Number.isInteger(u && u.colorIndex) ? u.colorIndex : null,
+      url: modelPath(u && u.url, ['.usdz']),
+      source: u && u.source === 'prebuilt' ? 'prebuilt' : 'external',
+      bytes: num(u && u.bytes, 1, 2e9)
+    }))
+    // A colour-specific file must refer to a colour that exists; one file per colour.
+    .filter(u => u.url && (u.colorIndex === null || colorIndexes.has(u.colorIndex)))
+    .filter(u => { const k = String(u.colorIndex); if (seen.has(k)) return false; seen.add(k); return true; })
+    .slice(0, 17);
+  const onDeviceConversion = apple.onDeviceConversion === true;
   const declared = raw.features && typeof raw.features === 'object' ? raw.features : {};
 
   return {
-    schemaVersion: 1,
+    schemaVersion: MANIFEST_SCHEMA_VERSION,
     vehicleId: raw.vehicleId,
     name: text(raw.name, 160) || raw.vehicleId,
     brand: text(raw.brand, 80),
-    category: text(raw.category, 80),
     priceFormatted: text(raw.priceFormatted, 60),
     readiness: raw.readiness === 'verified' ? 'verified' : 'unverified',
     model: {
       glbUrl,
-      usdzUrl,
       unit: 'meters',
       scaleMode,
       dimensionsMeters: dims,
@@ -131,17 +116,12 @@ export function validateManifest(raw, expectedVehicleId) {
     },
     variants,
     colors,
-    wheels,
-    materials: { body, rims, protectedPatterns },
-    animations,
-    hotspots,
+    materials: { body, protectedPatterns },
+    appleAr: { usdz, onDeviceConversion, allowsContentScaling: false },
     // Re-derived: declared flags can only switch a feature OFF, never on without supporting data.
     features: {
       changeColor: declared.changeColor !== false && colors.length > 0 && (body.length > 0 || variants.length > 0),
-      changeWheels: declared.changeWheels !== false && wheels.length > 0 && rims.length > 0,
-      doorAnimations: declared.doorAnimations !== false && Boolean(animations.openDoors),
-      hotspots: declared.hotspots !== false && hotspots.length > 0,
-      quickLook: Boolean(usdzUrl)
+      quickLook: declared.quickLook !== false && (usdz.length > 0 || onDeviceConversion)
     }
   };
 }

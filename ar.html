@@ -4,10 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0B1220">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="robots" content="noindex">
   <title>Xem AR — SIGMACAR</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
-  <link rel="stylesheet" href="/css/ar.css?v=1.0">
+  <link rel="stylesheet" href="/css/ar.css?v=2.0">
   <script type="importmap">
     {
       "imports": {
@@ -16,101 +18,45 @@
       }
     }
   </script>
-  <script type="module" src="/js/ar/ar-app.js?v=1.0"></script>
+  <script type="module" src="/js/ar/ar-app.js?v=2.0"></script>
 </head>
 <body>
-  <main id="ar-root" class="ar-root" data-state="boot" data-xr="off" data-mode="">
-    <!-- WebGL canvas (3D preview). During WebXR the system compositor shows the real camera feed. -->
+  <!--
+    Dedicated AR page (/ar/:vehicleId). The canvas is a full-screen 3D view of the vehicle (not a camera).
+    The AR camera itself is Apple AR Quick Look (native ARKit), opened from #ar-launch on iPhone / iPad.
+  -->
+  <main id="ar-root" class="ar-root" data-state="boot">
     <div id="ar-stage" class="ar-stage" aria-hidden="true"></div>
 
-    <!-- WebXR dom-overlay root: everything visible during the AR session lives in here. -->
-    <div id="ar-overlay" class="ar-overlay">
-      <div id="ar-hotspot-layer" class="ar-hotspot-layer"></div>
+    <a id="ar-close" class="ar-close" href="/" aria-label="Đóng và quay lại showroom">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+    </a>
 
-      <header class="ar-topbar" id="ar-topbar">
-        <a id="ar-back" class="ar-btn ar-btn--icon" href="/" aria-label="Quay lại Showroom">
-          <span aria-hidden="true">←</span>
-        </a>
-        <div class="ar-title">
-          <h1 id="ar-vehicle-name">Đang tải…</h1>
-          <p id="ar-config-summary" class="ar-subtitle"></p>
-        </div>
-        <span id="ar-mode-badge" class="ar-badge" hidden></span>
-        <button id="ar-exit-xr" class="ar-btn ar-btn--ghost" type="button" hidden>Thoát AR</button>
-      </header>
+    <section id="ar-status" class="ar-status" role="status" aria-live="polite">
+      <p id="ar-status-title" class="ar-status__title">Đang tải…</p>
+      <p id="ar-status-detail" class="ar-status__detail"></p>
+      <div id="ar-progress" class="ar-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+        <div id="ar-progress-bar" class="ar-progress__bar"></div>
+      </div>
+      <button id="ar-retry" class="ar-retry" type="button" hidden>Thử lại</button>
+    </section>
 
-      <!-- Loading / status / error card -->
-      <section id="ar-status" class="ar-card ar-status" role="status" aria-live="polite">
-        <div id="ar-status-icon" class="ar-status__icon" aria-hidden="true">⏳</div>
-        <p id="ar-status-title" class="ar-status__title">Đang khởi tạo…</p>
-        <p id="ar-status-detail" class="ar-status__detail"></p>
-        <div id="ar-progress" class="ar-progress" hidden>
-          <div id="ar-progress-bar" class="ar-progress__bar" style="width:0%"></div>
-        </div>
-        <div class="ar-status__actions">
-          <button id="ar-retry" class="ar-btn ar-btn--primary" type="button" hidden>Thử lại</button>
-        </div>
-      </section>
+    <section id="ar-notice" class="ar-notice" role="note" hidden>
+      <p id="ar-notice-text" class="ar-notice__text"></p>
+      <div id="ar-qr-wrap" class="ar-qr" hidden>
+        <div id="ar-qr" class="ar-qr__code"></div>
+      </div>
+    </section>
 
-      <!-- Scanning instructions (XR) -->
-      <p id="ar-hint" class="ar-hint" hidden></p>
-
-      <!-- Non-WebXR explanation + native AR launchers + QR hand-off -->
-      <section id="ar-fallback" class="ar-card ar-fallback" hidden>
-        <p id="ar-fallback-text" class="ar-fallback__text"></p>
-        <div class="ar-fallback__actions">
-          <button id="ar-open-scene-viewer" class="ar-btn ar-btn--primary" type="button" hidden>Mở AR bằng Google Scene Viewer</button>
-          <button id="ar-open-quick-look" class="ar-btn ar-btn--primary" type="button" hidden>Mở AR Quick Look</button>
-        </div>
-        <div id="ar-qr-wrap" class="ar-qr" hidden>
-          <div id="ar-qr" class="ar-qr__code"></div>
-          <p class="ar-qr__caption">Quét bằng điện thoại Android (Chrome) để xem AR thật tại không gian của bạn.</p>
-        </div>
-      </section>
-
-      <!-- Hotspot / component info -->
-      <aside id="ar-info" class="ar-card ar-info" hidden>
-        <button id="ar-info-close" class="ar-btn ar-btn--icon ar-info__close" type="button" aria-label="Đóng">✕</button>
-        <p id="ar-info-category" class="ar-info__category"></p>
-        <h2 id="ar-info-title" class="ar-info__title"></h2>
-        <p id="ar-info-body" class="ar-info__body"></p>
-      </aside>
-
-      <!-- Configuration sheet -->
-      <section id="ar-sheet" class="ar-card ar-sheet" hidden>
-        <div class="ar-sheet__group" id="ar-colors-group">
-          <h3>Màu sơn</h3>
-          <div id="ar-colors" class="ar-swatches" role="radiogroup" aria-label="Màu sơn"></div>
-          <p id="ar-colors-note" class="ar-note" hidden></p>
-        </div>
-        <div class="ar-sheet__group" id="ar-wheels-group">
-          <h3>Mâm xe <span class="ar-note-inline">(lớp hoàn thiện)</span></h3>
-          <div id="ar-wheels" class="ar-chips" role="radiogroup" aria-label="Mâm xe"></div>
-          <p id="ar-wheels-note" class="ar-note" hidden></p>
-        </div>
-        <div class="ar-sheet__cta">
-          <span id="ar-price" class="ar-price"></span>
-          <a id="ar-checkout" class="ar-btn ar-btn--primary" href="/">Đặt cọc / Báo giá</a>
-        </div>
-      </section>
-
-      <footer class="ar-dock" id="ar-dock">
-        <div class="ar-dock__row ar-dock__secondary">
-          <button id="ar-btn-config" class="ar-btn ar-btn--chip" type="button" aria-expanded="false" aria-controls="ar-sheet" disabled>🎨 Cấu hình</button>
-          <button id="ar-btn-doors" class="ar-btn ar-btn--chip" type="button" hidden>🚪 Mở cửa</button>
-          <button id="ar-btn-move" class="ar-btn ar-btn--chip" type="button" hidden>✥ Di chuyển</button>
-          <button id="ar-btn-reset" class="ar-btn ar-btn--chip" type="button" hidden>↺ Đặt lại</button>
-          <button id="ar-btn-capture" class="ar-btn ar-btn--chip" type="button" hidden>📸 Chụp ảnh</button>
-          <button id="ar-btn-hotspots" class="ar-btn ar-btn--chip" type="button" hidden aria-pressed="true">ⓘ Điểm nổi bật</button>
-        </div>
-        <button id="ar-primary" class="ar-btn ar-btn--primary ar-btn--wide" type="button" disabled>Đang tải…</button>
-      </footer>
-
-      <details id="ar-diagnostics" class="ar-diagnostics">
-        <summary>Chẩn đoán</summary>
-        <pre id="ar-diagnostics-body"></pre>
-      </details>
-    </div>
+    <footer id="ar-dock" class="ar-dock">
+      <p id="ar-color-name" class="ar-color-name" hidden></p>
+      <div id="ar-colors" class="ar-swatches" role="radiogroup" aria-label="Màu xe" hidden></div>
+      <button id="ar-launch" class="ar-launch" type="button" data-state="hidden" hidden disabled>
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z M12 2.8v18.4 M4 7.4l8 4.6 8-4.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        <span id="ar-launch-label">Xem AR</span>
+      </button>
+      <p id="ar-launch-note" class="ar-launch-note" hidden></p>
+    </footer>
   </main>
   <noscript>
     <p style="padding:24px;font-family:sans-serif">Trang AR cần JavaScript. <a href="/">Quay lại SIGMACAR</a></p>

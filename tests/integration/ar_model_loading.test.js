@@ -102,9 +102,9 @@ describe('AR model loading over HTTP', () => {
     assert.deepStrictEqual(norm.warnings, []);
     assert.ok(Math.abs(norm.sizeMeters.length - 5.682) < 0.06, `length ${norm.sizeMeters.length}`);
 
-    const mats = new MaterialConfigurator(norm.pivot, { body: ['Material_Body'], rims: ['Material_Rims'], protectedPatterns: ['glass', 'tire', 'light'] });
+    const mats = new MaterialConfigurator(norm.pivot, { body: ['Material_Body'], protectedPatterns: ['glass', 'tire', 'light'] });
     assert.strictEqual(mats.capabilities.paint, true);
-    assert.strictEqual(mats.capabilities.rims, true);
+    assert.deepStrictEqual(mats.capabilities.matchedBody, ['Material_Body']);
   });
 
   it('loads an external-origin .gltf and resolves its separate .bin relative to the model URL', async () => {

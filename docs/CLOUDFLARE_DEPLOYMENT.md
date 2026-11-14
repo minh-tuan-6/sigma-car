@@ -94,4 +94,6 @@ If something is wrong, the `X-Sigma-Proxy-Error` response header names the cause
 
 - Models in `assets/models/` are served by Pages (25 MiB per-file limit; the build enforces it).
 - External CDNs work if they serve HTTPS with `Access-Control-Allow-Origin` covering the site origin. Without CORS, the page shows `NETWORK_OR_CORS`. A `.gltf` needs its `.bin`/textures reachable relative to its URL.
-- Google Scene Viewer needs a **publicly reachable HTTPS** model URL (it will not work from `localhost`).
+- AR is Apple AR Quick Look only (see `APPLE_AR_ARCHITECTURE.md`). USDZ files under `assets/models/usdz/` are served by Pages with `Content-Type: model/vnd.usdz+zip` (one `_headers` rule; overlapping rules would join values with a comma). Regenerate them with `npm run usdz:build -- --vehicle <id>` whenever a source GLB changes; a unit test fails if a file no longer matches `data/usdz-assets.json`.
+- External USDZ files (e.g. binary USDZ made on a Mac for the large models) need HTTPS. CORS is optional (Quick Look downloads them itself), but with `Access-Control-Allow-Origin` the page can verify the file before offering it.
+- AR Quick Look needs the page on HTTPS in Safari on iPhone/iPad; it cannot be tested from `localhost` on a desktop.

@@ -1,10 +1,13 @@
-// js/ar/vehicle/vehicle-controller.js — owns the loaded vehicle: model lifecycle, configuration, selection.
-// Swapping a colour variant GLB replaces only the model under the anchor; placement (anchor transform) is kept.
+// js/ar/vehicle/vehicle-controller.js — owns the loaded vehicle: model lifecycle and paint colour.
+//
+// Colour changes, cheapest first:
+//   * a colour with its own authored GLB (manifest.variants) loads that file once (cached afterwards);
+//   * otherwise the body-paint materials named in the manifest are re-tinted in place — no reload, and
+//     metalness / roughness / clearcoat / textures are untouched, so reflections stay physically the same.
+// Glass, lights, tyres, rims and every other material are never modified.
 
-import { Raycaster, Vector2, Color } from 'three';
 import { normalizeVehicle } from '../models/model-normalizer.js';
 import { MaterialConfigurator } from './material-configurator.js';
-import { AnimationController } from './animation-controller.js';
 import { disposeObject3D } from '../core/resource-tracker.js';
 import { Emitter } from '../core/emitter.js';
 
@@ -19,14 +22,11 @@ export class VehicleController extends Emitter {
     this.manifest = manifest;
     this.pivot = null;
     this.materials = null;
-    this.animations = null;
     this.normalization = null;
     this.loadedUrl = null;
-    this.config = { colorIdx: 0, wheelId: null };
+    this.colorIdx = 0;
     this._loadToken = 0;
     this._abort = null;
-    this._raycaster = new Raycaster();
-    this._highlight = null;
   }
 
   get loaded() {
@@ -34,16 +34,11 @@ export class VehicleController extends Emitter {
   }
 
   get capabilities() {
-    const f = this.manifest.features;
-    const mat = this.materials ? this.materials.capabilities : { paint: false, rims: false };
-    const anim = this.animations ? this.animations.capabilities : { doors: false };
+    const mat = this.materials ? this.materials.capabilities : { paint: false };
     const hasVariants = this.manifest.variants.length > 0;
     return {
-      changeColor: f.changeColor && (mat.paint || hasVariants),
-      changeWheels: f.changeWheels && mat.rims,
-      doorAnimations: f.doorAnimations && anim.doors,
-      hotspots: f.hotspots,
-      details: { materials: mat, animations: anim }
+      changeColor: this.manifest.features.changeColor && (mat.paint || hasVariants),
+      materials: mat
     };
   }
 
@@ -57,16 +52,13 @@ export class VehicleController extends Emitter {
     this._abort = null;
   }
 
-  /**
-   * Loads (or reloads) the model for the given configuration.
-   * Stale loads (superseded by a newer call) are discarded and disposed.
-   */
-  async load(config, { onProgress } = {}) {
+  /** Loads (or reloads) the model for a colour. Stale loads (superseded by a newer call) are discarded. */
+  async load(colorIdx, { onProgress } = {}) {
     const token = ++this._loadToken;
     this.cancel();
     const controller = new AbortController();
     this._abort = controller;
-    const url = this._urlForColor(config.colorIdx);
+    const url = this._urlForColor(colorIdx);
 
     const result = await this.loader.load(url, {
       signal: controller.signal,
@@ -96,99 +88,43 @@ export class VehicleController extends Emitter {
     this.loadedUrl = result.url;
     this.anchor.add(this.pivot);
     this.materials = new MaterialConfigurator(this.pivot, this.manifest.materials);
-    this.animations = new AnimationController(this.pivot, result.animations, this.manifest.animations);
     this._abort = null;
 
-    this.config = { ...config };
-    this._applyConfig({ variantLoaded: url !== this.manifest.model.glbUrl });
-    this.emit('config', { ...this.config });
+    this.colorIdx = colorIdx;
+    const color = this.manifest.colors.find(c => c.index === colorIdx);
+    // A colour-specific GLB already carries its authored finish; tint only when no variant was loaded.
+    if (color && url === this.manifest.model.glbUrl && this.materials.capabilities.paint) this.materials.setPaint(color.hex);
+    this.emit('color', colorIdx);
     this.emit('loaded', { url: result.url, bytes: result.bytes, warnings: [...result.warnings, ...norm.warnings], normalization: norm });
     return { result, normalization: norm };
   }
 
-  _applyConfig({ variantLoaded }) {
-    const color = this.manifest.colors.find(c => c.index === this.config.colorIdx);
-    // A colour-specific GLB already carries its authored finish; tint only when no variant was loaded.
-    if (color && !variantLoaded && this.materials.capabilities.paint) this.materials.setPaint(color.hex);
-    const wheel = this.manifest.wheels.find(w => w.id === this.config.wheelId);
-    if (wheel && this.materials.capabilities.rims) this.materials.setRimFinish(wheel.finish);
-  }
-
+  /** @returns {Promise<{ changed: boolean, reloaded: boolean }>} */
   async setColor(colorIdx, opts = {}) {
     const color = this.manifest.colors.find(c => c.index === colorIdx);
-    if (!color) return false;
-    const targetUrl = this._urlForColor(colorIdx);
-    const resolvedTarget = new URL(targetUrl, this.loader.baseUrl).toString();
-    if (resolvedTarget !== this.loadedUrl) {
+    if (!color) return { changed: false, reloaded: false };
+    const target = new URL(this._urlForColor(colorIdx), this.loader.baseUrl).toString();
+    if (target !== this.loadedUrl) {
       try {
-        await this.load({ ...this.config, colorIdx }, opts);
-        return true;
+        const res = await this.load(colorIdx, opts);
+        return { changed: Boolean(res), reloaded: Boolean(res) };
       } catch (err) {
-        // Variant failed: tint the current model instead if possible, and report.
+        // The variant file failed: tint the current model instead when possible, and report it.
         this.emit('warning', { code: err.code || 'VARIANT_LOAD_FAILED', message: err.message });
         if (!this.materials || !this.materials.capabilities.paint) throw err;
       }
     }
-    this.config.colorIdx = colorIdx;
-    if (this.materials && this.materials.capabilities.paint) this.materials.setPaint(color.hex);
-    this.emit('config', { ...this.config });
-    return true;
-  }
-
-  setWheel(wheelId) {
-    const wheel = this.manifest.wheels.find(w => w.id === wheelId);
-    if (!wheel || !this.materials || !this.materials.setRimFinish(wheel.finish)) return false;
-    this.config.wheelId = wheelId;
-    this.emit('config', { ...this.config });
-    return true;
-  }
-
-  toggleDoors() {
-    return Boolean(this.animations && this.animations.toggleDoors());
-  }
-
-  update(dt) {
-    if (this.animations) this.animations.update(dt);
-    if (this._highlight) {
-      this._highlight.t += dt;
-      const k = Math.max(0, 1 - this._highlight.t / 1.2);
-      for (const { mat, emissive } of this._highlight.items) {
-        if (mat.emissive) mat.emissive.copy(emissive).lerp(new Color(0x38bdf8), k * 0.6);
-      }
-      if (k <= 0) this._clearHighlight();
-    }
-  }
-
-  _clearHighlight() {
-    if (!this._highlight) return;
-    for (const { mat, emissive } of this._highlight.items) if (mat.emissive) mat.emissive.copy(emissive);
-    this._highlight = null;
-  }
-
-  /**
-   * Component selection: raycast from normalised device coords with the active camera.
-   * @returns {{ part: 'body'|'wheel'|'other', meshName: string, materialName: string } | null}
-   */
-  pick(ndc, camera) {
-    if (!this.pivot || !this.anchor.visible) return null;
-    this._raycaster.setFromCamera(new Vector2(ndc.x, ndc.y), camera);
-    const hit = this._raycaster.intersectObject(this.pivot, true)[0];
-    if (!hit) return null;
-    const mat = Array.isArray(hit.object.material) ? hit.object.material[hit.face ? hit.face.materialIndex : 0] : hit.object.material;
-    const part = this.materials ? this.materials.classify(mat) : 'other';
-    this._clearHighlight();
-    const group = part === 'other' ? [mat] : (part === 'body' ? this.materials.body.materials : this.materials.rims.materials);
-    this._highlight = { t: 0, items: group.filter(m => m && m.emissive).map(m => ({ mat: m, emissive: m.emissive.clone() })) };
-    return { part, meshName: hit.object.name || '', materialName: (mat && mat.name) || '' };
+    if (!this.materials || !this.materials.capabilities.paint) return { changed: false, reloaded: false };
+    this.materials.setPaint(color.hex);
+    this.colorIdx = colorIdx;
+    this.emit('color', colorIdx);
+    return { changed: true, reloaded: false };
   }
 
   _disposeModel() {
-    this._clearHighlight();
-    if (this.animations) this.animations.dispose();
     if (this.pivot) disposeObject3D(this.pivot);
     this.pivot = null;
     this.materials = null;
-    this.animations = null;
   }
 
   dispose() {

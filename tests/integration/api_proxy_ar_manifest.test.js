@@ -70,25 +70,34 @@ describe('API connectivity through the Pages Function proxy', () => {
     assert.ok([200, 401].includes(cart.status), `unexpected ${cart.status}`);
   });
 
-  it('GET /api/v1/vehicles/:id/ar-manifest returns a capability-accurate manifest', async () => {
+  it('GET /api/v1/vehicles/:id/ar-manifest returns an Apple AR (schema v2) manifest with per-colour USDZ', async () => {
     const res = await viaProxy('/api/v1/vehicles/tesla-cybertruck/ar-manifest');
     assert.strictEqual(res.status, 200);
     const m = (await res.json()).data;
-    assert.strictEqual(m.schemaVersion, 1);
+    assert.strictEqual(m.schemaVersion, 2);
     assert.strictEqual(m.vehicleId, 'tesla-cybertruck');
     assert.strictEqual(m.model.glbUrl, 'assets/models/ar/tesla_cybertruck_ar_v1.glb');
     assert.strictEqual(m.model.scaleMode, 'certified');
     assert.strictEqual(m.model.dimensionsMeters.length, 5.682);
     assert.deepStrictEqual(m.materials.body, ['Material_Body']);
-    assert.deepStrictEqual(m.materials.rims, ['Material_Rims']);
     assert.strictEqual(m.variants.length, 4);
     assert.strictEqual(m.features.changeColor, true);
-    assert.strictEqual(m.features.changeWheels, true);
-    assert.strictEqual(m.features.doorAnimations, false, 'no GLB contains door clips');
-    assert.strictEqual(m.features.quickLook, false, 'no USDZ asset exists');
-    assert.ok(m.hotspots.length > 0);
-    // showroom (4.4 m frame) → metres: x=1.2 * (5.682/4.4)
-    assert.ok(Math.abs(m.hotspots[0].position[0] - 1.2 * (5.682 / 4.4)) < 0.002);
+    assert.strictEqual(m.features.quickLook, true);
+    assert.deepStrictEqual(m.appleAr.usdz.map(u => u.colorIndex), [0, 1, 2, 3], 'one pre-built USDZ per paint colour');
+    for (const u of m.appleAr.usdz) {
+      assert.strictEqual(u.source, 'prebuilt');
+      assert.match(u.url, /^assets\/models\/usdz\/tesla-cybertruck\/[0-3]\.usdz\?v=[0-9a-f]{12}$/);
+    }
+    assert.strictEqual(m.appleAr.allowsContentScaling, false, 'real-world scale in Quick Look');
+    for (const removed of ['wheels', 'hotspots', 'animations']) assert.ok(!(removed in m), `v1 field ${removed} removed`);
+    assert.ok(!('webxr' in m.features) && !('sceneViewer' in m.features), 'no WebXR / Scene Viewer flags');
+
+    // The referenced file is served with the USDZ media type.
+    const file = await fetch(`${origin}/${m.appleAr.usdz[1].url}`);
+    assert.strictEqual(file.status, 200);
+    assert.strictEqual(file.headers.get('content-type'), 'model/vnd.usdz+zip');
+    const head = new Uint8Array(await file.arrayBuffer()).subarray(0, 4);
+    assert.deepStrictEqual(Array.from(head), [0x50, 0x4b, 0x03, 0x04]);
   });
 
   it('reports unknown vehicles and unbound paint honestly', async () => {
@@ -99,6 +108,8 @@ describe('API connectivity through the Pages Function proxy', () => {
     const ferrari = await (await viaProxy('/api/v1/vehicles/ferrari-f50-1995/ar-manifest')).json();
     assert.strictEqual(ferrari.data.features.changeColor, false);
     assert.strictEqual(ferrari.data.model.scaleMode, 'fit-to-length');
+    assert.deepStrictEqual(ferrari.data.appleAr.usdz, [], 'no USDZ file → on-device conversion only');
+    assert.strictEqual(ferrari.data.appleAr.onDeviceConversion, true);
   });
 });
 

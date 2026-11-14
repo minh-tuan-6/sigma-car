@@ -822,7 +822,8 @@ if (typeof window !== 'undefined') {
     navigateTo('vr-ar', { carId: AppState.currentDetailCar });
   };
 
-  // Opens the dedicated AR camera page (/ar/:vehicleId, see ar.html + js/ar/). The current configuration
+  // Opens the dedicated AR page (/ar/:vehicleId, see ar.html + js/ar/): AR Quick Look on iPhone/iPad, a
+  // compatibility notice elsewhere. The current configuration
   // is persisted first and passed in the URL; ?return= brings the user back to the page they came from.
   window.openArLive = function(carId, config) {
     if (carId) AppState.currentDetailCar = carId;
@@ -5300,7 +5301,7 @@ if (typeof window !== 'undefined') {
       activateImmersiveVrStudio();
     });
     document.getElementById('btn-mode-ar')?.addEventListener('click', () => {
-      // Use spatial tracking + floor hit tests, not the legacy camera-video overlay.
+      // AR Camera = Apple AR Quick Look on the dedicated AR page (iPhone/iPad only); no camera-video overlay here.
       if (viewer) viewer.stopCamera();
       window.openArLive(car.id);
     });
