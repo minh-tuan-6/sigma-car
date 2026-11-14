@@ -145,6 +145,15 @@ describe('Unit Test: Static CDN Fallback & Opt-In Demo Sandbox Isolation (H-01)'
     assert.ok(storage.get('sigmacar_demo_auth_token'));
     assert.strictEqual(storage.get('sigmacar_auth_token'), 'live_jwt');
 
+    // Pre-login guest quote estimation in Demo Sandbox must work for guest cart preview
+    const guestCivicQuote = await ApiClient.quotes.create({
+      items: [{ itemType: 'vehicle', itemId: 'honda-civic-type-r-2018', quantity: 1 }],
+      branchId: 'hn-caugiay',
+      deliveryMethod: 'showroom'
+    });
+    assert.strictEqual(guestCivicQuote.lines[0].itemId, 'honda-civic-type-r-2018');
+    assert.ok(guestCivicQuote.totalAmount > 0);
+
     // Switch login to seeded demo buyer and merge guest cart -> quote -> checkout -> sandbox payment
     const loginRes = await ApiClient.auth.login({
       email: 'minhhoang.sigma@example.com',
@@ -156,19 +165,44 @@ describe('Unit Test: Static CDN Fallback & Opt-In Demo Sandbox Isolation (H-01)'
     assert.ok(sandbox.window.SIGMA_DATA && sandbox.window.SIGMA_DATA.cars.length > 0);
     assert.ok(sandbox.window.ApiClient && sandbox.window.SigmaStaticSandbox);
 
+    const invCheck = await ApiClient.inventory.getByVehicle('honda-civic-type-r-2018');
+    assert.ok(Array.isArray(invCheck.branches) && invCheck.branches.length > 0);
+
+    // Every new & certified vehicle in SIGMA_DATA must resolve cleanly for checkout quote
+    for (const c of SIGMA_DATA.cars) {
+      const qAll = await ApiClient.quotes.create({
+        items: [{ itemType: 'vehicle', itemId: c.id, quantity: 1 }],
+        branchId: 'hn-caugiay',
+        deliveryMethod: 'showroom'
+      });
+      assert.strictEqual(qAll.lines[0].itemId, c.id);
+      assert.ok(qAll.totalAmount > 0, `Expected positive totalAmount for ${c.id}`);
+    }
+    for (const cpo of SIGMA_DATA.certifiedCars) {
+      const qCpo = await ApiClient.quotes.create({
+        items: [{ itemType: 'certified', itemId: cpo.id, quantity: 1 }],
+        branchId: 'hn-caugiay',
+        deliveryMethod: 'showroom'
+      });
+      assert.strictEqual(qCpo.lines[0].itemId, cpo.id);
+      assert.strictEqual(qCpo.lines[0].isCertified, true);
+    }
+
     await ApiClient.cart.mergeGuestDraftOnLogin();
     const cart = await ApiClient.cart.get();
     assert.strictEqual(cart.items.length, 1);
     assert.ok(cart.totalAmount > 0);
 
-    // Explicitly verify non-first catalog model checkout (e.g. hyundai-elantra-n-2024)
-    const elantraQuote = await ApiClient.quotes.create({
-      items: [{ itemType: 'vehicle', itemId: 'hyundai-elantra-n-2024', quantity: 1 }],
-      branchId: 'hn-caugiay',
-      deliveryMethod: 'showroom'
-    });
-    assert.strictEqual(elantraQuote.lines[0].itemId, 'hyundai-elantra-n-2024');
-    assert.ok(elantraQuote.totalAmount > 0);
+    // Explicitly verify non-first catalog model checkout (e.g. hyundai-elantra-n-2024 & honda-civic-type-r-2018)
+    for (const targetId of ['hyundai-elantra-n-2024', 'honda-civic-type-r-2018']) {
+      const qTarget = await ApiClient.quotes.create({
+        items: [{ itemType: 'vehicle', itemId: targetId, quantity: 1 }],
+        branchId: 'hn-caugiay',
+        deliveryMethod: 'showroom'
+      });
+      assert.strictEqual(qTarget.lines[0].itemId, targetId);
+      assert.ok(qTarget.totalAmount > 0);
+    }
 
     const quote = await ApiClient.quotes.create({
       items: cart.items,
@@ -191,6 +225,8 @@ describe('Unit Test: Static CDN Fallback & Opt-In Demo Sandbox Isolation (H-01)'
     assert.ok(checkoutRes.order);
     assert.strictEqual(checkoutRes.order.isDemoSandbox, true);
     assert.strictEqual(checkoutRes.order.paymentStatus, 'unpaid');
+    assert.ok(checkoutRes.order.reservationExpiresAt);
+    assert.ok(Array.isArray(checkoutRes.order.history) && checkoutRes.order.history.length >= 1);
 
     const intent = await ApiClient.payments.createIntent({
       orderId: checkoutRes.order.id,
@@ -199,6 +235,7 @@ describe('Unit Test: Static CDN Fallback & Opt-In Demo Sandbox Isolation (H-01)'
     }, 'pi_idem_001');
     assert.strictEqual(intent.status, 'pending');
     assert.strictEqual(intent.isDemoSandbox, true);
+    assert.ok(intent.providerRef);
 
     const sim = await ApiClient.payments.simulateSandbox({
       intentId: intent.id,
@@ -207,6 +244,14 @@ describe('Unit Test: Static CDN Fallback & Opt-In Demo Sandbox Isolation (H-01)'
     assert.strictEqual(sim.intent.status, 'succeeded');
     assert.strictEqual(sim.order.paymentStatus, 'deposit_paid');
     assert.strictEqual(sim.order.paidAmount, sim.order.depositAmount);
+
+    const history = await ApiClient.payments.getHistory(checkoutRes.order.id);
+    assert.strictEqual(history.totalAmount, checkoutRes.order.totalAmount);
+    assert.strictEqual(history.depositAmount, checkoutRes.order.depositAmount);
+    assert.strictEqual(history.paidAmount, sim.order.depositAmount);
+    assert.strictEqual(history.ledger.length, 1);
+    assert.strictEqual(history.intents[0].providerRef, intent.providerRef);
+    assert.ok(sim.order.history.length >= 2);
     assert.ok(storage.has('sigmacar_demo_store_v1'));
 
     // Toggling Demo Mode OFF isolates back to live credentials cleanly

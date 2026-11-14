@@ -38,6 +38,10 @@ const AppState = {
   currentUser: (typeof ApiClient !== 'undefined' && ApiClient.getCurrentUser) ? ApiClient.getCurrentUser() : null
 };
 
+if (typeof window !== 'undefined') {
+  window.AppState = AppState;
+}
+
   // Centralized Vehicle Resolver & Multi-View Configuration State
   function getVehicleById(carId) {
     if (!carId) return null;
@@ -547,11 +551,12 @@ const AppState = {
             return { ...(local || {}), ...v };
           })
         : SIGMA_DATA.cars;
-      AppState.certifiedList = (certified && certified.length > 0) ? certified : SIGMA_DATA.certifiedCars;
+      const rawCert = (certified && certified.length > 0) ? certified : SIGMA_DATA.certifiedCars;
+      AppState.certifiedList = rawCert.map(c => ({ isCertified: true, type: 'certified', stock: c.stock ?? 1, ...c }));
     } catch (e) {
       console.warn('Using local fallback dataset:', e.message);
       AppState.vehiclesList = SIGMA_DATA.cars;
-      AppState.certifiedList = SIGMA_DATA.certifiedCars;
+      AppState.certifiedList = SIGMA_DATA.certifiedCars.map(c => ({ isCertified: true, type: 'certified', stock: c.stock ?? 1, ...c }));
     }
 
     // Live Dynamic RAG: Ingest and ground all website vehicles into AI Brain
@@ -2777,7 +2782,8 @@ const AppState = {
 
     const isElectric = !!(car.battery || (car.range && car.range > 0) || getVehicleFuel(car) === 'ev');
     window.ApiClient?.analytics?.recordEvent({ eventType: 'vehicle_view', targetId: car.id, branchId: car.branchId || null });
-    const detailStockCount = car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : (car.isCertified ? 1 : 0));
+    const isCertifiedCar = Boolean(car.isCertified || car.type === 'certified' || /^cpo-/i.test(String(car.id || '')));
+    const detailStockCount = car.excelStock !== undefined ? car.excelStock : (car.stock !== undefined ? car.stock : (isCertifiedCar ? 1 : 0));
     const spec1Title = isElectric ? "Quãng đường (WLTP/EPA)" : "Động cơ / Dung tích";
     const spec1Val = isElectric ? (car.range ? `${car.range} km` : 'Đang cập nhật') : (car.engine || car.power?.split(',')[0] || 'Đang cập nhật');
     const spec2Title = "Công suất tối đa";
@@ -3416,7 +3422,7 @@ const AppState = {
       const { colorName, colorHex } = getSelectedColorObj();
       try {
         await window.SigmaCartView?.addItemToCart({
-          itemType: car.isCertified ? 'certified' : 'vehicle',
+          itemType: isCertifiedCar ? 'certified' : 'vehicle',
           itemId: car.id,
           quantity: 1,
           colorName,
@@ -3459,7 +3465,7 @@ const AppState = {
         navigateTo('checkout', {
           source: 'direct',
           vehicleId: car.id,
-          itemType: car.isCertified ? 'certified' : 'vehicle',
+          itemType: isCertifiedCar ? 'certified' : 'vehicle',
           colorName,
           branchId: 'hn-caugiay'
         });

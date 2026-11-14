@@ -185,24 +185,28 @@ const ApiClient = {
       }
     } catch (_) {}
 
+    const staticData = (typeof SIGMA_DATA !== 'undefined' && SIGMA_DATA)
+      ? SIGMA_DATA
+      : ((typeof window !== 'undefined' && window.SIGMA_DATA) ? window.SIGMA_DATA : { cars: [], certifiedCars: [] });
+
     // Read-only public endpoints allowed on static CDN hosting
     if (method === 'GET' && endpoint.startsWith('/vehicles/certified')) {
-      return { success: true, staticReadOnly: true, data: typeof SIGMA_DATA !== 'undefined' ? SIGMA_DATA.certifiedCars : [] };
+      const list = (staticData.certifiedCars || []).map(c => ({ isCertified: true, type: 'certified', stock: c.stock ?? 1, ...c }));
+      return { success: true, staticReadOnly: true, data: list };
     }
     if (method === 'GET' && endpoint.startsWith('/vehicles/') && endpoint.endsWith('/related')) {
       const targetId = decodeURIComponent(endpoint.replace('/vehicles/', '').replace('/related', '').split('?')[0]);
-      const all = (typeof SIGMA_DATA !== 'undefined' ? (SIGMA_DATA.cars || []) : []);
+      const all = staticData.cars || [];
       const cur = all.find(c => c.id === targetId);
       const rel = cur ? all.filter(c => c.id !== cur.id && c.category === cur.category).slice(0, 3) : all.slice(0, 3);
       return { success: true, staticReadOnly: true, data: rel };
     }
-    if (method === 'GET' && endpoint.startsWith('/vehicles/certified')) {
-      const list = (typeof SIGMA_DATA !== 'undefined' ? (SIGMA_DATA.certifiedCars || []) : []);
-      return { success: true, staticReadOnly: true, data: list };
-    }
     if (method === 'GET' && endpoint.startsWith('/vehicles/')) {
       const targetId = decodeURIComponent(endpoint.replace('/vehicles/', '').split('?')[0]);
-      const all = (typeof SIGMA_DATA !== 'undefined' ? [...(SIGMA_DATA.cars || []), ...(SIGMA_DATA.certifiedCars || [])] : []);
+      const all = [
+        ...(staticData.cars || []),
+        ...(staticData.certifiedCars || []).map(c => ({ isCertified: true, type: 'certified', stock: c.stock ?? 1, ...c }))
+      ];
       const found = all.find(c => c.id === targetId || c.id === targetId.replace(/^sigma-/, ''));
       if (!found) {
         const err = new Error(`Không tìm thấy thông tin xe với mã "${targetId}".`);
@@ -213,7 +217,7 @@ const ApiClient = {
       return { success: true, staticReadOnly: true, data: found };
     }
     if (method === 'GET' && endpoint.startsWith('/vehicles')) {
-      const cars = typeof SIGMA_DATA !== 'undefined' ? (SIGMA_DATA.cars || []) : [];
+      const cars = staticData.cars || [];
       return {
         success: true,
         staticReadOnly: true,

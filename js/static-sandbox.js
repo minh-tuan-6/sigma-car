@@ -269,6 +269,7 @@
       quotes: [],
       orders: [],
       paymentIntents: [],
+      paymentLedger: [],
       appointments: [],
       financingApplications: [],
       configurations: [],
@@ -303,7 +304,13 @@
         const raw = localStorage.getItem(STORE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
-          if (parsed && typeof parsed === 'object') return parsed;
+          if (parsed && typeof parsed === 'object') {
+            if (!Array.isArray(parsed.paymentLedger)) parsed.paymentLedger = [];
+            if (!Array.isArray(parsed.paymentIntents)) parsed.paymentIntents = [];
+            if (!Array.isArray(parsed.orders)) parsed.orders = [];
+            if (!Array.isArray(parsed.quotes)) parsed.quotes = [];
+            return parsed;
+          }
         }
         const initial = createInitialStore();
         localStorage.setItem(STORE_KEY, JSON.stringify(initial));
@@ -363,14 +370,24 @@
   function findVehicle(id) {
     const sd = getSigmaData();
     const cleanId = String(id || '').trim();
+    const lowerId = cleanId.toLowerCase();
     const altId = cleanId.replace(/^sigma-/, '');
+    const certList = (sd.certifiedCars || []).map(c => (c ? { isCertified: true, type: 'certified', stock: c.stock ?? 1, ...c } : null));
+    const appCertList = (globalScope.AppState && Array.isArray(globalScope.AppState.certifiedList))
+      ? globalScope.AppState.certifiedList.map(c => (c ? { isCertified: true, type: 'certified', stock: c.stock ?? 1, ...c } : null))
+      : [];
     const pool = [
       ...(sd.cars || []),
-      ...(sd.certifiedCars || []),
+      ...certList,
       ...((globalScope.AppState && Array.isArray(globalScope.AppState.vehiclesList)) ? globalScope.AppState.vehiclesList : []),
-      ...((globalScope.AppState && Array.isArray(globalScope.AppState.certifiedList)) ? globalScope.AppState.certifiedList : [])
+      ...appCertList
     ];
-    return pool.find(c => c && (c.id === cleanId || c.id === altId)) || null;
+    return pool.find(c => c && (
+      c.id === cleanId ||
+      c.id === altId ||
+      (c.id && String(c.id).toLowerCase() === lowerId) ||
+      (c.productCode && String(c.productCode).trim().toLowerCase() === lowerId)
+    )) || null;
   }
 
   function listAllAccessories() {
@@ -783,7 +800,8 @@
       return { success: true, staticReadOnly: true, data: sd.cars || [] };
     }
     if (path === '/vehicles/certified' && method === 'GET') {
-      return { success: true, staticReadOnly: true, data: sd.certifiedCars || [] };
+      const list = (sd.certifiedCars || []).map(c => ({ isCertified: true, type: 'certified', stock: c.stock ?? 1, ...c }));
+      return { success: true, staticReadOnly: true, data: list };
     }
     if (path.startsWith('/vehicles/') && path.endsWith('/related') && method === 'GET') {
       const id = decodeURIComponent(path.split('/')[2] || '');
@@ -923,6 +941,27 @@
     if (path === '/inventory' && method === 'GET') {
       const items = (sd.cars || []).map(c => ({ vehicleId: c.id, name: c.name, totalStock: c.stock ?? 5, availableStock: c.stock ?? 5 }));
       return { success: true, staticReadOnly: true, data: items };
+    }
+    if (path.startsWith('/inventory/') && method === 'GET') {
+      const vid = decodeURIComponent(path.split('/')[2] || '');
+      const v = findVehicle(vid);
+      if (!v) throw makeHttpError('Không tìm thấy thông tin tồn kho mẫu xe.', 404, 'VEHICLE_NOT_FOUND');
+      const totalStock = Math.max(0, Number(v.excelStock ?? v.stock ?? (v.isCertified ? 1 : 5)));
+      const perBranch = Math.max(1, Math.ceil(totalStock / Math.max(1, getBranches().length)));
+      return {
+        success: true,
+        staticReadOnly: true,
+        data: {
+          vehicleId: v.id,
+          vehicleName: v.name,
+          branches: getBranches().map(b => ({
+            branchId: b.id,
+            branchName: b.name,
+            totalStock: perBranch,
+            available: totalStock > 0 ? perBranch : 0
+          }))
+        }
+      };
     }
     if (path === '/reviews' && method === 'GET' && query.get('includeModerated') !== 'true') {
       const store = getStore();
@@ -1242,7 +1281,8 @@
     }
 
     if (path === '/quotes' && method === 'POST') {
-      const user = requireDemoAuth(store, apiClient);
+      let user = null;
+      try { user = requireDemoAuth(store, apiClient); } catch (_) {}
       const items = Array.isArray(body.items) ? body.items : [];
       if (items.length === 0) throw makeHttpError('Cần ít nhất 1 sản phẩm để lập báo giá.', 422, 'EMPTY_QUOTE_ITEMS');
       const breakdown = buildQuoteBreakdown({
@@ -1254,14 +1294,16 @@
       });
       const quote = {
         id: safeRandomId('qt_demo'),
-        userId: user.id,
+        userId: user ? user.id : null,
         ...breakdown,
         isDemoSandbox: true,
         expiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
         createdAt: nowIso
       };
-      store.quotes.push(quote);
-      saveStore(store);
+      if (user) {
+        store.quotes.push(quote);
+        saveStore(store);
+      }
       return { success: true, demoMode: true, data: quote };
     }
 
@@ -1291,7 +1333,18 @@
       });
       const branches = getBranches();
       const branch = branches.find(b => b.id === breakdown.branchId) || branches[0];
-      const primaryLine = breakdown.lines[0];
+      const primaryLine = breakdown.lines.find(l => l.itemType !== 'accessory') || breakdown.lines[0];
+      const vehicleSummaryName = primaryLine
+        ? (breakdown.lines.length > 1 ? `${primaryLine.name} (+${breakdown.lines.length - 1} sp)` : primaryLine.name)
+        : 'Đơn hàng SIGMACAR';
+      const reservationExpiresAt = new Date(Date.now() + 15 * 60000).toISOString();
+      const initialHistoryEntry = {
+        status: 'pending_payment',
+        paymentStatus: 'unpaid',
+        timestamp: nowIso,
+        updatedBy: user.id,
+        note: `Giữ chỗ 15 phút tại ${branch.name} (${breakdown.lines.length} dòng sản phẩm - Demo Sandbox).`
+      };
       const order = {
         id: safeRandomId('ord_demo'),
         orderNumber: `SG-DEMO-${Date.now().toString().slice(-6)}`,
@@ -1300,7 +1353,7 @@
         buyerPhone: String(body.buyerPhone || user.phone || '').trim(),
         buyerEmail: user.email,
         vehicleId: primaryLine ? primaryLine.itemId : '',
-        vehicleName: primaryLine ? primaryLine.name : 'Đơn hàng SIGMACAR',
+        vehicleName: vehicleSummaryName,
         img: primaryLine ? primaryLine.image : 'assets/car-model-e.jpg',
         items: breakdown.lines,
         itemsSubtotal: breakdown.itemsSubtotal,
@@ -1315,12 +1368,14 @@
         deliveryAddress: String(body.deliveryAddress || '').trim(),
         branchId: branch.id,
         branchName: branch.name,
+        reservationExpiresAt,
         orderStatus: 'pending_payment',
         paymentStatus: 'unpaid',
         status: 'Chờ thanh toán (Demo Sandbox)',
         policyVersion: breakdown.policyVersion,
         idempotencyKey: idemKey,
         isDemoSandbox: true,
+        history: [initialHistoryEntry],
         timeline: [
           {
             event: 'order_created',
@@ -1358,17 +1413,32 @@
       if (!isStaff && order.userId !== user.id) throw makeHttpError('Không có quyền truy cập đơn hàng này.', 403, 'FORBIDDEN');
 
       const mode = body.mode === 'full' ? 'full' : 'deposit';
+      const provider = body.provider || 'napas_qr_sandbox';
+      const providerLabels = {
+        napas_qr_sandbox: 'Chuyển khoản QR Napas 24/7 (Sandbox)',
+        vnpay_sandbox: 'Cổng VNPAY QR (Sandbox)',
+        momo_sandbox: 'Ví điện tử MoMo (Sandbox)'
+      };
+      const providerLabel = providerLabels[provider] || provider;
       const remaining = Math.max(0, (order.totalAmount || 0) - (order.paidAmount || 0));
       const amount = mode === 'full' ? remaining : Math.min(remaining, order.depositAmount || 50000000);
+      const providerRef = `SBX-${String(provider).toUpperCase().slice(0, 6)}-${Date.now().toString().slice(-6)}`;
+      const qrCodePayload = `SIGMA_DEMO_QR|${order.orderNumber}|${amount}`;
       const intent = {
         id: safeRandomId('pi_demo'),
         orderId: order.id,
+        orderNumber: order.orderNumber,
         userId: user.id,
         mode,
-        provider: body.provider || 'napas_qr_sandbox',
+        provider,
+        providerLabel,
+        providerRef,
         amount,
+        currency: 'VND',
         status: 'pending',
-        qrCodePayload: `SIGMA_DEMO_QR|${order.orderNumber}|${amount}`,
+        qrCodePayload,
+        qrPayload: qrCodePayload,
+        checkoutUrl: `#checkout?orderId=${encodeURIComponent(order.id)}`,
         expiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
         isDemoSandbox: true,
         disclaimer: 'Thanh toán mô phỏng Demo Sandbox — Không phát sinh giao dịch tiền thật.',
@@ -1388,8 +1458,28 @@
       if (!['seller', 'admin'].includes(user.role) && order.userId !== user.id) {
         throw makeHttpError('Không có quyền xem lịch sử thanh toán đơn này.', 403, 'FORBIDDEN');
       }
-      const intents = store.paymentIntents.filter(p => p.orderId === orderId).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      return { success: true, demoMode: true, data: { orderId, intents } };
+      const intents = (store.paymentIntents || [])
+        .filter(p => p.orderId === orderId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const ledger = (store.paymentLedger || [])
+        .filter(l => l.orderId === orderId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return {
+        success: true,
+        demoMode: true,
+        data: {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          orderStatus: order.orderStatus,
+          paymentStatus: order.paymentStatus,
+          totalAmount: order.totalAmount || order.unitPrice || 0,
+          depositAmount: order.depositAmount || 0,
+          paidAmount: order.paidAmount || 0,
+          exceptionStatus: order.exceptionStatus || null,
+          intents,
+          ledger
+        }
+      };
     }
 
     if (path === '/payments/sandbox/simulate' && method === 'POST') {
@@ -1405,6 +1495,9 @@
       const nextStatus = body.status === 'failed' ? 'failed' : 'succeeded';
       intent.status = nextStatus;
       intent.updatedAt = nowIso;
+      if (!Array.isArray(store.paymentLedger)) store.paymentLedger = [];
+      order.history = order.history || [];
+      order.timeline = order.timeline || [];
 
       if (nextStatus === 'succeeded') {
         order.paidAmount = Math.min(order.totalAmount, (order.paidAmount || 0) + (intent.amount || 0));
@@ -1417,21 +1510,23 @@
           order.orderStatus = 'confirmed';
           order.status = 'Đã đặt cọc (Demo Sandbox)';
         }
-        order.timeline = order.timeline || [];
-        order.timeline.push({
-          event: 'payment_succeeded',
-          title: 'Mô phỏng Webhook Thanh toán Thành công',
-          note: `Đã ghi nhận ${Number(intent.amount).toLocaleString('vi-VN')} VNĐ trên Demo Sandbox (không thu tiền thật).`,
-          at: nowIso
+        store.paymentLedger.unshift({
+          id: safeRandomId('pl_demo'),
+          orderId: order.id,
+          intentId: intent.id,
+          provider: intent.provider,
+          providerRef: intent.providerRef || intent.id,
+          entryType: intent.mode === 'full' ? 'Thanh toán toàn bộ (Demo Sandbox)' : 'Thanh toán đặt cọc (Demo Sandbox)',
+          amount: intent.amount,
+          currency: 'VND',
+          createdAt: nowIso
         });
+        const okNote = `Đã ghi nhận ${Number(intent.amount).toLocaleString('vi-VN')} VNĐ trên Demo Sandbox (không thu tiền thật).`;
+        order.history.push({ status: order.orderStatus, paymentStatus: order.paymentStatus, timestamp: nowIso, updatedBy: 'demo_webhook', note: okNote });
+        order.timeline.push({ event: 'payment_succeeded', title: 'Mô phỏng Webhook Thanh toán Thành công', note: okNote, at: nowIso });
       } else {
-        order.timeline = order.timeline || [];
-        order.timeline.push({
-          event: 'payment_failed',
-          title: 'Mô phỏng Thanh toán Thất bại',
-          note: 'Giao dịch sandbox được đánh dấu lỗi.',
-          at: nowIso
-        });
+        order.history.push({ status: order.orderStatus, paymentStatus: order.paymentStatus, timestamp: nowIso, updatedBy: 'demo_webhook', note: 'Giao dịch sandbox được đánh dấu lỗi.' });
+        order.timeline.push({ event: 'payment_failed', title: 'Mô phỏng Thanh toán Thất bại', note: 'Giao dịch sandbox được đánh dấu lỗi.', at: nowIso });
       }
       order.updatedAt = nowIso;
       saveStore(store);
@@ -1447,6 +1542,7 @@
       const branch = branches.find(b => b.id === body.branchId) || branches[0];
       const total = Number(v.salePrice && v.salePrice < v.price ? v.salePrice : v.price) || 0;
       const dep = Math.min(total, 50000000);
+      const reservationExpiresAt = new Date(Date.now() + 15 * 60000).toISOString();
       const order = {
         id: safeRandomId('ord_demo'),
         orderNumber: `SG-DEMO-${Date.now().toString().slice(-6)}`,
@@ -1464,10 +1560,12 @@
         paymentMode: 'deposit',
         branchId: branch.id,
         branchName: branch.name,
+        reservationExpiresAt,
         orderStatus: 'pending_payment',
         paymentStatus: 'unpaid',
         status: 'Chờ đặt cọc (Demo Sandbox)',
         isDemoSandbox: true,
+        history: [{ status: 'pending_payment', paymentStatus: 'unpaid', timestamp: nowIso, updatedBy: user.id, note: `Đặt cọc nhanh (Demo Sandbox) tại ${branch.name}` }],
         timeline: [{ event: 'order_created', title: 'Đặt cọc nhanh (Demo Sandbox)', note: branch.name, at: nowIso }],
         createdAt: nowIso,
         updatedAt: nowIso

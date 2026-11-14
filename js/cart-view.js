@@ -80,6 +80,7 @@
 
     let cartData = null;
     let loadError = null;
+    let loadErrorObj = null;
     let promoCodeDraft = sessionStorage.getItem('sigmacar_cart_promo_draft') || '';
 
     try {
@@ -121,13 +122,14 @@
         }
       }
     } catch (err) {
+      loadErrorObj = err;
       loadError = err.message || 'Không thể tải dữ liệu giỏ hàng.';
     }
 
     await updateCartHeaderBadge();
 
     if (loadError) {
-      const canOfferDemo = !ApiClient.isDemoMode() && /Static Read-Only|máy chủ|kết nối|BACKEND/i.test(loadError);
+      const canOfferDemo = !ApiClient.isDemoMode() && (loadErrorObj?.code === 'BACKEND_UNAVAILABLE' || loadErrorObj?.status === 503 || /Static Read-Only|máy chủ|kết nối|BACKEND/i.test(loadError));
       container.innerHTML = `
         <section class="section" style="padding-top:40px; min-height:60vh;">
           <div class="container" style="max-width:680px;">

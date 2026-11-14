@@ -67,7 +67,8 @@
     const isSettled = remainingFull <= 0;
 
     let resCountdownText = 'Không có giữ chỗ đang hoạt động';
-    if (orderDetail.reservationExpiresAt && orderDetail.paymentStatus === 'Unpaid' && !isCancelled) {
+    const isAwaitingPayment = ['Unpaid', 'unpaid', 'Pending_Payment', 'pending_payment'].includes(orderDetail.paymentStatus);
+    if (orderDetail.reservationExpiresAt && isAwaitingPayment && !isCancelled) {
       const remMs = Date.parse(orderDetail.reservationExpiresAt) - Date.now();
       if (remMs > 0) {
         const mins = Math.floor(remMs / 60000);
@@ -136,7 +137,7 @@
                     <span>PHIÊN THANH TOÁN MỚI NHẤT</span>
                     <span>${esc(latestIntent.status.toUpperCase())}</span>
                   </div>
-                  <div style="font-size:13px; margin-top:6px;">Mã GD: <code>${esc(latestIntent.providerRef)}</code></div>
+                  <div style="font-size:13px; margin-top:6px;">Mã GD: <code>${esc(latestIntent.providerRef || latestIntent.id)}</code></div>
                   <div style="font-size:13px; margin-top:3px;">Số tiền: <strong>${fmtVnd(latestIntent.amount)}</strong></div>
                   <div style="font-size:11.5px; color:#475569; margin-top:6px;">
                     ℹ️ Trạng thái thanh toán chỉ cập nhật thành công khi nhận được xác thực Webhook HMAC từ ngân hàng/cổng thanh toán (khác với trạng thái Bàn giao xe).
@@ -163,11 +164,11 @@
                   ${history.ledger.map(l => `
                     <div style="padding:10px 12px; border:1px solid #E2E8F0; border-radius:10px; font-size:12.5px;">
                       <div style="display:flex; justify-content:space-between; font-weight:800;">
-                        <span>${esc(l.entryType)}</span>
+                        <span>${esc(l.entryType || 'Giao dịch thanh toán')}</span>
                         <span style="color:#059669;">+${fmtVnd(l.amount)}</span>
                       </div>
                       <div style="color:var(--text-muted); font-size:11.5px; margin-top:3px;">
-                        Ref: <code>${esc(l.providerRef)}</code> • ${new Date(l.createdAt).toLocaleString('vi-VN')}
+                        Ref: <code>${esc(l.providerRef || l.intentId || '')}</code> • ${new Date(l.createdAt).toLocaleString('vi-VN')}
                       </div>
                     </div>
                   `).join('')}
