@@ -722,6 +722,7 @@ if (typeof window !== 'undefined') {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     renderCurrentRoute();
   }
+  window.navigateTo = navigateTo;
 
   window.addEventListener('hashchange', () => {
     const hash = window.location.hash || 'home';
@@ -3024,7 +3025,7 @@ if (typeof window !== 'undefined') {
               <button class="btn-detail-cta outline-cta" id="btn-detail-calc">
                 📊 Dự toán trả góp
               </button>
-              <button class="btn-detail-cta outline-cta" style="border-color:#0284C7; color:#0284C7;" onclick="navigateTo('tco', { carId: '${car.id}' })">
+              <button type="button" class="btn-detail-cta outline-cta" id="btn-detail-tco" style="border-color:#0284C7; color:#0284C7;" onclick="window.navigateTo('tco', { carId: '${escapeHtml(car.id)}' })">
                 ⚡ Dự toán TCO 5 năm
               </button>
               <button class="btn-detail-cta outline-cta" onclick="window.addCarToCompare('${car.id}')">
@@ -6161,15 +6162,9 @@ if (typeof window !== 'undefined') {
       { name: 'Xanh Navy', hex: '#1E3A8A', img: car.image }
     ];
 
-    const sampleBgs = SIGMA_DATA.arSampleBackgrounds || [
-      { id: 'bg-1', name: 'Sân nhà biệt thự', url: 'assets/project3/sample-bg-1.jpg' },
-      { id: 'bg-2', name: 'Gara gia đình hiện đại', url: 'assets/project3/sample-bg-2.jpg' },
-      { id: 'bg-3', name: 'Đường nội khu cao cấp', url: 'assets/project3/sample-bg-3.jpg' },
-      { id: 'bg-4', name: 'Khuôn viên ngoài trời', url: 'assets/project3/sample-bg-4.jpg' }
-    ];
-
     let currentStep = 2; // Step 2 active
-    let selectedBgUrl = sampleBgs[0].url;
+    let selectedBgUrl = '';
+    let selectedBgName = '';
     let selectedAngle = 'Chéo 3/4';
     let selectedColorName = carColors[0]?.name || 'Tiêu chuẩn';
     let scaleVal = 100;
@@ -6186,7 +6181,7 @@ if (typeof window !== 'undefined') {
             </div>
             <h1 style="font-size:32px; font-weight:800; color:var(--text-dark); margin:0 0 8px;">Xem xe AR ngay tại nhà bạn</h1>
             <p style="font-size:15px; color:var(--text-muted); max-width:680px; margin:0 auto;">
-              Chụp hoặc chọn ảnh sân nhà/gara để mô phỏng ghép trực quan mẫu <strong>${escapeHtml(car.name)}</strong> lên khung cảnh thực (ước lượng tham khảo, không thay thế đo đạc kích thước đỗ xe thực tế).
+              Chụp hoặc tải ảnh sân nhà/gara của bạn để mô phỏng ghép trực quan mẫu <strong>${escapeHtml(car.name)}</strong> lên khung cảnh thực (ước lượng tham khảo, không thay thế đo đạc kích thước đỗ xe thực tế).
             </p>
           </div>
 
@@ -6209,8 +6204,8 @@ if (typeof window !== 'undefined') {
           </div>
 
           <!-- Step 2: Upload & Settings (2 Columns) -->
-          <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:24px; margin-bottom:32px;">
-            <!-- Left Column: Dropzone & 4 Sample Photos -->
+          <div class="ar-home-upload-grid">
+            <!-- Left Column: Dropzone & Uploaded Preview -->
             <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:20px; padding:24px; box-shadow:0 4px 16px rgba(0,0,0,0.04);">
               <h3 style="font-size:18px; font-weight:800; color:var(--text-dark); margin:0 0 14px;">Tải ảnh không gian của bạn</h3>
 
@@ -6222,22 +6217,23 @@ if (typeof window !== 'undefined') {
                   <strong style="font-size:15px; color:var(--text-dark); display:block; margin-bottom:4px;">Kéo và thả ảnh vào đây</strong>
                   <span style="font-size:12px; color:var(--text-muted);">Hỗ trợ JPG, PNG, HEIC • Dung lượng tối đa 15MB</span>
                 </div>
-                <div style="display:flex; gap:10px; margin-top:6px;">
-                  <button class="btn-primary" id="btn-ar-choose-file" style="padding:8px 16px; font-size:13px;">📁 Chọn ảnh từ thiết bị</button>
-                  <button class="btn-card-outline" id="btn-ar-camera-snap" style="padding:8px 16px; font-size:13px;">📷 Chụp bằng camera</button>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:6px;">
+                  <button type="button" class="btn-primary" id="btn-ar-choose-file" style="padding:8px 16px; font-size:13px;">📁 Chọn ảnh từ thiết bị</button>
+                  <button type="button" class="btn-card-outline" id="btn-ar-camera-snap" style="padding:8px 16px; font-size:13px;">📷 Chụp bằng camera</button>
                 </div>
               </div>
 
-              <!-- Quick Try with 4 Sample Photos -->
-              <div style="margin-top:20px;">
-                <div style="font-size:13px; font-weight:700; color:var(--text-dark); margin-bottom:8px;">Hoặc thử nhanh với ảnh mẫu:</div>
-                <div class="ar-sample-grid">
-                  ${sampleBgs.map((bg, idx) => `
-                    <div class="ar-sample-item ${idx === 0 ? 'selected' : ''}" data-url="${bg.url}" title="${escapeHtml(bg.name)}">
-                      <img src="${bg.url}" alt="${escapeHtml(bg.name)}">
-                      <div style="font-size:10px; font-weight:600; text-align:center; padding:4px 2px; color:var(--text-secondary); background:#FFFFFF;">${escapeHtml(bg.name)}</div>
+              <!-- Selected User Photo Preview -->
+              <div id="ar-uploaded-preview-wrap" style="display:none; margin-top:16px; padding:12px; border:1px solid #BFDBFE; background:#F0F9FF; border-radius:12px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                  <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                    <img id="ar-uploaded-thumb" alt="Ảnh không gian đã chọn" style="width:64px; height:44px; object-fit:cover; border-radius:8px; border:1px solid #93C5FD; flex-shrink:0;">
+                    <div style="min-width:0;">
+                      <div style="font-size:12px; font-weight:700; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="ar-uploaded-name">Ảnh không gian của bạn</div>
+                      <div style="font-size:11px; color:#0284C7;">Đã sẵn sàng để ghép xe AR</div>
                     </div>
-                  `).join('')}
+                  </div>
+                  <button type="button" class="btn-card-outline" id="btn-ar-clear-upload" style="padding:5px 10px; font-size:11px; flex-shrink:0;">✕ Xóa ảnh</button>
                 </div>
               </div>
             </div>
@@ -6327,10 +6323,15 @@ if (typeof window !== 'undefined') {
               </div>
             </div>
 
+            <!-- Empty state until user uploads & runs AI -->
+            <div id="ar-compare-empty-state" style="border:2px dashed #CBD5E1; background:#F8FAFC; border-radius:16px; padding:40px 20px; text-align:center; color:var(--text-muted); font-size:13.5px; line-height:1.6;">
+              📷 Chưa có ảnh không gian. Vui lòng chọn ảnh hoặc chụp ảnh sân nhà/gara ở <strong>Bước 2</strong> rồi nhấn <strong>"Tạo ảnh AR bằng AI"</strong> để xem kết quả so sánh Trước / Sau.
+            </div>
+
             <!-- Before / After Slider -->
-            <div class="ar-compare-slider-wrap" id="ar-compare-slider-box">
+            <div class="ar-compare-slider-wrap" id="ar-compare-slider-box" style="display:none;">
               <!-- Before Image (Empty Space) -->
-              <img id="ar-img-before" class="ar-compare-img" src="${selectedBgUrl}" alt="Trước (Ảnh sân nhà nguyên bản)">
+              <img id="ar-img-before" class="ar-compare-img" alt="Trước (Ảnh sân nhà nguyên bản)">
               <span class="ar-compare-badge before">Trước • Không gian gốc</span>
 
               <!-- After Image Wrap (AI Placed Car) -->
@@ -6349,7 +6350,7 @@ if (typeof window !== 'undefined') {
           <!-- Bottom: Tips for Best Photos (3 Cards) -->
           <div>
             <h4 style="font-size:17px; font-weight:800; color:var(--text-dark); margin-bottom:14px; text-align:center;">Mẹo chụp ảnh để kết quả AI đẹp và chính xác nhất</h4>
-            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px;">
+            <div class="ar-home-tips-grid">
               <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:14px; padding:18px; text-align:center;">
                 <div style="font-size:26px; margin-bottom:6px;">☀️</div>
                 <strong style="font-size:14px; color:var(--text-dark); display:block; margin-bottom:4px;">Chụp khi đủ ánh sáng</strong>
@@ -6375,17 +6376,26 @@ if (typeof window !== 'undefined') {
     const fileInput = document.getElementById('ar-home-file-input');
     const dropzone = document.getElementById('ar-home-dropzone');
     const imgBefore = document.getElementById('ar-img-before');
+    const previewWrap = document.getElementById('ar-uploaded-preview-wrap');
+    const previewThumb = document.getElementById('ar-uploaded-thumb');
+    const previewName = document.getElementById('ar-uploaded-name');
+    const emptyStateBox = document.getElementById('ar-compare-empty-state');
+    const sliderBox = document.getElementById('ar-compare-slider-box');
 
     document.getElementById('btn-ar-choose-file')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      fileInput.click();
+      fileInput?.removeAttribute('capture');
+      fileInput?.click();
     });
     document.getElementById('btn-ar-camera-snap')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      fileInput.setAttribute('capture', 'environment');
-      fileInput.click();
+      fileInput?.setAttribute('capture', 'environment');
+      fileInput?.click();
     });
-    dropzone?.addEventListener('click', () => fileInput.click());
+    dropzone?.addEventListener('click', () => {
+      fileInput?.removeAttribute('capture');
+      fileInput?.click();
+    });
 
     dropzone?.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -6414,22 +6424,31 @@ if (typeof window !== 'undefined') {
       const reader = new FileReader();
       reader.onload = (evt) => {
         selectedBgUrl = evt.target.result;
-        imgBefore.src = selectedBgUrl;
-        document.querySelectorAll('.ar-sample-item').forEach(el => el.classList.remove('selected'));
+        selectedBgName = file.name || 'Ảnh không gian của bạn';
+        if (imgBefore) imgBefore.src = selectedBgUrl;
+        if (previewThumb) previewThumb.src = selectedBgUrl;
+        if (previewName) previewName.textContent = selectedBgName;
+        if (previewWrap) previewWrap.style.display = 'block';
+        if (fileInput) fileInput.value = '';
         showToast('Đã tải ảnh không gian của bạn lên thành công! Nhấn "Tạo ảnh AR bằng AI" để xử lý.', '✓');
       };
       reader.readAsDataURL(file);
     }
 
-    // Sample Background Selection
-    document.querySelectorAll('.ar-sample-item').forEach(item => {
-      item.addEventListener('click', () => {
-        document.querySelectorAll('.ar-sample-item').forEach(el => el.classList.remove('selected'));
-        item.classList.add('selected');
-        selectedBgUrl = item.getAttribute('data-url');
-        imgBefore.src = selectedBgUrl;
-        showToast(`Đã chọn ảnh mẫu: ${item.getAttribute('title')}`, '🖼️');
-      });
+    document.getElementById('btn-ar-clear-upload')?.addEventListener('click', () => {
+      selectedBgUrl = '';
+      selectedBgName = '';
+      if (previewWrap) previewWrap.style.display = 'none';
+      if (previewThumb) previewThumb.removeAttribute('src');
+      if (imgBefore) imgBefore.removeAttribute('src');
+      if (sliderBox) sliderBox.style.display = 'none';
+      if (emptyStateBox) emptyStateBox.style.display = 'block';
+      if (fileInput) fileInput.value = '';
+      document.getElementById('ar-step-2-indicator')?.classList.add('active');
+      document.getElementById('ar-step-2-indicator')?.classList.remove('completed');
+      document.getElementById('ar-step-divider-23')?.style.setProperty('background', '#CBD5E1');
+      document.getElementById('ar-step-3-indicator')?.classList.remove('active');
+      showToast('Đã xóa ảnh vừa tải lên.', '🗑️');
     });
 
     // Color Swatches
@@ -6462,6 +6481,11 @@ if (typeof window !== 'undefined') {
 
     // AI Generate CTA Button
     document.getElementById('btn-ar-ai-generate')?.addEventListener('click', () => {
+      if (!selectedBgUrl) {
+        showToast('Vui lòng tải ảnh hoặc chụp ảnh không gian của bạn ở Bước 2 trước khi tạo AR.', '📷');
+        dropzone?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
       const btn = document.getElementById('btn-ar-ai-generate');
       const origText = btn.innerHTML;
       btn.innerHTML = '⏳ AI đang phân tích độ sâu mặt đất & ghép xe...';
@@ -6470,6 +6494,9 @@ if (typeof window !== 'undefined') {
       setTimeout(() => {
         btn.innerHTML = origText;
         btn.disabled = false;
+        if (imgBefore) imgBefore.src = selectedBgUrl;
+        if (emptyStateBox) emptyStateBox.style.display = 'none';
+        if (sliderBox) sliderBox.style.display = 'block';
         document.getElementById('ar-step-2-indicator')?.classList.remove('active');
         document.getElementById('ar-step-2-indicator')?.classList.add('completed');
         document.getElementById('ar-step-divider-23')?.style.setProperty('background', '#10B981');
@@ -6480,7 +6507,6 @@ if (typeof window !== 'undefined') {
     });
 
     // Before / After Slider Interaction Handlers
-    const sliderBox = document.getElementById('ar-compare-slider-box');
     const afterWrap = document.getElementById('ar-after-wrap');
     const handleLine = document.getElementById('ar-compare-handle');
 
@@ -6521,6 +6547,10 @@ if (typeof window !== 'undefined') {
 
     // Action buttons
     document.getElementById('btn-ar-download')?.addEventListener('click', () => {
+      if (!selectedBgUrl) {
+        showToast('Vui lòng tải ảnh không gian và nhấn "Tạo ảnh AR bằng AI" trước khi tải xuống.', '📷');
+        return;
+      }
       const a = document.createElement('a');
       a.href = 'assets/project3/ar-sample-after.jpg';
       a.download = `SIGMACAR-AR-${car.name.replace(/\s+/g, '-')}.jpg`;
@@ -9894,7 +9924,7 @@ if (typeof window !== 'undefined') {
               <span style="font-size:24px;">🎧</span>
               <div style="font-size:12px; color:#1E40AF;">
                 <strong>CSKH Đổi trả (08:00 - 20:00 GMT+7):</strong> 1900 8888<br>
-                <span style="color:var(--primary); font-weight:700; cursor:pointer;" onclick="navigateTo('support')">Gửi phiếu hỗ trợ CSKH →</span>
+                <span style="color:var(--primary); font-weight:700; cursor:pointer;" onclick="window.navigateTo('support')">Gửi phiếu hỗ trợ CSKH →</span>
               </div>
             </div>
           </div>

@@ -3971,28 +3971,7 @@ const SIGMA_DATA = {
       "desc": "Cùm phanh gốm Brembo 6 piston hiệu năng cao kết hợp đĩa phanh thông gió tăng tối đa an toàn phanh."
     }
   ],
-  "arSampleBackgrounds": [
-    {
-      "id": "bg-1",
-      "name": "Sân nhà biệt thự",
-      "url": "assets/project3/sample-bg-1.jpg"
-    },
-    {
-      "id": "bg-2",
-      "name": "Gara gia đình hiện đại",
-      "url": "assets/project3/sample-bg-2.jpg"
-    },
-    {
-      "id": "bg-3",
-      "name": "Đường nội khu cao cấp",
-      "url": "assets/project3/sample-bg-3.jpg"
-    },
-    {
-      "id": "bg-4",
-      "name": "Khuôn viên ngoài trời",
-      "url": "assets/project3/sample-bg-4.jpg"
-    }
-  ],
+  "arSampleBackgrounds": [],
   "vehicleHealthDefaults": {
     "engine": {
       "score": 98,
