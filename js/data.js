@@ -4015,6 +4015,10 @@ const SIGMA_DATA = {
   }
 };
 
+if (typeof window !== 'undefined') {
+  window.SIGMA_DATA = SIGMA_DATA;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { SIGMA_DATA };
 }

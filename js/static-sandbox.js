@@ -162,6 +162,9 @@
   }
 
   function getSigmaData() {
+    if (typeof SIGMA_DATA !== 'undefined' && SIGMA_DATA) {
+      return SIGMA_DATA;
+    }
     if (typeof globalScope.SIGMA_DATA !== 'undefined' && globalScope.SIGMA_DATA) {
       return globalScope.SIGMA_DATA;
     }
@@ -359,10 +362,15 @@
 
   function findVehicle(id) {
     const sd = getSigmaData();
-    const cleanId = String(id || '');
-    return (sd.cars || []).find(c => c.id === cleanId) ||
-      (sd.certifiedCars || []).find(c => c.id === cleanId) ||
-      null;
+    const cleanId = String(id || '').trim();
+    const altId = cleanId.replace(/^sigma-/, '');
+    const pool = [
+      ...(sd.cars || []),
+      ...(sd.certifiedCars || []),
+      ...((globalScope.AppState && Array.isArray(globalScope.AppState.vehiclesList)) ? globalScope.AppState.vehiclesList : []),
+      ...((globalScope.AppState && Array.isArray(globalScope.AppState.certifiedList)) ? globalScope.AppState.certifiedList : [])
+    ];
+    return pool.find(c => c && (c.id === cleanId || c.id === altId)) || null;
   }
 
   function listAllAccessories() {

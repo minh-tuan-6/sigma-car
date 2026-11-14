@@ -50,9 +50,13 @@ function createBrowserSandbox() {
     })
   };
 
-  sandbox.window = sandbox;
+  const windowMock = {
+    location: { hostname: 'sigma-car.pages.dev', hash: '' },
+    dispatchEvent: (evt) => { events.push(evt); return true; }
+  };
+  sandbox.window = windowMock;
   sandbox.globalThis = sandbox;
-  sandbox.dispatchEvent = (evt) => { events.push(evt); return true; };
+  sandbox.dispatchEvent = windowMock.dispatchEvent;
 
   const rootDir = path.resolve(__dirname, '..', '..');
   const scripts = ['js/data.js', 'js/static-sandbox.js', 'js/api-client.js'];
@@ -61,7 +65,7 @@ function createBrowserSandbox() {
     const code = fs.readFileSync(path.join(rootDir, rel), 'utf8');
     vm.runInContext(code, sandbox, { filename: rel });
   }
-  const exportsFromVm = vm.runInContext('({ ApiClient, SIGMA_DATA, SigmaStaticSandbox })', sandbox);
+  const exportsFromVm = vm.runInContext('({ ApiClient, SIGMA_DATA, SigmaStaticSandbox: window.SigmaStaticSandbox })', sandbox);
   Object.assign(sandbox, exportsFromVm);
 
   return { sandbox, storage, events };
@@ -149,10 +153,22 @@ describe('Unit Test: Static CDN Fallback & Opt-In Demo Sandbox Isolation (H-01)'
     assert.strictEqual(loginRes.user.role, 'buyer');
     assert.strictEqual(loginRes.user.isDemoSandbox, true);
 
+    assert.ok(sandbox.window.SIGMA_DATA && sandbox.window.SIGMA_DATA.cars.length > 0);
+    assert.ok(sandbox.window.ApiClient && sandbox.window.SigmaStaticSandbox);
+
     await ApiClient.cart.mergeGuestDraftOnLogin();
     const cart = await ApiClient.cart.get();
     assert.strictEqual(cart.items.length, 1);
     assert.ok(cart.totalAmount > 0);
+
+    // Explicitly verify non-first catalog model checkout (e.g. hyundai-elantra-n-2024)
+    const elantraQuote = await ApiClient.quotes.create({
+      items: [{ itemType: 'vehicle', itemId: 'hyundai-elantra-n-2024', quantity: 1 }],
+      branchId: 'hn-caugiay',
+      deliveryMethod: 'showroom'
+    });
+    assert.strictEqual(elantraQuote.lines[0].itemId, 'hyundai-elantra-n-2024');
+    assert.ok(elantraQuote.totalAmount > 0);
 
     const quote = await ApiClient.quotes.create({
       items: cart.items,

@@ -2093,3 +2093,7 @@ const ApiClient = {
     }
   }
 };
+
+if (typeof window !== 'undefined') {
+  window.ApiClient = ApiClient;
+}
