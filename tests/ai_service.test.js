@@ -1,6 +1,10 @@
 // tests/ai_service.test.js
 // SIGMACAR Comprehensive AI Chatbot, Live RAG & Price Filter Test Suite
 
+// Work on a temporary copy of the store: this suite used to rewrite data/sigmacar_store.json on every run, which also
+// raced with p1_commerce's "dry-run must not touch the store" check when test files ran in parallel.
+require('./helpers/isolated-store');
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 

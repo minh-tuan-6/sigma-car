@@ -77,8 +77,31 @@
     });
   }
 
+  // PLAN T2.7: recommendations shown on screen, kept so "Lưu" can save one to My Garage.
+  const shownRecommendations = new Map();
+  window.sigmaSaveAiRecommendation = async function (carId) {
+    const car = shownRecommendations.get(carId);
+    const toast = typeof window.showToast === 'function' ? window.showToast : () => {};
+    if (!car || typeof ApiClient === 'undefined' || !ApiClient.garageExtras) return;
+    if (typeof ApiClient.getToken === 'function' && !ApiClient.getToken()) {
+      toast('Vui lòng đăng nhập để lưu gợi ý vào Gara.', '🔑');
+      return;
+    }
+    try {
+      await ApiClient.garageExtras.save('recommendations', {
+        vehicleId: car.carId,
+        score: car.score,
+        reasons: (car.reasons || []).slice(0, 6)
+      });
+      toast(`Đã lưu gợi ý ${car.name} vào Gara của tôi!`, '💾');
+    } catch (err) {
+      toast(err.message || 'Không lưu được gợi ý.', '⚠️');
+    }
+  };
+
   function renderRecommendationCardsHtml(top3 = [], flagged = []) {
     const cards = [];
+    (Array.isArray(top3) ? top3 : []).forEach(car => { if (car && car.carId) shownRecommendations.set(car.carId, car); });
     if (Array.isArray(top3) && top3.length > 0) {
       cards.push(`
         <div class="ai-top3-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; margin-top:10px;">
@@ -99,6 +122,7 @@
                 <button type="button" class="btn-primary" style="padding:5px 9px; font-size:11.5px;" onclick="window.openCarDetail('${esc(car.carId)}')">Xem xe</button>
                 <button type="button" class="btn-secondary" style="padding:5px 9px; font-size:11.5px;" onclick="window.bookCarTestDrive('${esc(car.carId)}')">Lái thử</button>
                 <button type="button" class="btn-card-outline" style="padding:5px 9px; font-size:11.5px;" onclick="window.location.hash='tco?carId=${encodeURIComponent(car.carId)}'">TCO 5 năm</button>
+                <button type="button" class="btn-card-outline" style="padding:5px 9px; font-size:11.5px;" onclick="window.sigmaSaveAiRecommendation('${esc(car.carId)}')">💾 Lưu</button>
               </div>
             </div>
           `).join('')}
@@ -193,6 +217,27 @@
 
           <details style="margin-top:10px; border-top:1px dashed #CBD5E1; padding-top:8px;">
             <summary style="cursor:pointer; font-size:12px; font-weight:700; color:#0284C7;">
+              🧍 Thể trạng & quãng đường hằng ngày (Tùy chọn)
+            </summary>
+            <div class="ai-pref-grid" style="margin-top:10px;">
+              <div>
+                <label style="font-size:11px; color:#475569; font-weight:700;">Quãng đường/ngày (km)</label>
+                <input type="number" id="ai-pref-daily-km" class="filter-select" min="0" max="2000" step="5" placeholder="VD: 40" value="${esc(state.preferences.dailyKm ?? '')}">
+              </div>
+              <div>
+                <label style="font-size:11px; color:#475569; font-weight:700;">Chiều cao (cm)</label>
+                <input type="number" id="ai-pref-height" class="filter-select" min="100" max="250" step="1" placeholder="VD: 175" value="${esc(state.preferences.heightCm ?? '')}">
+              </div>
+              <div>
+                <label style="font-size:11px; color:#475569; font-weight:700;">Cân nặng (kg)</label>
+                <input type="number" id="ai-pref-weight" class="filter-select" min="30" max="300" step="1" placeholder="VD: 70" value="${esc(state.preferences.weightKg ?? '')}">
+              </div>
+            </div>
+            <div style="font-size:11px; color:#64748B; margin-top:6px;">Chiều cao/cân nặng chỉ dùng để gợi ý tham khảo (chưa có số liệu khoảng trống đầu chính thức), không loại bỏ mẫu xe nào.</div>
+          </details>
+
+          <details style="margin-top:10px; border-top:1px dashed #CBD5E1; padding-top:8px;">
+            <summary style="cursor:pointer; font-size:12px; font-weight:700; color:#0284C7;">
               📷 & 📏 Kiểm tra không gian đỗ xe (Tùy chọn • Có đồng ý bảo mật)
             </summary>
             <div style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
@@ -247,13 +292,21 @@
     const passengersVal = document.getElementById('ai-pref-passengers')?.value;
     const chargingVal = document.getElementById('ai-pref-charging')?.value || 'unknown';
     const usageVal = document.getElementById('ai-pref-usage')?.value || null;
+    // PLAN T3.1: optional daily distance / driver profile (empty field = not provided)
+    const optNum = (id) => {
+      const raw = document.getElementById(id)?.value;
+      return raw !== '' && raw !== undefined ? Number(raw) : null;
+    };
     state.preferences = {
       ...state.preferences,
       budgetVnd: budgetVal !== '' && budgetVal !== undefined ? Number(budgetVal) : null,
       monthlyBudgetVnd: monthlyVal !== '' && monthlyVal !== undefined ? Number(monthlyVal) : null,
       passengers: passengersVal !== '' && passengersVal !== undefined ? Number(passengersVal) : null,
       chargingAccess: chargingVal,
-      usage: usageVal || null
+      usage: usageVal || null,
+      dailyKm: optNum('ai-pref-daily-km'),
+      heightCm: optNum('ai-pref-height'),
+      weightKg: optNum('ai-pref-weight')
     };
     return state.preferences;
   }

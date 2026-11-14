@@ -13,12 +13,44 @@ const WRITABLE_VEHICLE_FIELDS = [
   'salePrice', 'salePriceFormatted', 'priceNote', 'badge', 'range', 'rangeExtendedKm',
   'batteryKwh', 'hp', 'torque', 'accel0to100', 'topSpeed', 'seats', 'image',
   'gallery', 'colors', 'editions', 'model3d', 'modelPath', 'specs', 'highlights',
-  'stock', 'isAvailable', 'archived', 'condition', 'description'
+  'stock', 'isAvailable', 'archived', 'condition', 'description',
+  // PLAN T4.1: fields the admin "Thêm xe" form already sends (previously dropped), plus trims/videos (T3.4/T3.5)
+  'rangeFormatted', 'power', 'acceleration', 'battery', 'dimensions', 'warranty', 'features', 'trims', 'videos'
 ];
+
+// PLAN T4.1: structured fields are validated element by element instead of being stored as-is.
+const SELF_HOSTED_VIDEO = /^(?:\/)?assets\/[A-Za-z0-9_\-./]+\.(mp4|webm)$/i;
+const STRUCTURED_FIELD_NORMALIZERS = {
+  features: (v) => (Array.isArray(v) ? v.slice(0, 40).map(x => Security.sanitizeString(String(x)).slice(0, 200)).filter(Boolean) : undefined),
+  trims: (v) => (Array.isArray(v) ? v.slice(0, 12).map((t, i) => {
+    if (!t || typeof t !== 'object' || !t.name) return null;
+    const priceDelta = Number(t.priceDelta);
+    const price = Number(t.price);
+    return {
+      id: Security.sanitizeString(String(t.id || `trim-${i + 1}`)).slice(0, 60),
+      name: Security.sanitizeString(String(t.name)).slice(0, 120),
+      ...(Number.isFinite(price) && price > 0 ? { price: Math.round(price) } : {}),
+      ...(Number.isFinite(priceDelta) ? { priceDelta: Math.round(priceDelta) } : {}),
+      ...(t.description ? { description: Security.sanitizeString(String(t.description)).slice(0, 400) } : {})
+    };
+  }).filter(Boolean) : undefined),
+  videos: (v) => (Array.isArray(v) ? v.slice(0, 4).map(x => (typeof x === 'string' ? { url: x } : x))
+    .filter(x => x && typeof x.url === 'string' && SELF_HOSTED_VIDEO.test(x.url) && !x.url.includes('..'))
+    .map(x => ({
+      url: x.url,
+      ...(x.title ? { title: Security.sanitizeString(String(x.title)).slice(0, 120) } : {}),
+      ...(x.poster && /^(?:\/)?assets\/[A-Za-z0-9_\-./]+\.(jpg|jpeg|png|webp)$/i.test(x.poster) ? { poster: x.poster } : {})
+    })) : undefined)
+};
 
 function pickWhitelistedVehicleFields(data = {}) {
   const out = {};
   for (const key of WRITABLE_VEHICLE_FIELDS) {
+    if (data[key] !== undefined && STRUCTURED_FIELD_NORMALIZERS[key]) {
+      const normalized = STRUCTURED_FIELD_NORMALIZERS[key](data[key]);
+      if (normalized !== undefined) out[key] = normalized;
+      continue;
+    }
     if (data[key] !== undefined) {
       out[key] = typeof data[key] === 'string' && !key.toLowerCase().includes('image') && !key.toLowerCase().includes('model')
         ? Security.sanitizeString(data[key])

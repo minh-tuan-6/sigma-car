@@ -38,6 +38,9 @@ function normalise(value, key = '') {
     .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '<jwt>')
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '<uuid>')
     .replace(/req_[0-9a-f]{12}/g, '<req>')
+    // Gateway references are <PROVIDER>_<Date.now() base36>_<random hex> (payment-gateway.js) — random in both runtimes.
+    // The opaque-id fallback below cannot match them inside a sentence when the base36 part has no digit.
+    .replace(/\b[A-Z][A-Z0-9_]*_[0-9a-z]{6,10}_[0-9A-F]{6}\b/g, '<provider-ref>')
     .replace(/[?&](token|exp)=[^&"]+/g, '&$1=<v>');
 }
 

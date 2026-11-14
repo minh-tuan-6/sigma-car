@@ -17,7 +17,7 @@ function createError(message, statusCode = 400, code = 'ANALYTICS_ERROR') {
   return err;
 }
 
-function getScopedRecords({ branchId = null, branchIds = null, userRole = ROLES.ADMIN, dateFrom = null, dateTo = null, tzOffsetMinutes = 420 } = {}) {
+function getScopedRecords({ branchId = null, branchIds = null, userRole = ROLES.ADMIN, dateFrom = null, dateTo = null, tzOffsetMinutes = 420, includeDemo = false } = {}) {
   const isSeller = userRole && userRole !== ROLES.ADMIN;
   const allowedBranches = Array.isArray(branchIds) && branchIds.length > 0
     ? branchIds.filter(Boolean)
@@ -31,6 +31,14 @@ function getScopedRecords({ branchId = null, branchIds = null, userRole = ROLES.
   let appointments = [...(dbState.appointments || [])];
   let tickets = [...(dbState.supportTickets || [])];
   let refunds = [...(dbState.refunds || [])];
+
+  // PLAN T5.2: synthetic demo records (isDemo) never count in real metrics unless an admin explicitly asks.
+  if (!includeDemo) {
+    orders = orders.filter(o => !o.isDemo);
+    appointments = appointments.filter(a => !a.isDemo);
+    tickets = tickets.filter(t => !t.isDemo);
+    refunds = refunds.filter(r => !r.isDemo);
+  }
 
   if (isSeller) {
     // Fail-closed: unassigned staff sees empty slice, never global figures
@@ -72,8 +80,12 @@ function getScopedRecords({ branchId = null, branchIds = null, userRole = ROLES.
 }
 
 const AnalyticsService = {
-  getSellerOverview({ branchId, branchIds, userRole, dateFrom = null, dateTo = null, tzOffsetMinutes = 420 } = {}) {
+  // PLAN T4.10: shared branch/date scoping for analytics-ranking-service (same rules as the overview).
+  getScopedRecords,
+
+  getSellerOverview({ branchId, branchIds, userRole, dateFrom = null, dateTo = null, tzOffsetMinutes = 420, includeDemo = false } = {}) {
     const { orders, appointments, tickets, refunds } = getScopedRecords({
+      includeDemo,
       branchId,
       branchIds,
       userRole,
@@ -196,8 +208,8 @@ const AnalyticsService = {
     };
   },
 
-  exportSellerCsv({ branchId, branchIds, userRole, dateFrom = null, dateTo = null, tzOffsetMinutes = 420 } = {}) {
-    const { orders } = getScopedRecords({ branchId, branchIds, userRole, dateFrom, dateTo, tzOffsetMinutes });
+  exportSellerCsv({ branchId, branchIds, userRole, dateFrom = null, dateTo = null, tzOffsetMinutes = 420, includeDemo = false } = {}) {
+    const { orders } = getScopedRecords({ branchId, branchIds, userRole, dateFrom, dateTo, tzOffsetMinutes, includeDemo });
     const reconciledOrders = orders.filter(o =>
       ![ORDER_STATUS.CANCELLED, ORDER_STATUS.FAILED, 'Returned'].includes(o.orderStatus)
     );

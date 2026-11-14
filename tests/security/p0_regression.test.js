@@ -72,7 +72,8 @@ describe('P0 Security, Isolation, Atomic Storage & Boundary Regressions', () => 
         email: `staff_${Date.now()}@sigmacar.vn`,
         phone: '0911223344',
         role: 'seller',
-        branchId: 'hcm-q7'
+        branchId: 'hcm-q7',
+        password: 'StaffTest@2026' // T0.5: a password is now required (no default)
       })
     });
     const created = await createRes.json();

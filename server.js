@@ -25,6 +25,8 @@ const MIME_TYPES = {
   '.glb': 'model/gltf-binary',
   '.gltf': 'model/gltf+json',
   '.usdz': 'model/vnd.usdz+zip',
+  '.mp4': 'video/mp4', // PLAN T3.4: self-hosted product videos under assets/
+  '.webm': 'video/webm',
   '.wasm': 'application/wasm'
 };
 
@@ -34,6 +36,7 @@ const ALLOWED_PUBLIC_FILES = new Set([
   '/ar.html',
   '/data/ar-manifest.json',
   '/data/public-catalog.json',
+  '/data/battery-ecosystem.json', // PLAN T2.5: public reference data (offline fallback of the battery view)
   '/favicon.ico'
 ]);
 const ALLOWED_PUBLIC_PREFIXES = ['/css/', '/js/', '/assets/'];

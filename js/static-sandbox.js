@@ -1588,7 +1588,7 @@
       const order = store.orders.find(o => o.id === orderId);
       if (!order) throw makeHttpError('Không tìm thấy đơn hàng.', 404, 'ORDER_NOT_FOUND');
       if (!['seller', 'admin'].includes(user.role) && order.userId !== user.id) throw makeHttpError('Không có quyền.', 403, 'FORBIDDEN');
-      return { success: true, demoMode: true, data: { orderId, timeline: order.timeline || [] } };
+      return { success: true, demoMode: true, data: { orderId, timeline: order.timeline || [], events: order.timeline || [] } }; // T1.4: UI reads events
     }
 
     if (path.startsWith('/orders/') && path.endsWith('/status') && method === 'PATCH') {

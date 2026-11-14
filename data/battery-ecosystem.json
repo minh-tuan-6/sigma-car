@@ -1,0 +1,93 @@
+{
+  "source": "demo_reference",
+  "lastReviewed": "2026-11-15",
+  "disclaimer": "Dữ liệu minh họa cho đồ án SIGMACAR (thương hiệu giả lập). Vị trí, giá và chính sách dưới đây là tham chiếu, không phải báo giá hay cam kết dịch vụ thực tế; không có dữ liệu tồn pin theo thời gian thực.",
+  "swapStations": [
+    {
+      "id": "BSS-HN-CAUGIAY-01",
+      "name": "Trạm đổi pin SIGMA Cầu Giấy",
+      "branchId": "hn-caugiay",
+      "province": "Hà Nội",
+      "district": "Cầu Giấy",
+      "address": "Số 68 Xuân Thủy, Cầu Giấy, Hà Nội",
+      "lat": 21.0368,
+      "lng": 105.7826,
+      "openHours": "06:00 - 22:00",
+      "swapMinutes": 5,
+      "compatiblePackKwh": [42, 60],
+      "bays": 2
+    },
+    {
+      "id": "BSS-HCM-Q7-01",
+      "name": "Trạm đổi pin SIGMA Quận 7",
+      "branchId": "hcm-q7",
+      "province": "TP.HCM",
+      "district": "Quận 7",
+      "address": "Số 101 Nguyễn Thị Thập, Tân Phú, Quận 7, TP.HCM",
+      "lat": 10.7389,
+      "lng": 106.7016,
+      "openHours": "06:00 - 22:00",
+      "swapMinutes": 5,
+      "compatiblePackKwh": [42, 60],
+      "bays": 3
+    },
+    {
+      "id": "BSS-HCM-THUDUC-01",
+      "name": "Trạm đổi pin SIGMA Thủ Đức",
+      "branchId": "hcm-thuduc",
+      "province": "TP.HCM",
+      "district": "TP. Thủ Đức",
+      "address": "Số 12 Võ Văn Ngân, Phường Bình Thọ, TP. Thủ Đức, TP.HCM",
+      "lat": 10.8503,
+      "lng": 106.7719,
+      "openHours": "24/7",
+      "swapMinutes": 6,
+      "compatiblePackKwh": [42],
+      "bays": 2
+    },
+    {
+      "id": "BSS-DN-HAICHAU-01",
+      "name": "Trạm đổi pin SIGMA Đà Nẵng",
+      "branchId": "dn-haichau",
+      "province": "Đà Nẵng",
+      "district": "Hải Châu",
+      "address": "Số 234 Nguyễn Văn Linh, Hải Châu, Đà Nẵng",
+      "lat": 16.0603,
+      "lng": 108.2105,
+      "openHours": "07:00 - 21:00",
+      "swapMinutes": 6,
+      "compatiblePackKwh": [42, 60],
+      "bays": 1
+    }
+  ],
+  "rentalPlans": [
+    {
+      "id": "BAAS-FLEX",
+      "name": "Gói Linh hoạt",
+      "monthlyFeeVnd": 1200000,
+      "includedKmPerMonth": 1500,
+      "extraFeeVndPerKm": 600,
+      "swapFeeVnd": 0,
+      "minTermMonths": 12,
+      "depositVnd": 15000000,
+      "notes": "Phù hợp quãng đường dưới 1.500 km/tháng; phụ thu theo km vượt mức."
+    },
+    {
+      "id": "BAAS-UNLIMITED",
+      "name": "Gói Không giới hạn",
+      "monthlyFeeVnd": 2700000,
+      "includedKmPerMonth": null,
+      "extraFeeVndPerKm": 0,
+      "swapFeeVnd": 0,
+      "minTermMonths": 12,
+      "depositVnd": 15000000,
+      "notes": "Không giới hạn km; đổi pin miễn phí tại các trạm SIGMA."
+    }
+  ],
+  "policies": [
+    "Thuê pin tách khỏi giá xe: khách mua thân xe, pin thuộc sở hữu SIGMACAR và được bảo hành, thay thế khi dung lượng dưới 70%.",
+    "Có thể chuyển sang mua đứt pin sau thời hạn thuê tối thiểu; giá trị còn lại tính theo tình trạng pin (SoH) tại thời điểm chuyển đổi.",
+    "Đổi pin chỉ áp dụng cho bộ pin tiêu chuẩn tương thích; xe mua đứt pin không dùng dịch vụ đổi pin.",
+    "Phí thuê và tiền cọc minh họa; ưu đãi thực tế (nếu có) công bố tại showroom."
+  ]
+}

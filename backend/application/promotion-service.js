@@ -201,6 +201,46 @@ const PromotionService = {
       state.promotions.push(created);
       return created;
     });
+  },
+
+  // PLAN T4.2: edit / deactivate a promotion. Admin: any; seller: only promotions of their own branch.
+  // The code itself and usage counters are never editable.
+  async updatePromotion(promoId, data = {}, user) {
+    if (!user || !['admin', 'seller'].includes(user.role)) {
+      throw createError('Bạn không có quyền chỉnh sửa khuyến mãi.', 403, 'FORBIDDEN');
+    }
+    return runInTransaction(async (state) => {
+      const promo = (state.promotions || []).find(p => p.id === promoId || p.code === String(promoId).toUpperCase());
+      if (!promo) throw createError('Không tìm thấy chương trình khuyến mãi.', 404, 'NOT_FOUND');
+      if (user.role === 'seller') {
+        const branches = Array.isArray(user.branchIds) && user.branchIds.length ? user.branchIds : [user.branchId].filter(Boolean);
+        if (!promo.branchId || !branches.includes(promo.branchId)) {
+          throw createError('Bạn chỉ được chỉnh sửa khuyến mãi của chi nhánh mình.', 403, 'BRANCH_FORBIDDEN');
+        }
+      }
+      if (data.name !== undefined) promo.name = Security.sanitizeString(String(data.name || promo.code)).slice(0, 160);
+      if (data.isActive !== undefined) promo.isActive = Boolean(data.isActive);
+      if (data.discountValue !== undefined) {
+        const v = Number(data.discountValue);
+        if (!Number.isFinite(v) || v <= 0) throw createError('Giá trị giảm giá phải lớn hơn 0.', 400, 'VALIDATION_ERROR');
+        if (promo.discountType === 'percent' && v > 80) throw createError('Tỷ lệ giảm phần trăm không được vượt quá 80%.', 400, 'VALIDATION_ERROR');
+        promo.discountValue = Math.round(v);
+      }
+      if (data.minOrderValue !== undefined) promo.minOrderValue = Math.max(0, Math.round(Number(data.minOrderValue) || 0));
+      if (data.maxDiscountAmount !== undefined) promo.maxDiscountAmount = data.maxDiscountAmount ? Math.round(Number(data.maxDiscountAmount)) : null;
+      if (data.usageLimit !== undefined) {
+        const lim = data.usageLimit === null || data.usageLimit === '' ? null : parseInt(data.usageLimit, 10);
+        if (lim !== null && (!Number.isInteger(lim) || lim < 1)) throw createError('Giới hạn lượt dùng phải là số nguyên >= 1.', 400, 'VALIDATION_ERROR');
+        promo.usageLimit = lim;
+      }
+      if (data.expiresAt !== undefined) {
+        if (data.expiresAt && !Number.isFinite(Date.parse(data.expiresAt))) throw createError('Ngày hết hạn không hợp lệ.', 400, 'VALIDATION_ERROR');
+        promo.expiresAt = data.expiresAt || null;
+      }
+      promo.updatedBy = user.userId;
+      promo.updatedAt = new Date().toISOString();
+      return { ...promo, maxUses: promo.usageLimit ?? null };
+    });
   }
 };
 

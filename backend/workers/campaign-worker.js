@@ -8,12 +8,20 @@ const EmailProvider = require('../infrastructure/email-provider');
 const config = require('../config');
 const { CAMPAIGN_STATUS } = require('../domain/constants');
 
-function signCampaignWebhook(rawBody, secret = (config.webhookSecrets?.campaign_provider || 'sigma-dev-campaign-webhook-secret')) {
+// T0.2: the delivery-receipt HMAC key is the configured EMAIL_WEBHOOK_SECRET (config.notifications.emailWebhookSecret).
+// It has a development default but is empty in production when unset; the webhook then fails closed (503) instead of
+// falling back to a public key.
+function getCampaignWebhookSecret() {
+  return (config.notifications && config.notifications.emailWebhookSecret) || '';
+}
+
+function signCampaignWebhook(rawBody, secret = getCampaignWebhookSecret()) {
   return crypto.createHmac('sha256', secret).update(String(rawBody || '')).digest('hex');
 }
 
 function verifyCampaignWebhookSignature(rawBody, sigHeader) {
   if (!sigHeader || typeof sigHeader !== 'string') return false;
+  if (!getCampaignWebhookSecret()) return false;
   const clean = sigHeader.replace(/^sha256=/i, '').trim();
   const expected = signCampaignWebhook(rawBody);
   const a = Buffer.from(clean);
@@ -173,6 +181,12 @@ const CampaignWorker = {
   },
 
   async handleProviderReceiptWebhook(rawBody, signatureHeader) {
+    if (!getCampaignWebhookSecret()) {
+      const err = new Error('Webhook trạng thái gửi email chưa được cấu hình khóa bí mật (EMAIL_WEBHOOK_SECRET).');
+      err.statusCode = 503;
+      err.code = 'CONFIG_ERROR';
+      throw err;
+    }
     if (!verifyCampaignWebhookSignature(rawBody, signatureHeader)) {
       const err = new Error('Chữ ký webhook trạng thái gửi email không hợp lệ.');
       err.statusCode = 401;

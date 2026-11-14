@@ -7,6 +7,7 @@ const Security = require('../infrastructure/security');
 const Authorization = require('../domain/authorization');
 const PolicyService = require('./policy-service');
 const NotificationService = require('./notification-service');
+const AnalyticsHooks = require('./analytics-hooks'); // PLAN T4.9
 const { ROLES, ORDER_STATUS, PAYMENT_STATUS, WARRANTY_STATUS } = require('../domain/constants');
 
 const __testHooks = {
@@ -145,6 +146,7 @@ const HandoverService = {
       } else {
         order.orderStatus = ORDER_STATUS.DELIVERED;
       }
+      AnalyticsHooks.trackInState(state, { type: 'handover', aggregateId: order.id, userId: order.userId, targetId: order.vehicleId, branchId: order.branchId }); // PLAN T4.9
       order.updatedAt = new Date().toISOString();
       order.history = order.history || [];
       order.history.push({

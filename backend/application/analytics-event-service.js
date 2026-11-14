@@ -102,7 +102,8 @@ const AnalyticsEventService = {
       throw createError('Bạn không có quyền truy cập phễu chuyển đổi của chi nhánh khác.', 403, 'BRANCH_SCOPE_DENIED');
     }
 
-    let events = Array.isArray(dbState.analyticsEvents) ? [...dbState.analyticsEvents] : [];
+    // PLAN T5.2: synthetic demo events never count in the real funnel
+    let events = Array.isArray(dbState.analyticsEvents) ? dbState.analyticsEvents.filter(e => !e.isDemo) : [];
     if (isSeller) {
       events = allowedBranches.length > 0
         ? events.filter(e => e.branchId && allowedBranches.includes(e.branchId))
@@ -155,9 +156,17 @@ const AnalyticsEventService = {
       ? Number(((counts.handover / counts.checkout) * 100).toFixed(1))
       : 0;
 
+    // PLAN T4.9: stages recorded by the server itself (source 'server') — not forgeable through the public
+    // POST /analytics/events endpoint, which still accepts these event types for backward compatibility.
+    const serverVerifiedCounts = { test_drive: 0, checkout: 0, order_paid: 0, handover: 0 };
+    for (const evt of events) {
+      if (evt.source === 'server' && serverVerifiedCounts[evt.eventType] !== undefined) serverVerifiedCounts[evt.eventType]++;
+    }
+
     return {
       scope: { branchId: branchId || (isSeller ? allowedBranches.join(',') : 'all'), dateFrom: dateFrom || null, dateTo: dateTo || null },
       counts,
+      serverVerifiedCounts,
       rates: {
         viewToTestDriveRate,
         quoteToCheckoutRate,

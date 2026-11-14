@@ -92,7 +92,10 @@
               <h1 style="font-size:26px; font-weight:800; margin:0;">Đơn hàng ${esc(orderDetail.orderNumber || orderDetail.id)}</h1>
               <p style="font-size:13.5px; color:var(--text-muted); margin:4px 0 0;">${esc(orderDetail.vehicleName)} • ${esc(orderDetail.branchName || orderDetail.branchId)}</p>
             </div>
-            <button type="button" class="btn-secondary" onclick="window.location.hash='profile'">← Đơn hàng của tôi</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              ${!isSettled && !isCancelled && typeof window.openLoanCalculatorModal === 'function' ? `<button type="button" class="btn-secondary" id="btn-order-financing">💳 Đăng ký trả góp cho đơn này</button>` : ''}
+              <button type="button" class="btn-secondary" onclick="window.location.hash='profile'">← Đơn hàng của tôi</button>
+            </div>
           </div>
 
           ${history.exceptionStatus ? `
@@ -190,6 +193,18 @@
         </div>
       </section>
     `;
+
+    // PLAN T3.8: open the existing financing calculator linked to this order (server checks ownership of orderId).
+    document.getElementById('btn-order-financing')?.addEventListener('click', () => {
+      const list = (window.AppState && Array.isArray(window.AppState.vehiclesList)) ? window.AppState.vehiclesList : [];
+      const car = list.find(v => v.id === orderDetail.vehicleId) || {
+        id: orderDetail.vehicleId,
+        name: orderDetail.vehicleName,
+        price: orderDetail.unitPrice || totalDue,
+        priceFormatted: `${Number(orderDetail.unitPrice || totalDue).toLocaleString('vi-VN')} VNĐ`
+      };
+      window.openLoanCalculatorModal(car, { orderId: orderDetail.id });
+    });
 
     document.querySelectorAll('.btn-create-intent').forEach(btn => {
       btn.addEventListener('click', async () => {

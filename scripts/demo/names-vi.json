@@ -1,0 +1,15 @@
+{
+  "_note": "Synthetic, humorous Vietnamese names for SIGMACAR demo data (PLAN.md §I). Not real people.",
+  "examples": [
+    "Nguyễn Văn Tốc Độ", "Trần Thị Bốc Đầu", "Lê Văn Hết Pin", "Phạm Văn Full Bình",
+    "Đặng Thị Quên Sạc", "Lý Văn Chạy Deadline", "Nguyễn Thị Một Vạch Pin", "Phan Văn Cạn Ví"
+  ],
+  "families": ["Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý"],
+  "middles": ["Văn", "Thị"],
+  "givens": [
+    "Tốc Độ", "Bốc Đầu", "Hết Pin", "Full Bình", "Quên Sạc", "Chạy Deadline", "Một Vạch Pin", "Cạn Ví",
+    "Phanh Gấp", "Kịch Ga", "Cốp Rộng", "Lốp Mới", "Sạc Đầy", "Về Số", "Mâm Đúc", "Gương Gập",
+    "Lùi Chuồng", "Đỗ Song Song", "Cao Tốc", "Trả Góp", "Đặt Cọc", "Êm Ru", "Bon Bon", "Lăn Bánh",
+    "Chạy Thử", "Ít Xăng", "Đèn Pha", "Còi Kêu", "Cửa Cắt Kéo", "Gầm Cao", "Mát Lạnh", "Chờ Giao Xe"
+  ]
+}

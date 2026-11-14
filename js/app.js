@@ -14,6 +14,7 @@ const AppState = {
   activeMinPrice: '', // in million VNĐ
   activeMaxPrice: '', // in million VNĐ
   activeMinRange: '',
+  activeMinPowerHp: '', // PLAN T3.3
   activeMinBatteryKwh: '',
   activeMaxMonthlyPayment: '', // in million VNĐ/tháng
   activeUsageFilter: 'all',
@@ -185,6 +186,18 @@ if (typeof window !== 'undefined') {
     return Number.isFinite(val) ? val : 0;
   }
 
+  // PLAN T3.3: horsepower from car.hp, else the first 'NNN HP' (or kW × 1.341) in car.power
+  function parseCarHp(car) {
+    if (!car) return 0;
+    if (typeof car.hp === 'number' && Number.isFinite(car.hp) && car.hp > 0) return car.hp;
+    const raw = String(car.power || '');
+    const hp = raw.match(/([\d.,]+)\s*(?:hp|mã lực)/i);
+    if (hp) { const v = parseFloat(hp[1].replace(/\./g, '').replace(',', '.')); if (Number.isFinite(v)) return v; }
+    const kw = raw.match(/([\d.,]+)\s*kw/i);
+    if (kw) { const v = parseFloat(kw[1].replace(/\./g, '').replace(',', '.')); if (Number.isFinite(v)) return Math.round(v * 1.341); }
+    return 0;
+  }
+
   function estimateCarMonthlyPaymentVnd(car) {
     const price = getVehicleNumericPrice(car);
     if (!price || price <= 0) return 0;
@@ -204,6 +217,7 @@ if (typeof window !== 'undefined') {
     maxPrice = '',
     minRange = '',
     minBatteryKwh = '',
+    minPowerHp = '',
     maxMonthlyPayment = '',
     usage = 'all',
     inStock = false,
@@ -214,6 +228,7 @@ if (typeof window !== 'undefined') {
 
     const parsedMinRange = (minRange !== '' && minRange !== null && !isNaN(minRange)) ? parseFloat(minRange) : null;
     const parsedMinBattery = (minBatteryKwh !== '' && minBatteryKwh !== null && !isNaN(minBatteryKwh)) ? parseFloat(minBatteryKwh) : null;
+    const parsedMinPower = (minPowerHp !== '' && minPowerHp !== null && minPowerHp !== undefined && !isNaN(minPowerHp)) ? parseFloat(minPowerHp) : null;
     const parsedMaxMonthlyVnd = (maxMonthlyPayment !== '' && maxMonthlyPayment !== null && !isNaN(maxMonthlyPayment)) ? parseFloat(maxMonthlyPayment) * 1000000 : null;
 
     let result = list.filter(car => {
@@ -274,6 +289,9 @@ if (typeof window !== 'undefined') {
       }
       if (parsedMinBattery !== null) {
         if (parseCarBatteryKwh(car) < parsedMinBattery) return false;
+      }
+      if (parsedMinPower !== null) {
+        if (parseCarHp(car) < parsedMinPower) return false;
       }
       if (parsedMaxMonthlyVnd !== null) {
         if (estimateCarMonthlyPaymentVnd(car) > parsedMaxMonthlyVnd) return false;
@@ -355,6 +373,7 @@ if (typeof window !== 'undefined') {
 
     if (state.activeMinRange) parts.push(`Quãng đường >= ${state.activeMinRange} km`);
     if (state.activeMinBatteryKwh) parts.push(`Pin >= ${state.activeMinBatteryKwh} kWh`);
+    if (state.activeMinPowerHp) parts.push(`Công suất >= ${state.activeMinPowerHp} HP`);
     if (state.activeMaxMonthlyPayment) parts.push(`Trả góp <= ${state.activeMaxMonthlyPayment} tr/tháng`);
     if (state.activeUsageFilter && state.activeUsageFilter !== 'all') parts.push(`Mục đích: ${state.activeUsageFilter}`);
     if (state.activeInStockOnly) parts.push('Chỉ xe còn hàng');
@@ -616,6 +635,7 @@ if (typeof window !== 'undefined') {
     if (AppState.activeMaxPrice) q.set('maxPrice', AppState.activeMaxPrice);
     if (AppState.activeMinRange) q.set('minRange', AppState.activeMinRange);
     if (AppState.activeMinBatteryKwh) q.set('minBatteryKwh', AppState.activeMinBatteryKwh);
+    if (AppState.activeMinPowerHp) q.set('minPowerHp', AppState.activeMinPowerHp);
     if (AppState.activeMaxMonthlyPayment) q.set('maxMonthlyPayment', AppState.activeMaxMonthlyPayment);
     if (AppState.activeUsageFilter && AppState.activeUsageFilter !== 'all') q.set('usage', AppState.activeUsageFilter);
     if (AppState.activeInStockOnly) q.set('inStock', '1');
@@ -674,6 +694,7 @@ if (typeof window !== 'undefined') {
         if (q.has('maxPrice')) AppState.activeMaxPrice = q.get('maxPrice') || '';
         if (q.has('minRange')) AppState.activeMinRange = q.get('minRange') || '';
         if (q.has('minBatteryKwh')) AppState.activeMinBatteryKwh = q.get('minBatteryKwh') || '';
+        if (q.has('minPowerHp')) AppState.activeMinPowerHp = q.get('minPowerHp') || '';
         if (q.has('maxMonthlyPayment')) AppState.activeMaxMonthlyPayment = q.get('maxMonthlyPayment') || '';
         if (q.has('usage')) AppState.activeUsageFilter = q.get('usage') || 'all';
         if (q.has('inStock')) AppState.activeInStockOnly = q.get('inStock') === '1' || q.get('inStock') === 'true';
@@ -761,6 +782,10 @@ if (typeof window !== 'undefined') {
     renderCurrentRoute();
   }
   window.navigateTo = navigateTo;
+  // PLAN T3.8 / T2.7: used by checkout-view (order financing) and consultation-state / charging-view (toasts), which
+  // run outside this DOMContentLoaded scope. Function declarations are hoisted within it.
+  window.openLoanCalculatorModal = openLoanCalculatorModal;
+  if (typeof window.showToast !== 'function') window.showToast = showToast;
 
   window.addEventListener('hashchange', () => {
     const hash = window.location.hash || 'home';
@@ -1526,6 +1551,7 @@ if (typeof window !== 'undefined') {
       maxPrice: AppState.activeMaxPrice,
       minRange: AppState.activeMinRange,
       minBatteryKwh: AppState.activeMinBatteryKwh,
+      minPowerHp: AppState.activeMinPowerHp,
       maxMonthlyPayment: AppState.activeMaxMonthlyPayment,
       usage: AppState.activeUsageFilter,
       inStock: AppState.activeInStockOnly,
@@ -1550,6 +1576,7 @@ if (typeof window !== 'undefined') {
       AppState.activeMaxPrice ||
       AppState.activeMinRange ||
       AppState.activeMinBatteryKwh ||
+      AppState.activeMinPowerHp ||
       AppState.activeMaxMonthlyPayment ||
       AppState.activeUsageFilter !== 'all' ||
       AppState.activeInStockOnly ||
@@ -1675,6 +1702,10 @@ if (typeof window !== 'undefined') {
               <div>
                 <label class="filter-label" for="nc-filter-min-battery">Pin tối thiểu (kWh)</label>
                 <input type="number" class="filter-input" id="nc-filter-min-battery" min="0" placeholder="VD: 60" value="${escapeHtml(AppState.activeMinBatteryKwh || '')}">
+              </div>
+              <div>
+                <label class="filter-label" for="nc-filter-min-power">Công suất tối thiểu (HP)</label>
+                <input type="number" class="filter-input" id="nc-filter-min-power" min="0" placeholder="VD: 300" value="${escapeHtml(AppState.activeMinPowerHp || '')}">
               </div>
               <div>
                 <label class="filter-label" for="nc-filter-max-monthly">Trả góp tối đa (triệu/tháng)</label>
@@ -1859,6 +1890,7 @@ if (typeof window !== 'undefined') {
       AppState.activeCatalogSearch = document.getElementById('nc-filter-search-text')?.value.trim() || '';
       AppState.activeMinRange = document.getElementById('nc-filter-min-range')?.value.trim() || '';
       AppState.activeMinBatteryKwh = document.getElementById('nc-filter-min-battery')?.value.trim() || '';
+      AppState.activeMinPowerHp = document.getElementById('nc-filter-min-power')?.value.trim() || '';
       AppState.activeMaxMonthlyPayment = document.getElementById('nc-filter-max-monthly')?.value.trim() || '';
       AppState.activeUsageFilter = document.getElementById('nc-filter-usage')?.value || 'all';
       AppState.activeInStockOnly = Boolean(document.getElementById('nc-filter-instock')?.checked);
@@ -1885,6 +1917,10 @@ if (typeof window !== 'undefined') {
     });
     document.getElementById('nc-filter-min-battery')?.addEventListener('input', (e) => {
       AppState.activeMinBatteryKwh = e.target.value.trim();
+      triggerNcFilterRefresh();
+    });
+    document.getElementById('nc-filter-min-power')?.addEventListener('input', (e) => {
+      AppState.activeMinPowerHp = e.target.value.trim();
       triggerNcFilterRefresh();
     });
     document.getElementById('nc-filter-max-monthly')?.addEventListener('input', (e) => {
@@ -1923,6 +1959,7 @@ if (typeof window !== 'undefined') {
       AppState.activeMaxPrice = '';
       AppState.activeMinRange = '';
       AppState.activeMinBatteryKwh = '';
+      AppState.activeMinPowerHp = '';
       AppState.activeMaxMonthlyPayment = '';
       AppState.activeUsageFilter = 'all';
       AppState.activeInStockOnly = false;
@@ -2344,8 +2381,10 @@ if (typeof window !== 'undefined') {
       e.preventDefault();
       try {
         const isHome = Boolean(homeCb?.checked);
+        const bookedCarName = document.getElementById('book-car-select').value;
         const payload = {
-          carName: document.getElementById('book-car-select').value,
+          carName: bookedCarName,
+          vehicleId: (AppState.vehiclesList || []).find(v => v.name === bookedCarName)?.id || undefined, // T1.7
           customerName: document.getElementById('book-name').value,
           phone: document.getElementById('book-phone').value,
           email: document.getElementById('book-email').value,
@@ -2589,7 +2628,8 @@ if (typeof window !== 'undefined') {
               showToast
             });
           } catch (consultErr) {
-            if (consultErr?.code === 'CONSENT_REQUIRED' || consultErr?.code === 'UNAUTHORIZED' || (consultErr?.statusCode && consultErr.statusCode >= 400 && consultErr.statusCode < 500)) {
+            const consultStatus = consultErr?.status ?? consultErr?.statusCode; // T1.11: ApiClient sets err.status
+            if (consultErr?.code === 'CONSENT_REQUIRED' || consultErr?.code === 'UNAUTHORIZED' || (consultStatus && consultStatus >= 400 && consultStatus < 500)) {
               throw consultErr;
             }
             // Offline/static fallback when backend AI API is unavailable
@@ -3043,6 +3083,7 @@ if (typeof window !== 'undefined') {
               
               <!-- Multi-angle Gallery Strip (rendered only when more than 1 image exists) -->
               ${galleryStripHTML}
+              ${window.SigmaVehicleMediaView ? window.SigmaVehicleMediaView.renderVideosHtml(car) : ''}
 
               <!-- Color Switcher -->
               <div class="color-picker-bar">
@@ -3655,9 +3696,9 @@ if (typeof window !== 'undefined') {
               </div>
               <div style="display:flex; align-items:center; gap:10px;">
                 <div class="stacked-avatars">
-                  <img src="assets/avatar-buyer.jpg" alt="User 1">
+                  <img src="assets/avatar-user.jpg" alt="User 1">
                   <img src="assets/avatar-sales.jpg" alt="User 2">
-                  <img src="assets/avatar-driver.jpg" alt="User 3">
+                  <img src="assets/avatar-ai.jpg" alt="User 3">
                 </div>
                 <span style="font-size:12px; color:var(--text-secondary); font-weight:700;">${stats.verifiedCount || 0} Chủ xe đã bàn giao xác thực</span>
               </div>
@@ -3765,19 +3806,21 @@ if (typeof window !== 'undefined') {
               <!-- Reviews Cards Feed -->
               <div style="display:flex; flex-direction:column; gap:16px;">
                 ${reviews.length > 0 ? reviews.map(r => {
-                  const isOwn = curUser && r.userId === curUser.userId;
-                  const helpfulCount = Array.isArray(r.helpfulVoterIds) ? r.helpfulVoterIds.length : (r.helpfulVotes || 124);
+                  // T1.1: use the server's viewer-specific fields (isOwner, helpfulCount, viewerVotedHelpful).
+                  const isOwn = typeof r.isOwner === 'boolean' ? r.isOwner : (curUser && r.userId === curUser.userId);
+                  const helpfulCount = typeof r.helpfulCount === 'number' ? r.helpfulCount : (Array.isArray(r.helpfulVoterIds) ? r.helpfulVoterIds.length : 0);
                   const replyCount = r.replies?.length || 8;
-                  const hasVoted = curUser && Array.isArray(r.helpfulVoterIds) && r.helpfulVoterIds.includes(curUser.userId);
+                  const hasVoted = typeof r.viewerVotedHelpful === 'boolean' ? r.viewerVotedHelpful : (curUser && Array.isArray(r.helpfulVoterIds) && r.helpfulVoterIds.includes(curUser.userId));
+                  const reviewMedia = (Array.isArray(r.media) ? r.media : []).map(m => (typeof m === 'string' ? { url: m } : m)).filter(m => m && m.url);
                   return `
                     <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:16px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
                       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                         <div style="display:flex; align-items:center; gap:10px;">
-                          <img src="assets/avatar-buyer.jpg" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${escapeHtml(r.authorName)}">
+                          <img src="assets/avatar-user.jpg" style="width:40px; height:40px; border-radius:50%; object-fit:cover;" alt="${escapeHtml(r.authorName)}">
                           <div>
                             <div style="display:flex; align-items:center; gap:8px;">
                               <strong style="font-size:15px; color:var(--text-dark);">${escapeHtml(r.authorName)}</strong>
-                              <span class="badge-role" style="background:#ECFDF5; color:#059669; font-size:11px; font-weight:700;">✓ ĐÃ MUA XE</span>
+                              ${r.verifiedPurchase ? `<span class="badge-role" style="background:#ECFDF5; color:#059669; font-size:11px; font-weight:700;">${r.isDemo ? '✓ Đã mua hàng xác minh · Demo' : '✓ ĐÃ MUA XE'}</span>` : ''}
                             </div>
                             <div style="font-size:11.5px; color:var(--text-muted);">${r.createdAt ? r.createdAt.slice(0, 10) : '28/10/2026'}</div>
                           </div>
@@ -3797,14 +3840,15 @@ if (typeof window !== 'undefined') {
 
                       <p style="font-size:13.5px; color:var(--text-secondary); line-height:1.6; margin:0 0 12px;">${escapeHtml(r.content)}</p>
 
-                      <!-- Actual Photos & Video Play Thumbnails -->
+                      <!-- Actual Photos & Video Play Thumbnails (T1.1: the review's own media, same thumbnail style) -->
+                      ${reviewMedia.length > 0 ? `
                       <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;">
-                        <img src="assets/city-g.jpg" style="width:100px; height:70px; object-fit:cover; border-radius:8px; border:1px solid #E2E8F0;" alt="Ảnh thực tế">
-                        <div style="position:relative; width:100px; height:70px; border-radius:8px; overflow:hidden; border:1px solid #E2E8F0; cursor:pointer;" onclick="showToast('Đang mở video clip đánh giá xe...', '▶️')">
-                          <img src="assets/Interior.png" style="width:100%; height:100%; object-fit:cover;" alt="Video">
+                        ${reviewMedia.map(m => /\.(mp4|webm|mov)(\?|$)/i.test(m.url) ? `
+                        <a href="${escapeHtml(m.url)}" target="_blank" rel="noopener" style="position:relative; display:block; width:100px; height:70px; border-radius:8px; overflow:hidden; border:1px solid #E2E8F0; background:#0F172A;">
                           <div style="position:absolute; inset:0; background:rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; color:#FFFFFF; font-size:18px;">▶</div>
-                        </div>
-                      </div>
+                        </a>` : `
+                        <img src="${escapeHtml(m.url)}" style="width:100px; height:70px; object-fit:cover; border-radius:8px; border:1px solid #E2E8F0;" alt="${escapeHtml(m.caption || 'Ảnh thực tế')}" loading="lazy">`).join('')}
+                      </div>` : ''}
 
                       <!-- Helpful Button & Reply Button -->
                       <div style="display:flex; align-items:center; gap:16px; border-top:1px solid #F1F5F9; padding-top:10px; font-size:12.5px;">
@@ -3916,7 +3960,7 @@ if (typeof window !== 'undefined') {
 
                   <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                      <img src="assets/avatar-driver.jpg" style="width:38px; height:38px; border-radius:50%; object-fit:cover;" alt="Expert 2">
+                      <img src="assets/avatar-ai.jpg" style="width:38px; height:38px; border-radius:50%; object-fit:cover;" alt="Expert 2">
                       <div>
                         <strong style="font-size:13px; color:var(--text-dark); display:block;">Nguyễn Minh Tuấn</strong>
                         <span style="font-size:11px; color:var(--text-muted);">Kỹ thuật trưởng Xưởng dịch vụ 3S</span>
@@ -4122,7 +4166,7 @@ if (typeof window !== 'undefined') {
         requireAuth('đặt câu hỏi thảo luận', async () => {
           try {
             const res = await ApiClient.reviews.askQuestion({ vehicleId: car.id, question: qVal });
-            showToast(res.message, '❓');
+            showToast(res.message || 'Đã đăng câu hỏi thành công!', '❓');
             loadAndRenderVehicleReviews(car);
           } catch (err) {
             showToast(err.message, '⚠️');
@@ -5394,7 +5438,11 @@ if (typeof window !== 'undefined') {
       if (typeof openDepositModal === 'function') {
         openDepositModal(car.id);
       } else {
-        window.openCarDetail(car.id);
+        // T1.10: openDepositModal is not defined anywhere; go to checkout with the chosen catalog colour instead of
+        // dropping the configuration. The wheel choice is not passed yet: its price differs between the configurator
+        // and the server (PLAN R-6, pending decision).
+        const chosenColor = (car.colors && car.colors.length > 0) ? car.colors[selectedColorIdx]?.name : undefined;
+        navigateTo('checkout', { source: 'direct', vehicleId: car.id, ...(chosenColor ? { colorName: chosenColor } : {}) });
       }
     });
   }
@@ -6369,7 +6417,7 @@ if (typeof window !== 'undefined') {
           description: document.getElementById('sup-description')?.value.trim(),
           attachments
         });
-        showToast(`🎉 Đã gửi yêu cầu hỗ trợ! Mã tra cứu của bạn: ${created.ticketCode}`, '🎫');
+        showToast(`🎉 Đã gửi yêu cầu hỗ trợ! Mã tra cứu của bạn: ${created.ticketCode}${created.accessToken ? ` · Mã truy cập: ${created.accessToken}` : ''}`, '🎫');
         document.getElementById('sup-subject').value = '';
         document.getElementById('sup-description').value = '';
         const lookupInput = document.getElementById('support-ticket-lookup-code');
@@ -6498,6 +6546,7 @@ if (typeof window !== 'undefined') {
 
         <main class="dashboard-main">
           ${renderSellerSubView(activeTab, dashData, ordersList, apptsList)}
+          <div id="admin-extras-mount"></div>
         </main>
       </div>
     `;
@@ -6539,6 +6588,9 @@ if (typeof window !== 'undefined') {
         window.SigmaContentAdmin.bindCmsTabActions(() => renderSellerDashboard('dash-cms'));
       }
     }
+
+    // PLAN Phase 4: additive admin panels for the active tab (js/admin-extras-view.js)
+    window.SigmaAdminExtras?.mountForTab(activeTab, document.getElementById('admin-extras-mount'), { curUser, showToast, analyticsFilter });
   }
 
   function renderSellerSubView(tab, dashData, ordersList, apptsList) {
@@ -6551,6 +6603,8 @@ if (typeof window !== 'undefined') {
     const supportStats = cache.supportStats || {};
     const campaignsRes = cache.campaignsRes || { campaigns: [], templates: [], smtpConfigured: false, stats: {} };
     const usersList = cache.usersList || [];
+    const promotionsList = cache.promotionsList || []; // T1.8: the inventory tab reads these (was a ReferenceError)
+    const inventoryRows = cache.inventoryRows || [];
 
     if (tab === 'dash-orders') {
       const ORDER_STAGE_OPTS = ['Pending', 'Confirmed', 'Preparing', 'Shipped', 'Delivered', 'Cancelled'];
@@ -6669,8 +6723,8 @@ if (typeof window !== 'undefined') {
       const stagesList = [
         'Chờ tiếp nhận',
         'Đang kiểm tra điều kiện',
-        'Đã duyệt',
-        'Từ chối',
+        'Đã duyệt yêu cầu', // T1.5: canonical RETURN_STATUS labels
+        'Từ chối tiếp nhận',
         'Chờ đặt lịch thu hồi',
         'Đã xác nhận lịch xe tải',
         'Đang vận chuyển xe về trung tâm',
@@ -6725,7 +6779,7 @@ if (typeof window !== 'undefined') {
                     <span style="font-size:12.5px; color:var(--text-muted); margin-left:8px;">Đơn: <strong>${escapeHtml(r.orderNumber)}</strong> • KH: <strong>${escapeHtml(r.buyerName)}</strong> (${escapeHtml(r.buyerPhone)})</span>
                     <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin-top:6px;">${escapeHtml(r.vehicleName)} — <span style="color:var(--primary);">${escapeHtml(r.resolutionType === 'exchange' ? 'Đổi xe mới' : 'Hoàn tiền')}</span></h4>
                   </div>
-                  <span class="status-badge ${r.status === 'Hoàn tất' || r.status === 'Đã duyệt' ? 'confirmed' : 'pending'}">● ${escapeHtml(r.status)}</span>
+                  <span class="status-badge ${r.status === 'Hoàn tất' || r.status === 'Đã duyệt' || r.status === 'Đã duyệt yêu cầu' ? 'confirmed' : 'pending'}">● ${escapeHtml(r.status)}</span>
                 </div>
 
                 <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:16px; margin-bottom:12px;">
@@ -6936,7 +6990,8 @@ if (typeof window !== 'undefined') {
                   <td><span class="status-badge confirmed">● ${escapeHtml(a.status)}</span></td>
                   <td style="text-align:right;">
                     <button class="btn-card-outline" style="padding:4px 8px; font-size:11.5px;" onclick="showToast('Đang kết nối cuộc gọi tới khách hàng: ${escapeHtml(a.customerName || a.customer)}', '📞')">📞 Gọi điện</button>
-                    <button class="btn-card-primary btn-appt-complete" data-id="${a.id}" style="padding:4px 8px; font-size:11.5px;">✓ Hoàn thành</button>
+                    ${a.status === 'Chờ xác nhận' ? `<button class="btn-card-primary btn-appt-confirm" data-id="${a.id}" style="padding:4px 8px; font-size:11.5px;">✓ Xác nhận</button>` : ''}
+                    ${['Đã xác nhận', 'Đang thực hiện'].includes(a.status) ? `<button class="btn-card-primary btn-appt-complete" data-id="${a.id}" style="padding:4px 8px; font-size:11.5px;">✓ Hoàn thành</button>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -7055,7 +7110,7 @@ if (typeof window !== 'undefined') {
                   <td>${escapeHtml(p.name || p.code)}</td>
                   <td>${p.discountType === 'percent' ? `${p.discountValue}%` : `${Number(p.discountValue || 0).toLocaleString('vi-VN')} đ`}</td>
                   <td>${p.usedCount || 0} / ${p.maxUses || '∞'}</td>
-                  <td><span class="status-badge ${p.active !== false ? 'confirmed' : 'pending'}">${p.active !== false ? 'Đang hoạt động' : 'Tạm tắt'}</span></td>
+                  <td><span class="status-badge ${(p.isActive ?? p.active) !== false ? 'confirmed' : 'pending'}">${(p.isActive ?? p.active) !== false ? 'Đang hoạt động' : 'Tạm tắt'}</span></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -7155,7 +7210,7 @@ if (typeof window !== 'undefined') {
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                   <select class="filter-select sel-ticket-status" data-id="${t.id}" style="width:170px; padding:5px 8px; font-size:12px;">
-                    ${['Mới tiếp nhận', 'Đang xử lý', 'Chờ khách hàng phản hồi', 'Chờ nhân viên phản hồi', 'Đã giải quyết', 'Đã đóng'].map(st => `<option value="${st}" ${t.status === st ? 'selected' : ''}>${st}</option>`).join('')}
+                    ${['Chờ tiếp nhận', 'Đang xử lý', 'Chờ khách phản hồi', 'Chờ nhân viên phản hồi', 'Đã giải quyết', 'Đã đóng'].map(st => `<option value="${st}" ${t.status === st ? 'selected' : ''}>${st}</option>`).join('')}
                   </select>
                   <input type="text" class="filter-input inp-ticket-staff" data-id="${t.id}" value="${escapeHtml(t.assignedStaffName || 'Trần Minh Tâm')}" placeholder="NV phụ trách" style="width:145px; padding:5px 8px; font-size:12px;">
                   <button class="btn-card-outline btn-admin-update-ticket" data-id="${t.id}" style="padding:5px 10px; font-size:11.5px;">Lưu TT</button>
@@ -7930,9 +7985,24 @@ if (typeof window !== 'undefined') {
         const apptId = e.currentTarget.getAttribute('data-id');
         if (!apptId) return;
         try {
-          await ApiClient.appointments.updateStatus(apptId, 'Đã hoàn thành');
+          await ApiClient.appointments.updateStatus(apptId, 'Hoàn thành'); // T1.7: canonical APPOINTMENT_STATUS value
           showToast('Đã hoàn thành phiên lái thử cho khách hàng!', '✓');
-          renderSellerDashboard('dash-appointments');
+          renderSellerDashboard('dash-testdrives');
+        } catch (err) {
+          showToast(err.message || 'Không thể cập nhật trạng thái lịch hẹn.', '⚠️');
+        }
+      });
+    });
+
+    // T1.7: confirm a pending test drive (Pending -> Confirmed is the state machine's first step)
+    document.querySelectorAll('.btn-appt-confirm').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const apptId = e.currentTarget.getAttribute('data-id');
+        if (!apptId) return;
+        try {
+          await ApiClient.appointments.updateStatus(apptId, 'Đã xác nhận');
+          showToast('Đã xác nhận lịch lái thử với khách hàng!', '✓');
+          renderSellerDashboard('dash-testdrives');
         } catch (err) {
           showToast(err.message || 'Không thể cập nhật trạng thái lịch hẹn.', '⚠️');
         }
@@ -7970,7 +8040,7 @@ if (typeof window !== 'undefined') {
             carrierName,
             assignedStaff,
             note,
-            rejectionReason: status === 'Từ chối' ? note : undefined
+            rejectionReason: (status === 'Từ chối tiếp nhận' || status === 'Từ chối') ? note : undefined
           });
           showToast(`Đã cập nhật yêu cầu đổi trả sang trạng thái: ${status}`, '🔄');
           renderSellerDashboard('dash-returns');
@@ -8414,9 +8484,9 @@ if (typeof window !== 'undefined') {
           <div>
             <label style="display:block; font-size:12.5px; font-weight:700; color:#334155; margin-bottom:5px;">Showroom / Chi nhánh phụ trách</label>
             <select id="staff-branch" style="width:100%; padding:10px 14px; border:1px solid #CBD5E1; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box; background:#FFFFFF;">
-              <option value="Showroom SIGMACAR Cầu Giấy (Hà Nội)">Showroom SIGMACAR Cầu Giấy (Hà Nội)</option>
-              <option value="Showroom SIGMACAR Quận 7 (TP.HCM)">Showroom SIGMACAR Quận 7 (TP.HCM)</option>
-              <option value="Showroom SIGMACAR Hải Châu (Đà Nẵng)">Showroom SIGMACAR Hải Châu (Đà Nẵng)</option>
+              <option value="Showroom SIGMACAR Cầu Giấy (Hà Nội)" data-branch-id="hn-caugiay">Showroom SIGMACAR Cầu Giấy (Hà Nội)</option>
+              <option value="Showroom SIGMACAR Quận 7 (TP.HCM)" data-branch-id="hcm-q7">Showroom SIGMACAR Quận 7 (TP.HCM)</option>
+              <option value="Showroom SIGMACAR Hải Châu (Đà Nẵng)" data-branch-id="dn-haichau">Showroom SIGMACAR Hải Châu (Đà Nẵng)</option>
             </select>
           </div>
 
@@ -8449,10 +8519,12 @@ if (typeof window !== 'undefined') {
       const phone = document.getElementById('staff-phone').value.trim();
       const password = document.getElementById('staff-password').value;
       const branchName = document.getElementById('staff-branch').value;
+      const branchSel = document.getElementById('staff-branch'); // T1.15: send the branch id (was name only)
+      const branchId = branchSel?.selectedOptions?.[0]?.getAttribute('data-branch-id') || undefined;
       const role = document.getElementById('staff-role').value;
 
       try {
-        await ApiClient.admin.createStaff({ fullName, email, phone, password, branchName, role });
+        await ApiClient.admin.createStaff({ fullName, email, phone, password, branchName, branchId, role });
         showToast(`🎉 Đã thêm thành công nhân viên ${fullName} (${role.toUpperCase()})!`, '✓');
         overlay.remove();
         renderSellerDashboard('dash-crm');
@@ -8709,6 +8781,9 @@ if (typeof window !== 'undefined') {
     if (Array.isArray(meProfile.savedCarIds)) {
       meProfile.savedCarIds.forEach(id => AppState.savedCarIds.add(id));
     }
+    if (Array.isArray(meProfile.savedCars)) { // T1.3: the server field is savedCars
+      meProfile.savedCars.forEach(id => AppState.savedCarIds.add(id));
+    }
 
     viewsContainer.innerHTML = `
       <section class="section" style="padding-top:36px;">
@@ -8898,15 +8973,12 @@ if (typeof window !== 'undefined') {
       formCompletePay.onsubmit = async (e) => {
         e.preventDefault();
         const orderId = document.getElementById('pay-modal-order-id')?.value;
-        const paymentMethod = document.getElementById('pay-modal-method-select')?.value;
-        const carName = document.getElementById('pay-modal-car-name')?.textContent || 'xe';
-        try {
-          await ApiClient.orders.completePayment(orderId, { paymentMethod });
-          closePayModal();
-          showToast(`🎉 Thanh toán hoàn tất 100%! Xe ${carName} đã chính thức được chuyển vào Quản lý xe & Gara của bạn!`, '⚡');
-          renderProfile('profile-garage');
-        } catch (err) {
-          showToast(err.message || 'Thanh toán không thành công, vui lòng thử lại.', '⚠️');
+        // T1.9: a buyer can no longer self-certify a payment (T0.1); the remaining balance is paid through the existing
+        // order payment panel, which creates a gateway intent that is settled by the verified webhook.
+        closePayModal();
+        if (orderId) {
+          showToast('Chuyển tới cổng thanh toán an toàn để hoàn tất số tiền còn lại.', '💳');
+          navigateTo('checkout', { orderId });
         }
       };
     }
@@ -9167,7 +9239,7 @@ if (typeof window !== 'undefined') {
       const stagesOrder = [
         'Chờ tiếp nhận',
         'Đang kiểm tra điều kiện',
-        'Đã duyệt',
+        'Đã duyệt yêu cầu', // T1.5: canonical RETURN_STATUS label
         'Chờ đặt lịch thu hồi',
         'Đã xác nhận lịch xe tải',
         'Đang vận chuyển xe về trung tâm',
@@ -9483,7 +9555,7 @@ if (typeof window !== 'undefined') {
                       <span style="background:#EFF6FF; color:var(--primary); font-weight:800; font-size:13px; padding:4px 10px; border-radius:6px;">${escapeHtml(r.returnCode)}</span>
                       <strong style="font-size:16px; margin-left:8px; color:var(--text-dark);">${escapeHtml(r.vehicleName)} (Đơn: ${escapeHtml(r.orderNumber)})</strong>
                     </div>
-                    <span class="status-badge ${r.status === 'Hoàn tất' || r.status === 'Đã duyệt' ? 'confirmed' : 'pending'}">● ${escapeHtml(r.status)}</span>
+                    <span class="status-badge ${r.status === 'Hoàn tất' || r.status === 'Đã duyệt' || r.status === 'Đã duyệt yêu cầu' ? 'confirmed' : 'pending'}">● ${escapeHtml(r.status)}</span>
                   </div>
 
                   <!-- 9-Stage Stepper -->
@@ -9564,7 +9636,14 @@ if (typeof window !== 'undefined') {
         `;
       }
 
-      const primaryVehicle = ownedVehicles[0];
+      // T1.17: /garage returns image / fuel / measuredBatterySoH; this view reads img / isEv / batterySoh.
+      const primaryVehicleRaw = ownedVehicles[0];
+      const primaryVehicle = {
+        ...primaryVehicleRaw,
+        img: primaryVehicleRaw.img || primaryVehicleRaw.image,
+        isEv: primaryVehicleRaw.isEv ?? (primaryVehicleRaw.fuel ? primaryVehicleRaw.fuel === 'ev' : undefined),
+        batterySoh: primaryVehicleRaw.batterySoh ?? primaryVehicleRaw.measuredBatterySoH
+      };
       const primaryWarranty = primaryVehicle.warranty || warranties.find(w => w.vin === primaryVehicle.vin) || warranties[0] || null;
 
       return `
@@ -9654,7 +9733,7 @@ if (typeof window !== 'undefined') {
                   </div>
 
                   <!-- QR Code Inspection Box (Warranty & Maintenance.pdf) -->
-                  <div style="background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:12px; padding:12px; text-align:center;">
+                  <div class="btn-warranty-vin-lookup" data-vin="${escapeHtml(primaryWarranty?.vin || primaryVehicle.vin || '')}" title="Tra cứu hiệu lực bảo hành theo số khung" style="background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:12px; padding:12px; text-align:center; cursor:pointer;">
                     <div style="width:80px; height:80px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:8px; display:flex; align-items:center; justify-content:center; margin:0 auto 6px; font-size:36px;">
                       🏁
                     </div>
@@ -9797,19 +9876,42 @@ if (typeof window !== 'undefined') {
               <div style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:18px; padding:22px; margin-bottom:20px; box-shadow:0 2px 10px rgba(0,0,0,0.03);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
                   <h4 style="font-size:16px; font-weight:800; color:var(--text-dark); margin:0;">Lịch hẹn sắp tới</h4>
-                  <span class="badge-role" style="background:#EFF6FF; color:#2563EB; font-weight:800; font-size:11px;">ĐÃ XÁC NHẬN</span>
+                  ${(() => {
+                    // T1.14: the customer's real next service appointment (was a hard-coded sample), else the next
+                    // server-computed maintenance reminder.
+                    const todayIso = new Date().toISOString().slice(0, 10);
+                    const nextAppt = (myGarageData.serviceAppointments || [])
+                      .filter(a => a && a.preferredDate && a.preferredDate >= todayIso && !['Đã hủy', 'Hoàn thành', 'Cancelled', 'Completed'].includes(a.status))
+                      .sort((x, y) => String(x.preferredDate).localeCompare(String(y.preferredDate)))[0];
+                    const reminder = (myGarageData.reminders || [])[0];
+                    if (nextAppt) {
+                      const d = new Date(`${nextAppt.preferredDate}T00:00:00`);
+                      return `
+                  <span class="badge-role" style="background:#EFF6FF; color:#2563EB; font-weight:800; font-size:11px;">${escapeHtml(String(nextAppt.status || 'ĐÃ ĐẶT LỊCH').toUpperCase())}</span>
                 </div>
 
                 <div style="display:flex; gap:14px; align-items:center; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px; margin-bottom:12px;">
                   <div style="background:#2563EB; color:#FFFFFF; border-radius:8px; padding:8px 12px; text-align:center; min-width:54px;">
-                    <div style="font-size:10px; font-weight:700;">THÁNG 11</div>
-                    <div style="font-size:20px; font-weight:800; line-height:1.1;">18</div>
+                    <div style="font-size:10px; font-weight:700;">THÁNG ${d.getMonth() + 1}</div>
+                    <div style="font-size:20px; font-weight:800; line-height:1.1;">${d.getDate()}</div>
                   </div>
                   <div>
-                    <strong style="font-size:14px; color:var(--text-dark); display:block;">Bảo dưỡng định kỳ 10.000 km</strong>
-                    <span style="font-size:12px; color:var(--text-muted);">09:00 • Trung tâm SIGMACAR Thủ Thiêm</span>
+                    <strong style="font-size:14px; color:var(--text-dark); display:block;">${escapeHtml(nextAppt.serviceType || nextAppt.serviceName || 'Bảo dưỡng / Sửa chữa')}</strong>
+                    <span style="font-size:12px; color:var(--text-muted);">${escapeHtml(nextAppt.preferredTime || nextAppt.timeSlot || '')}${nextAppt.serviceCenterName || nextAppt.centerName ? ` • ${escapeHtml(nextAppt.serviceCenterName || nextAppt.centerName)}` : ''}</span>
                   </div>
+                </div>`;
+                    }
+                    return `
+                  <span class="badge-role" style="background:#F1F5F9; color:#475569; font-weight:800; font-size:11px;">CHƯA ĐẶT LỊCH</span>
                 </div>
+
+                <div style="display:flex; gap:14px; align-items:center; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px; margin-bottom:12px;">
+                  <div>
+                    <strong style="font-size:14px; color:var(--text-dark); display:block;">${reminder ? escapeHtml(reminder.nextMilestoneTitle || 'Bảo dưỡng định kỳ') : 'Chưa có lịch hẹn bảo dưỡng'}</strong>
+                    <span style="font-size:12px; color:var(--text-muted);">${reminder ? `${escapeHtml(reminder.vehicleName || '')} • còn ${Number(reminder.kmRemaining || 0).toLocaleString('vi-VN')} km` : 'Đặt lịch tại một trung tâm dịch vụ bên dưới.'}</span>
+                  </div>
+                </div>`;
+                  })()}
 
                 <button class="btn-card-outline" id="btn-remind-service-24h" style="width:100%; justify-content:center; padding:8px; font-size:12.5px; border-color:#2563EB; color:#2563EB; font-weight:700;">
                   🔔 Nhắc tôi trước 24h qua SMS
@@ -9936,6 +10038,7 @@ if (typeof window !== 'undefined') {
               <p style="font-size:13px; color:var(--text-muted); max-width:240px;">Khám phá bộ sưu tập xe điện thông minh thế hệ mới nhất tại Showroom SIGMACAR.</p>
             </div>
           </div>
+          <div id="garage-extras-mount"></div>
         </div>
       `;
     }
@@ -10032,9 +10135,9 @@ if (typeof window !== 'undefined') {
             ${notifItems.length === 0 ? `<p style="font-size:13px; color:var(--text-muted); margin:0;">Chưa có thông báo giao dịch mới.</p>` : notifItems.slice(0, 12).map(n => `
               <div style="padding:12px; border:1px solid #E2E8F0; border-radius:10px; margin-bottom:8px; background:${n.readAt ? '#FFFFFF' : '#F0F9FF'}; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
                 <div>
-                  <strong style="font-size:13.5px; color:var(--text-dark);">${escapeHtml(n.subject || n.eventType)}</strong>
+                  <strong style="font-size:13.5px; color:var(--text-dark);">${escapeHtml(n.title || n.subject || n.eventType)}</strong>
                   <div style="font-size:12.5px; color:var(--text-secondary); margin-top:2px;">${escapeHtml(n.message || '')}</div>
-                  <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${n.createdAt ? new Date(n.createdAt).toLocaleString('vi-VN') : ''} • Trạng thái gửi: ${escapeHtml(n.status || 'queued')}</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">${n.createdAt ? new Date(n.createdAt).toLocaleString('vi-VN') : ''} • Trạng thái gửi: ${escapeHtml(n.deliveryStatus || n.status || 'queued')}</div>
                 </div>
                 ${!n.readAt ? `<button class="btn-card-outline btn-mark-notif-read" data-id="${n.id}" style="padding:4px 10px; font-size:11.5px; white-space:nowrap;">✓ Đã đọc</button>` : `<span style="font-size:11px; color:#059669; font-weight:700;">✓ Đã đọc</span>`}
               </div>
@@ -10196,6 +10299,30 @@ if (typeof window !== 'undefined') {
   }
 
   function bindProfileInteractiveEvents() {
+    // PLAN T2.4: warranty lookup by VIN from the garage's QR box
+    document.querySelectorAll('.btn-warranty-vin-lookup').forEach(box => {
+      box.addEventListener('click', async () => {
+        const vin = box.getAttribute('data-vin');
+        if (!vin) { showToast('Chưa có số khung VIN để tra cứu.', 'ℹ️'); return; }
+        try {
+          const w = await ApiClient.warranties.lookup(vin);
+          const until = w.endDate ? new Date(w.endDate).toLocaleDateString('vi-VN') : '—';
+          showToast(`Bảo hành ${w.warrantyCode} (VIN ${w.vin}): ${w.isActive === false ? 'đã hết hạn' : 'còn hiệu lực'} đến ${until}${w.daysRemaining != null ? ` · còn ${w.daysRemaining} ngày` : ''}.`, '🛡️');
+        } catch (err) {
+          showToast(err.message || 'Không tra cứu được bảo hành.', '⚠️');
+        }
+      });
+    });
+
+    // PLAN T2.7 / T1.17: saved configurations, TCO results and AI recommendations (js/garage-extras-view.js)
+    const garageExtrasMount = document.getElementById('garage-extras-mount');
+    if (garageExtrasMount && window.SigmaGarageExtrasView) {
+      window.SigmaGarageExtrasView.mount(garageExtrasMount, {
+        savedConfigs: AppState._profileData?.serverGarage?.savedConfigs || [],
+        showToast
+      });
+    }
+
     // 1. Personal Info Form Submit
     document.getElementById('form-profile-update-personal')?.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -10486,7 +10613,7 @@ if (typeof window !== 'undefined') {
       btn.addEventListener('click', async () => {
         const carId = btn.getAttribute('data-id');
         AppState.savedCarIds.delete(carId);
-        try { await ApiClient.auth.toggleSavedCar(carId); } catch (e) {}
+        try { await ApiClient.auth.setSavedCar(carId, false); } catch (e) {} // T1.3: never re-adds a local-only car
         showToast('Đã bỏ lưu xe khỏi danh sách yêu thích.');
         renderProfile('profile-saved');
       });
@@ -10565,6 +10692,13 @@ if (typeof window !== 'undefined') {
         try {
           const tl = await ApiClient.orders.getTimeline(orderId);
           const events = tl?.events || [];
+          const renderTimelineEvents = (list) => (list.length > 0 ? list.map(ev => `
+                <div style="border-left:3px solid #2563EB; padding:6px 12px; margin-bottom:10px; background:#F8FAFC; border-radius:0 8px 8px 0; font-size:12.5px;">
+                  <strong>${escapeHtml(ev.label || ev.type)}</strong>
+                  <div style="color:#475569;">${escapeHtml(ev.detail || '')}</div>
+                  <div style="color:#94A3B8; font-size:11px;">${escapeHtml(ev.at || '')}</div>
+                </div>
+              `).join('') : '<p style="font-size:13px; color:var(--text-muted);">Chưa có sự kiện nào.</p>');
           const overlay = document.createElement('div');
           overlay.className = 'modal-overlay active';
           overlay.style.zIndex = '99999';
@@ -10574,18 +10708,23 @@ if (typeof window !== 'undefined') {
                 <h3 style="margin:0; font-size:18px; font-weight:800;">🕒 Dòng thời gian đơn ${escapeHtml(orderNum)}</h3>
                 <button type="button" class="btn-secondary btn-close-ptl" style="padding:6px 12px;">✕ Đóng</button>
               </div>
-              ${events.length > 0 ? events.map(ev => `
-                <div style="border-left:3px solid #2563EB; padding:6px 12px; margin-bottom:10px; background:#F8FAFC; border-radius:0 8px 8px 0; font-size:12.5px;">
-                  <strong>${escapeHtml(ev.label || ev.type)}</strong>
-                  <div style="color:#475569;">${escapeHtml(ev.detail || '')}</div>
-                  <div style="color:#94A3B8; font-size:11px;">${escapeHtml(ev.at || '')}</div>
-                </div>
-              `).join('') : '<p style="font-size:13px; color:var(--text-muted);">Chưa có sự kiện nào.</p>'}
+              <div class="ptl-events">${renderTimelineEvents(events)}</div>
             </div>
           `;
           document.body.appendChild(overlay);
-          overlay.querySelector('.btn-close-ptl').onclick = () => overlay.remove();
-          overlay.onclick = (ev) => { if (ev.target === overlay) overlay.remove(); };
+          // PLAN T2.2: live refresh every 30 s while the modal is open and the tab is visible.
+          const refreshTimer = setInterval(async () => {
+            if (!document.body.contains(overlay)) { clearInterval(refreshTimer); return; }
+            if (document.hidden) return;
+            try {
+              const fresh = await ApiClient.orders.getTimeline(orderId);
+              const box = overlay.querySelector('.ptl-events');
+              if (box) box.innerHTML = renderTimelineEvents(fresh?.events || []);
+            } catch (e) { /* keep the last good view */ }
+          }, 30000);
+          const closeTimeline = () => { clearInterval(refreshTimer); overlay.remove(); };
+          overlay.querySelector('.btn-close-ptl').onclick = closeTimeline;
+          overlay.onclick = (ev) => { if (ev.target === overlay) closeTimeline(); };
         } catch (err) {
           showToast(err.message || 'Không tải được tiến độ đơn hàng.', '⚠️');
         }
@@ -10853,6 +10992,7 @@ if (typeof window !== 'undefined') {
               b.innerHTML = '🤍';
             });
             showToast('Đã bỏ lưu khỏi danh sách quan tâm');
+            ApiClient.auth.setSavedCar(id, false).catch(() => {}); // T1.3: persist (offline: local only, as before)
           } else {
             AppState.savedCarIds.add(id);
             document.querySelectorAll(`.btn-interest[data-id="${id}"]`).forEach(b => {
@@ -10860,6 +11000,7 @@ if (typeof window !== 'undefined') {
               b.innerHTML = '❤️';
             });
             showToast('Đã thêm vào danh sách quan tâm! ❤️');
+            ApiClient.auth.setSavedCar(id, true).catch(() => {}); // T1.3
           }
         });
       });
@@ -10869,7 +11010,9 @@ if (typeof window !== 'undefined') {
   // =================================================================
   // LOAN CALCULATOR MODAL LOGIC (Dự toán trả góp)
   // =================================================================
-  function openLoanCalculatorModal(car) {
+  // PLAN T3.8: opts.orderId links the financing application to an existing order (checkout payment panel).
+  function openLoanCalculatorModal(car, opts = {}) {
+    const loanOrderId = opts && opts.orderId ? String(opts.orderId) : null;
     if (!loanCalcModal) return;
     const nameEl = document.getElementById('calc-car-name');
     const priceEl = document.getElementById('calc-car-price');
@@ -10974,7 +11117,8 @@ if (typeof window !== 'undefined') {
               repaymentMethod,
               monthlyIncome: monthlyIncomeRaw ? Number(monthlyIncomeRaw) : undefined,
               monthlyObligation: monthlyOblRaw ? Number(monthlyOblRaw) : 0,
-              consentCreditCheck: true
+              consentCreditCheck: true,
+              ...(loanOrderId ? { orderId: loanOrderId } : {})
             });
             loanCalcModal.classList.remove('active');
             showToast(`Đã gửi hồ sơ trả góp #${appRes.id} lên hệ thống! Chuyên viên sẽ thẩm định trong giờ làm việc.`, '🎉');

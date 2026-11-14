@@ -41,6 +41,12 @@ const AnalyticsEventService = require('../application/analytics-event-service');
 const ContentService = require('../application/content-service');
 const ChargingService = require('../application/charging-service');
 const CampaignWorker = require('../workers/campaign-worker');
+const GarageExtrasService = require('../application/garage-extras-service'); // PLAN T2.7
+const WarrantyLookupService = require('../application/warranty-lookup-service'); // PLAN T2.4
+const BatteryService = require('../application/battery-service'); // PLAN T2.5
+const PartsService = require('../application/parts-service'); // PLAN T4.7
+const AuditLogService = require('../application/audit-log-service'); // PLAN T4.11
+const AnalyticsRankingService = require('../application/analytics-ranking-service'); // PLAN T4.10
 const UserRepository = require('../infrastructure/repositories/user-repository');
 const Authorization = require('../domain/authorization');
 const Security = require('../infrastructure/security');
@@ -342,9 +348,26 @@ async function handleApiRequest(req, res) {
       return sendJSON(res, 200, { success: true, data: result });
     }
 
+    // PLAN T4.4: stock movement history (staff, branch-scoped). Must stay above GET /inventory/:vehicleId.
+    if (pathname === '/api/v1/inventory/movements' && method === 'GET') {
+      const user = authorize(req, res, [ROLES.ADMIN, ROLES.SELLER]);
+      if (!user) return;
+      const rows = InventoryRepository.listMovements(user, {
+        vehicleId: parsedUrl.query.vehicleId,
+        branchId: parsedUrl.query.branchId,
+        limit: parsedUrl.query.limit
+      });
+      return sendJSON(res, 200, { success: true, count: rows.length, data: rows });
+    }
+
     if (pathname.startsWith('/api/v1/inventory/') && method === 'GET') {
       const vehicleId = decodeURIComponent(pathname.replace('/api/v1/inventory/', ''));
       const summary = await InventoryRepository.getByVehicle(vehicleId);
+      // T0.4: public endpoint — staff ids and internal references stay visible to staff only.
+      const viewer = authenticate(req);
+      if (summary && Array.isArray(summary.recentMovements) && !(viewer && viewer.role && viewer.role !== ROLES.BUYER)) {
+        summary.recentMovements = summary.recentMovements.map(({ actorId, referenceId, ...rest }) => rest);
+      }
       return sendJSON(res, 200, { success: true, data: summary });
     }
 
@@ -366,8 +389,11 @@ async function handleApiRequest(req, res) {
     }
 
     if (pathname === '/api/v1/promotions' && method === 'GET') {
+      // PLAN T4.2: inactive / expired codes are listed only for staff (anonymous callers always get active ones).
+      const viewer = authenticate(req);
+      const isStaffViewer = Boolean(viewer && [ROLES.ADMIN, ROLES.SELLER].includes(viewer.role));
       const list = await PromotionService.listPromotions({
-        activeOnly: parsedUrl.query.activeOnly !== 'false',
+        activeOnly: !(isStaffViewer && parsedUrl.query.activeOnly === 'false'),
         branchId: parsedUrl.query.branchId
       });
       return sendJSON(res, 200, { success: true, count: list.length, data: list });
@@ -392,6 +418,16 @@ async function handleApiRequest(req, res) {
       const body = await parseBody(req);
       const created = await PromotionService.createPromotion(body, user);
       return sendJSON(res, 201, { success: true, message: `Đã tạo mã khuyến mãi "${created.code}" thành công!`, data: created });
+    }
+
+    // PLAN T4.2: edit / deactivate a promotion
+    if (pathname.startsWith('/api/v1/promotions/') && pathname !== '/api/v1/promotions/validate' && method === 'PATCH') {
+      const user = authorize(req, res, [ROLES.ADMIN, ROLES.SELLER]);
+      if (!user) return;
+      const promoId = decodeURIComponent(pathname.replace('/api/v1/promotions/', ''));
+      const body = await parseBody(req);
+      const updated = await PromotionService.updatePromotion(promoId, body, user);
+      return sendJSON(res, 200, { success: true, message: `Đã cập nhật mã "${updated.code}".`, data: updated });
     }
 
     if (pathname === '/api/v1/quotes' && method === 'POST') {
@@ -835,6 +871,33 @@ async function handleApiRequest(req, res) {
       return sendJSON(res, 200, { success: true, data });
     }
 
+    // PLAN T2.7: My Garage extras — saved TCO results and saved AI recommendations (owner-only).
+    {
+      const extrasMatch = pathname.match(/^\/api\/v1\/garage\/(tco-results|recommendations)(?:\/([^/]+))?$/);
+      if (extrasMatch) {
+        const [, kind, itemId] = extrasMatch;
+        if (!itemId && method === 'GET') {
+          const user = authorize(req, res);
+          if (!user) return;
+          const list = GarageExtrasService.list(user, kind);
+          return sendJSON(res, 200, { success: true, count: list.length, data: list });
+        }
+        if (!itemId && method === 'POST') {
+          const user = authorize(req, res);
+          if (!user) return;
+          const body = await parseBody(req);
+          const saved = await GarageExtrasService.save(user, kind, body);
+          return sendJSON(res, 201, { success: true, message: 'Đã lưu vào Gara của tôi.', data: saved });
+        }
+        if (itemId && method === 'DELETE') {
+          const user = authorize(req, res);
+          if (!user) return;
+          const removed = await GarageExtrasService.remove(user, kind, decodeURIComponent(itemId));
+          return sendJSON(res, 200, { success: true, message: 'Đã xóa khỏi Gara của tôi.', data: removed });
+        }
+      }
+    }
+
     // -------------------------------------------------------------
     // ANALYTICS & FUNNEL ROUTES (SIG-P4-006, SIG-P4-007)
     // -------------------------------------------------------------
@@ -852,7 +915,39 @@ async function handleApiRequest(req, res) {
         userRole: user.role,
         dateFrom: parsedUrl.query.dateFrom || null,
         dateTo: parsedUrl.query.dateTo || null,
-        tzOffsetMinutes: parsedUrl.query.tzOffsetMinutes
+        tzOffsetMinutes: parsedUrl.query.tzOffsetMinutes,
+        includeDemo: user.role === ROLES.ADMIN && parsedUrl.query.includeDemo === 'true' // PLAN T5.2
+      });
+      return sendJSON(res, 200, { success: true, data });
+    }
+
+    // PLAN T4.10: best-selling vehicles / accessories (same branch & date scope as the overview)
+    if (pathname === '/api/v1/analytics/top-products' && method === 'GET') {
+      const user = authorize(req, res, [ROLES.SELLER, ROLES.ADMIN]);
+      if (!user) return;
+      const allowedBranchIds = Array.isArray(user.branchIds) && user.branchIds.length > 0
+        ? user.branchIds.filter(Boolean)
+        : (user.branchId && user.branchId !== 'all' ? [user.branchId] : []);
+      const data = AnalyticsRankingService.getTopProducts({
+        branchId: parsedUrl.query.branchId || null,
+        branchIds: allowedBranchIds,
+        userRole: user.role,
+        dateFrom: parsedUrl.query.dateFrom || null,
+        dateTo: parsedUrl.query.dateTo || null,
+        top: parsedUrl.query.top,
+        includeDemo: user.role === ROLES.ADMIN && parsedUrl.query.includeDemo === 'true'
+      });
+      return sendJSON(res, 200, { success: true, data });
+    }
+
+    // PLAN T4.11: audit log viewer (admin only, read-only)
+    if (pathname === '/api/v1/admin/audit-logs' && method === 'GET') {
+      const user = authorize(req, res, [ROLES.ADMIN]);
+      if (!user) return;
+      const q = parsedUrl.query;
+      const data = AuditLogService.list({
+        action: q.action, actorId: q.actorId, targetId: q.targetId, source: q.source, q: q.q,
+        dateFrom: q.dateFrom, dateTo: q.dateTo, limit: q.limit, offset: q.offset
       });
       return sendJSON(res, 200, { success: true, data });
     }
@@ -871,7 +966,8 @@ async function handleApiRequest(req, res) {
         userRole: user.role,
         dateFrom: parsedUrl.query.dateFrom || null,
         dateTo: parsedUrl.query.dateTo || null,
-        tzOffsetMinutes: parsedUrl.query.tzOffsetMinutes
+        tzOffsetMinutes: parsedUrl.query.tzOffsetMinutes,
+        includeDemo: user.role === ROLES.ADMIN && parsedUrl.query.includeDemo === 'true' // PLAN T5.2
       });
       res.writeHead(200, {
         'Content-Type': 'text/csv; charset=utf-8',
@@ -1131,7 +1227,11 @@ async function handleApiRequest(req, res) {
       if (!Object.values(ROLES).includes(targetRole)) {
         return sendError(res, 400, 'Vai trò phân quyền không hợp lệ.', 'INVALID_ROLE');
       }
-      const rawPassword = body.password || 'Seller@123456';
+      // T0.5: no silent shared default password for new staff accounts.
+      if (typeof body.password !== 'string' || body.password.length === 0) {
+        return sendError(res, 400, 'Vui lòng đặt mật khẩu cho tài khoản nhân viên.', 'VALIDATION_ERROR');
+      }
+      const rawPassword = body.password;
       if (String(rawPassword).length < 6) {
         return sendError(res, 400, 'Mật khẩu phải có tối thiểu 6 ký tự.', 'WEAK_PASSWORD');
       }
@@ -1142,7 +1242,9 @@ async function handleApiRequest(req, res) {
         email: body.email,
         phone: Security.sanitizeString(body.phone || ''),
         role: targetRole,
-        branchId: targetRole === ROLES.BUYER ? null : (body.branchId || branch.id),
+        // T1.15: admins are global (like the seeded admin, branchId 'all'); a concrete branch would make
+        // GET /orders show them only that branch (order-repository findByQuery).
+        branchId: targetRole === ROLES.BUYER ? null : (targetRole === ROLES.ADMIN ? 'all' : (body.branchId || branch.id)),
         branchIds: targetRole === ROLES.BUYER ? [] : (Array.isArray(body.branchIds) ? body.branchIds : [body.branchId || branch.id]),
         branchName: targetRole === ROLES.BUYER ? null : (body.branchName || branch.name),
         passwordHash
@@ -1154,7 +1256,7 @@ async function handleApiRequest(req, res) {
       const user = authorize(req, res, [ROLES.ADMIN]);
       if (!user) return;
       const targetId = decodeURIComponent(pathname.replace('/api/v1/admin/users/', ''));
-      const deleted = await UserRepository.delete(targetId);
+      const deleted = await UserRepository.delete(targetId, user); // PLAN T4.15: audited
       return sendJSON(res, 200, { success: true, message: 'Đã xóa tài khoản thành công!', data: deleted });
     }
 
@@ -1166,7 +1268,7 @@ async function handleApiRequest(req, res) {
       if (!Object.values(ROLES).includes(body.role)) {
         return sendError(res, 400, 'Vai trò phân quyền không hợp lệ.', 'INVALID_ROLE');
       }
-      const updated = await UserRepository.updateRoleByAdmin(targetId, body.role, body.branchId, body.branchName, body.branchIds, body.disabledAt);
+      const updated = await UserRepository.updateRoleByAdmin(targetId, body.role, body.branchId, body.branchName, body.branchIds, body.disabledAt, user); // PLAN T4.15: audited
       return sendJSON(res, 200, { success: true, message: `Đã cập nhật phân quyền người dùng thành "${body.role}"!`, data: updated });
     }
 
@@ -1253,6 +1355,14 @@ async function handleApiRequest(req, res) {
     // -------------------------------------------------------------
     // SECTION 3: DIGITAL WARRANTY & MAINTENANCE ROUTES
     // -------------------------------------------------------------
+    // PLAN T2.4: warranty lookup by VIN (login required; owner / branch staff / admin; others get 404).
+    if (pathname === '/api/v1/warranties/lookup' && method === 'GET') {
+      const user = authorize(req, res);
+      if (!user) return;
+      const data = WarrantyLookupService.lookupByVin(parsedUrl.query.vin, user);
+      return sendJSON(res, 200, { success: true, data });
+    }
+
     if (pathname === '/api/v1/warranties' && method === 'GET') {
       const user = authorize(req, res);
       if (!user) return;
@@ -1316,6 +1426,31 @@ async function handleApiRequest(req, res) {
     // -------------------------------------------------------------
     // SECTION 3B: WORKSHOP SCHEDULING, PARTS LEDGER & WARRANTY CLAIMS (SIG-P4-001..003)
     // -------------------------------------------------------------
+    // PLAN T4.7: workshop parts catalogue (list / create / restock)
+    if (pathname === '/api/v1/workshop/parts' && method === 'GET') {
+      const user = authorize(req, res, [ROLES.ADMIN, ROLES.SERVICE_STAFF, ROLES.SELLER]);
+      if (!user) return;
+      const list = PartsService.listParts({ q: parsedUrl.query.q, lowStockOnly: parsedUrl.query.lowStockOnly === 'true' });
+      return sendJSON(res, 200, { success: true, count: list.length, data: list });
+    }
+
+    if (pathname === '/api/v1/workshop/parts' && method === 'POST') {
+      const user = authorize(req, res, [ROLES.ADMIN, ROLES.SERVICE_STAFF]);
+      if (!user) return;
+      const body = await parseBody(req);
+      const created = await PartsService.createPart(body, user);
+      return sendJSON(res, 201, { success: true, message: `Đã thêm phụ tùng ${created.sku}.`, data: created });
+    }
+
+    if (pathname.startsWith('/api/v1/workshop/parts/') && pathname.endsWith('/restock') && method === 'POST') {
+      const user = authorize(req, res, [ROLES.ADMIN, ROLES.SERVICE_STAFF]);
+      if (!user) return;
+      const sku = decodeURIComponent(pathname.replace('/api/v1/workshop/parts/', '').replace('/restock', ''));
+      const body = await parseBody(req);
+      const result = await PartsService.restock(sku, body, user);
+      return sendJSON(res, 200, { success: true, message: `Đã nhập kho ${result.part.sku}.`, data: result });
+    }
+
     if (pathname === '/api/v1/workshop/resources' && method === 'GET') {
       const user = authorize(req, res);
       if (!user) return;
@@ -1779,6 +1914,16 @@ async function handleApiRequest(req, res) {
       return sendJSON(res, 200, { success: true, data });
     }
 
+    // PLAN T2.5: battery swap stations and battery rental policy (public, read-only reference data).
+    if (pathname === '/api/v1/charging/swap-stations' && method === 'GET') {
+      const data = BatteryService.listSwapStations({ province: parsedUrl.query.province, branchId: parsedUrl.query.branchId });
+      return sendJSON(res, 200, { success: true, data });
+    }
+
+    if (pathname === '/api/v1/charging/battery-rental' && method === 'GET') {
+      return sendJSON(res, 200, { success: true, data: BatteryService.getRentalPolicy() });
+    }
+
     // -------------------------------------------------------------
     // P3 EXPERIENCE: TCO ESTIMATOR, CONFIGURATIONS, ACCESSORIES & BUNDLES
     // -------------------------------------------------------------
@@ -1852,6 +1997,24 @@ async function handleApiRequest(req, res) {
         return sendError(res, 404, 'Không tìm thấy phụ kiện hoặc phụ tùng theo mã SKU.', 'ACCESSORY_NOT_FOUND');
       }
       return sendJSON(res, 200, { success: true, data });
+    }
+
+    // PLAN T4.3: accessory administration (admin only)
+    if (pathname === '/api/v1/accessories' && method === 'POST') {
+      const user = authorize(req, res, [ROLES.ADMIN]);
+      if (!user) return;
+      const body = await parseBody(req);
+      const created = await AccessoryService.createAccessory(body, user);
+      return sendJSON(res, 201, { success: true, message: `Đã thêm phụ kiện ${created.id}.`, data: created });
+    }
+
+    if (pathname.startsWith('/api/v1/accessories/') && method === 'PATCH') {
+      const user = authorize(req, res, [ROLES.ADMIN]);
+      if (!user) return;
+      const sku = decodeURIComponent(pathname.replace('/api/v1/accessories/', ''));
+      const body = await parseBody(req);
+      const updated = await AccessoryService.updateAccessory(sku, body, user);
+      return sendJSON(res, 200, { success: true, message: `Đã cập nhật phụ kiện ${updated.id}.`, data: updated });
     }
 
     if (pathname === '/api/v1/bundles/recommend' && method === 'GET') {

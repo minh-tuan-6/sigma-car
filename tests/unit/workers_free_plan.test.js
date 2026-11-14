@@ -181,6 +181,21 @@ describe('Workers Free: per-request D1 usage and CPU estimate', () => {
     assert.strictEqual((await call('buyer → admin route', 'GET', '/api/v1/admin/users', { token: t.buyer })).status, 403);
   });
 
+  // PLAN T6.3: endpoints added in Phases 2–4 stay within the Free per-invocation D1 budget (asserted in call()).
+  it('new endpoints (PLAN Phases 2–4) through the Worker runtime + D1 driver', async () => {
+    assert.strictEqual((await call('swap stations (public)', 'GET', '/api/v1/charging/swap-stations')).status, 200);
+    assert.strictEqual((await call('battery rental (public)', 'GET', '/api/v1/charging/battery-rental')).status, 200);
+    assert.strictEqual((await call('warranty lookup by VIN', 'GET', '/api/v1/warranties/lookup?vin=SGME2026VN001889', { token: t.buyer })).status, 200);
+    const saved = await call('garage: save TCO result', 'POST', '/api/v1/garage/tco-results', { token: t.buyer, body: { monthlyKm: 1000, carA: { vehicleId: 'tesla-cybertruck', fiveYearTotal: 150000000 } } });
+    assert.strictEqual(saved.status, 201);
+    assert.ok(saved.rowsWritten <= 3, `garage save writes ${saved.rowsWritten} rows`);
+    assert.strictEqual((await call('garage: list TCO results', 'GET', '/api/v1/garage/tco-results', { token: t.buyer })).status, 200);
+    assert.strictEqual((await call('analytics top products', 'GET', '/api/v1/analytics/top-products', { token: t.admin })).status, 200);
+    assert.strictEqual((await call('audit log viewer', 'GET', '/api/v1/admin/audit-logs?limit=20', { token: t.admin })).status, 200);
+    assert.strictEqual((await call('inventory movements', 'GET', '/api/v1/inventory/movements?limit=20', { token: t.admin })).status, 200);
+    assert.strictEqual((await call('workshop parts', 'GET', '/api/v1/workshop/parts', { token: t.admin })).status, 200);
+  });
+
   it('D1 persistence: the order and the new user are rows a fresh isolate can load', async () => {
     const { D1StateStore } = require('../../backend/infrastructure/persistence/d1-state-store');
     const other = new D1StateStore(env.DB, { logger: { error() {} } });

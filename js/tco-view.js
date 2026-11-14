@@ -64,6 +64,17 @@
         console.warn('[TCO] Could not load region presets:', e.message);
       }
 
+      // T1.16: a charging station's published tariff saved from the Charging page (charging-view.js) prefills the
+      // electricity price. It is a one-time handoff, so it is cleared after use.
+      try {
+        const preferredTariff = Number(localStorage.getItem('sigmacar_tco_preferred_tariff'));
+        if (Number.isFinite(preferredTariff) && preferredTariff > 0 && preferredTariff <= 100000) {
+          state.electricityVndPerKwh = preferredTariff;
+          state.tariffFromStation = true;
+          localStorage.removeItem('sigmacar_tco_preferred_tariff');
+        }
+      } catch (e) {}
+
       container.innerHTML = `
         <section class="section" style="padding-top:28px; padding-bottom:64px;">
           <div class="container">
@@ -115,7 +126,7 @@
                   </div>
                   <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
                     <div>
-                      <label class="filter-label" for="tco-elec">Giá điện (đ/kWh)</label>
+                      <label class="filter-label" for="tco-elec">Giá điện (đ/kWh)${state.tariffFromStation ? ' · theo trạm sạc' : ''}</label>
                       <input type="number" id="tco-elec" class="filter-select" min="0" max="100000" step="100" value="${state.electricityVndPerKwh}">
                     </div>
                     <div>
@@ -123,6 +134,23 @@
                       <input type="number" id="tco-fuel" class="filter-select" min="0" max="200000" step="500" value="${state.fuelVndPerLiter}">
                     </div>
                   </div>
+                  <details style="border-top:1px dashed #E2E8F0; padding-top:10px;">
+                    <summary style="cursor:pointer; font-size:12.5px; font-weight:700; color:#0284C7;">+ Quãng đường hằng ngày & mức tiêu thụ thực tế (tùy chọn)</summary>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+                      <div>
+                        <label class="filter-label" for="tco-daily-km">Km/ngày (× 30 = Km/tháng)</label>
+                        <input type="number" id="tco-daily-km" class="filter-select" min="0" max="1600" step="1" value="" placeholder="VD: 40">
+                      </div>
+                      <div>
+                        <label class="filter-label" for="tco-kwh">Điện tiêu thụ (kWh/100km) — xe điện</label>
+                        <input type="number" id="tco-kwh" class="filter-select" min="0" max="200" step="0.1" value="" placeholder="Theo catalog">
+                      </div>
+                      <div>
+                        <label class="filter-label" for="tco-liters">Xăng tiêu thụ (lít/100km) — xe xăng/hybrid</label>
+                        <input type="number" id="tco-liters" class="filter-select" min="0" max="100" step="0.1" value="" placeholder="Theo catalog">
+                      </div>
+                    </div>
+                  </details>
                   <details style="border-top:1px dashed #E2E8F0; padding-top:10px;">
                     <summary style="cursor:pointer; font-size:12.5px; font-weight:700; color:#0284C7;">+ Chi phí cố định tùy chọn (Bảo hiểm, gửi xe, đăng kiểm...)</summary>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
@@ -167,6 +195,19 @@
         const carAId = document.getElementById('tco-car-a')?.value || state.carAId;
         const carBId = document.getElementById('tco-car-b')?.value || state.carBId;
         const region = document.getElementById('tco-region')?.value || 'vietnam';
+        // T1.13: optional daily distance (converted to km/month as ×30 and written back to the visible field) and optional
+        // real-world consumption; empty fields keep the server's catalog/default behaviour unchanged.
+        const dailyKmRaw = document.getElementById('tco-daily-km')?.value;
+        if (dailyKmRaw !== undefined && dailyKmRaw !== '' && Number(dailyKmRaw) >= 0) {
+          const kmField = document.getElementById('tco-km');
+          if (kmField) kmField.value = String(Math.round(Number(dailyKmRaw) * 30));
+        }
+        const optionalNumber = (id) => {
+          const raw = document.getElementById(id)?.value;
+          return raw === undefined || raw === '' ? undefined : Number(raw);
+        };
+        const kWhPer100Km = optionalNumber('tco-kwh');
+        const litersPer100Km = optionalNumber('tco-liters');
         const monthlyKm = Number(document.getElementById('tco-km')?.value || 0);
         const chargingLossPercent = Number(document.getElementById('tco-loss')?.value || 0);
         const electricityVndPerKwh = Number(document.getElementById('tco-elec')?.value || 0);
@@ -187,11 +228,21 @@
           annualRoadFeeVnd,
           annualDepreciationVnd
         };
+        // kWh/100km is labelled for EVs and L/100km for petrol/hybrid cars, so each is sent only to matching cars.
+        const payloadFor = (vehicleId) => {
+          const fuel = (allVehicles.find(v => v.id === vehicleId) || {}).fuel;
+          return {
+            ...basePayload,
+            vehicleId,
+            ...(kWhPer100Km !== undefined && fuel === 'ev' ? { kWhPer100Km } : {}),
+            ...(litersPer100Km !== undefined && fuel !== 'ev' ? { litersPer100Km } : {})
+          };
+        };
 
         try {
           const [resA, resB] = await Promise.all([
-            ApiClient.tco.estimate({ ...basePayload, vehicleId: carAId }),
-            ApiClient.tco.estimate({ ...basePayload, vehicleId: carBId })
+            ApiClient.tco.estimate(payloadFor(carAId)),
+            ApiClient.tco.estimate(payloadFor(carBId))
           ]);
 
           const delta5Y = (resB.annualTotalWithExtras - resA.annualTotalWithExtras) * 5;
@@ -249,9 +300,12 @@
                     : `${esc(resB.vehicleName)} tiết kiệm hơn ~${formatVnd(Math.abs(delta5Y))} trong 5 năm`}
                 </div>
               </div>
-              <span style="font-size:11.5px; background:rgba(56,189,248,0.18); color:#7DD3FC; padding:4px 10px; border-radius:9999px;">
-                Dự toán tham chiếu • Giá đầu vào tự chỉnh
-              </span>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <span style="font-size:11.5px; background:rgba(56,189,248,0.18); color:#7DD3FC; padding:4px 10px; border-radius:9999px;">
+                  Dự toán tham chiếu • Giá đầu vào tự chỉnh
+                </span>
+                <button type="button" id="btn-tco-save-garage" class="btn-secondary" style="padding:6px 12px; font-size:12px;">💾 Lưu vào Gara</button>
+              </div>
             </div>
             ${renderCard('XE A', resA, '#0284C7')}
             ${renderCard('XE B', resB, '#7C3AED')}
@@ -260,6 +314,31 @@
               ${esc(resA.assumptionSource || '')}
             </div>
           `;
+
+          // PLAN T2.7: save this comparison to My Garage (login required; server validates and keeps a snapshot).
+          document.getElementById('btn-tco-save-garage')?.addEventListener('click', async () => {
+            const save = async () => {
+              const summary = (r) => ({ vehicleId: r.vehicleId, fuelType: r.fuelType, monthlyEnergy: (r.monthlyEnergy || 0) + (r.monthlyFuel || 0), annualOperating: r.annualOperating, fiveYearTotal: r.annualTotalWithExtras * 5 });
+              await ApiClient.garageExtras.save('tco-results', {
+                region,
+                monthlyKm,
+                carA: summary(resA),
+                carB: summary(resB),
+                fiveYearSavings: delta5Y,
+                formulaVersion: resA.formulaVersion
+              });
+              if (showToast) showToast('Đã lưu kết quả TCO vào Gara của tôi!', '💾');
+            };
+            try {
+              if (typeof ApiClient.getToken === 'function' && !ApiClient.getToken()) {
+                if (showToast) showToast('Vui lòng đăng nhập để lưu kết quả vào Gara.', '🔑');
+                return;
+              }
+              await save();
+            } catch (e) {
+              if (showToast) showToast(e.message || 'Không lưu được kết quả.', '⚠️');
+            }
+          });
         } catch (err) {
           mount.innerHTML = `<div style="background:#FEF2F2; border:1px solid #FCA5A5; color:#991B1B; padding:16px; border-radius:12px; font-size:13px;">❌ ${esc(err.message || 'Tham số đầu vào không hợp lệ.')}</div>`;
           if (showToast) showToast(err.message || 'Lỗi tính TCO.', '❌');

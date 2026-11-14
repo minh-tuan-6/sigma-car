@@ -7,6 +7,7 @@ const { APPOINTMENT_STATUS, ROLES } = require('../../domain/constants');
 const { canUserTransitionAppointment } = require('../../domain/state-machines');
 const Authorization = require('../../domain/authorization');
 const NotificationService = require('../../application/notification-service');
+const AnalyticsHooks = require('../../application/analytics-hooks'); // PLAN T4.9
 
 const AppointmentRepository = {
   async findById(id) {
@@ -99,6 +100,7 @@ const AppointmentRepository = {
       };
 
       state.appointments.push(newAppt);
+      AnalyticsHooks.trackInState(state, { type: 'test_drive', aggregateId: newAppt.id, userId: newAppt.userId, targetId: newAppt.vehicleId, branchId: newAppt.branchId }); // PLAN T4.9
       NotificationService.enqueueOutboxInState(state, {
         eventType: 'appointment_booked',
         aggregateType: 'appointment',

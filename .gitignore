@@ -37,3 +37,6 @@ dist/
 
 # JSON -> D1 import output (contains user data and password hashes; never commit)
 .d1-migration/
+
+# Generated synthetic demo datasets (scripts/demo/generate-demo-data.js; PLAN.md T5.1)
+data/demo/

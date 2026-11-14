@@ -8,6 +8,7 @@ const Authorization = require('../domain/authorization');
 const PaymentGateway = require('../infrastructure/payment-gateway');
 const InventoryRepository = require('../infrastructure/repositories/inventory-repository');
 const NotificationService = require('./notification-service');
+const AnalyticsHooks = require('./analytics-hooks'); // PLAN T4.9
 
 function createError(message, statusCode = 400, code = 'PAYMENT_ERROR', extra = {}) {
   const err = new Error(message);
@@ -297,6 +298,9 @@ const PaymentService = {
         order.paymentStatus = PAYMENT_STATUS.DEPOSIT_PAID;
       } else {
         order.paymentStatus = PAYMENT_STATUS.PARTIALLY_PAID;
+      }
+      if (order.paymentStatus === PAYMENT_STATUS.FULLY_PAID || order.paymentStatus === PAYMENT_STATUS.DEPOSIT_PAID) {
+        AnalyticsHooks.trackInState(state, { type: 'order_paid', aggregateId: order.id, userId: order.userId, targetId: order.vehicleId, branchId: order.branchId, promoCode: order.promoCode }); // PLAN T4.9
       }
 
       if (isPartialMismatch && !order.exceptionStatus) {

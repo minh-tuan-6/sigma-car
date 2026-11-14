@@ -268,7 +268,7 @@ const OrderRepository = {
         aggregateType: 'order',
         aggregateId: order.id,
         userId: order.userId,
-        templateId: 'order_confirmed',
+        templateId: 'order_status_updated', // PLAN T2.1: text includes the new status
         payload: {
           orderId: order.id,
           orderNumber: order.orderNumber || order.id,

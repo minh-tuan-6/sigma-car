@@ -56,6 +56,18 @@
 
       let onlyDiffs = false;
 
+      // T1.12: catalog field names (certified cars carry isCertified/type 'certified' and batteryHealth "96%";
+      // EV data lives in evSpecs; weight in dimensionsDetail.curbWeight).
+      const isCpo = c => Boolean(c && (c.isUsed || c.isCertified || c.type === 'certified'));
+      const batteryText = c => c.battery || (c.evSpecs && c.evSpecs.batteryCapacity) || null;
+      const sohValue = c => {
+        if (c.measuredBatterySoH != null) return c.measuredBatterySoH;
+        const m = c.batteryHealth != null ? String(c.batteryHealth).match(/(\d+(?:[.,]\d+)?)/) : null;
+        return m ? m[1].replace(',', '.') : null;
+      };
+      const weightText = c => (c.dimensionsDetail && c.dimensionsDetail.curbWeight) || c.curbWeight || c.weight || null;
+      const chargeText = c => (c.evSpecs && c.evSpecs.fastCharge) || c.chargingTime || null;
+
       const specs = [
         {
           label: 'Giá niêm yết',
@@ -63,7 +75,7 @@
         },
         {
           label: 'Phân loại & Nguồn',
-          get: c => ({ text: `${c.isUsed ? 'Xe Cũ Certified' : 'Xe Mới'} • ${c.category || 'Chưa phân loại'}`, norm: `${c.isUsed ? 'used' : 'new'}:${c.category || ''}` })
+          get: c => ({ text: `${isCpo(c) ? 'Xe Cũ Certified' : 'Xe Mới'} • ${c.category || 'Chưa phân loại'}`, norm: `${isCpo(c) ? 'used' : 'new'}:${c.category || ''}` })
         },
         {
           label: 'Loại động cơ',
@@ -87,13 +99,13 @@
         },
         {
           label: 'Dung lượng / Loại pin',
-          get: c => c.battery ? { text: String(c.battery), norm: String(c.battery).trim().toLowerCase() } : { text: 'Chưa công bố', norm: null }
+          get: c => batteryText(c) ? { text: String(batteryText(c)), norm: String(batteryText(c)).trim().toLowerCase() } : { text: 'Chưa công bố', norm: null }
         },
         {
           label: 'Tình trạng pin đo kiểm (SoH)',
           get: c => {
-            if (c.measuredBatterySoH != null) return { text: `${c.measuredBatterySoH}%`, norm: String(c.measuredBatterySoH) };
-            return { text: c.isUsed ? 'Chưa đo kiểm thực tế' : 'Chưa đo kiểm (Xe mới)', norm: null };
+            if (sohValue(c) != null) return { text: `${sohValue(c)}%`, norm: String(sohValue(c)) };
+            return { text: isCpo(c) ? 'Chưa đo kiểm thực tế' : 'Chưa đo kiểm (Xe mới)', norm: null };
           }
         },
         {
@@ -103,6 +115,14 @@
         {
           label: 'Kích thước (D × R × C)',
           get: c => c.dimensions ? { text: String(c.dimensions), norm: String(c.dimensions).trim().toLowerCase() } : { text: 'Chưa công bố', norm: null }
+        },
+        {
+          label: 'Khối lượng không tải',
+          get: c => weightText(c) ? { text: String(weightText(c)), norm: String(weightText(c)).trim().toLowerCase() } : { text: 'Chưa công bố', norm: null }
+        },
+        {
+          label: 'Thời gian sạc nhanh',
+          get: c => chargeText(c) ? { text: String(chargeText(c)), norm: String(chargeText(c)).trim().toLowerCase() } : { text: c.fuel && c.fuel !== 'ev' ? 'Không áp dụng' : 'Chưa công bố', norm: null }
         },
         {
           label: 'Tồn kho thực tế',
@@ -174,7 +194,7 @@
                             ${cars.length > 2 ? `<button type="button" class="p3-compare-remove" data-id="${esc(c.id)}" style="background:#FEE2E2; color:#B91C1C; border:none; border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer; font-weight:700;">Bỏ</button>` : ''}
                           </div>
                           <select class="filter-select p3-compare-slot-select" data-slot="${idx}" style="margin-bottom:8px; font-size:12.5px; font-weight:700;">
-                            ${pool.map(opt => `<option value="${esc(opt.id)}" ${opt.id === c.id ? 'selected' : ''}>${esc(opt.name)}${opt.isUsed ? ' (CPO)' : ''}</option>`).join('')}
+                            ${pool.map(opt => `<option value="${esc(opt.id)}" ${opt.id === c.id ? 'selected' : ''}>${esc(opt.name)}${isCpo(opt) ? ' (CPO)' : ''}</option>`).join('')}
                           </select>
                           <img src="${esc(c.image)}" alt="${esc(c.name)}" style="width:100%; height:110px; object-fit:cover; border-radius:10px; background:#E2E8F0;" onerror="this.style.display='none'">
                         </th>

@@ -5,11 +5,30 @@ const crypto = require('crypto');
 const { dbState, runInTransaction } = require('../infrastructure/storage-engine');
 const Security = require('../infrastructure/security');
 
+const ORDER_STATUS_LABELS_VI = {
+  Pending: 'Chờ xác nhận',
+  Confirmed: 'Đã xác nhận',
+  Preparing: 'Đang chuẩn bị xe',
+  Shipped: 'Đang vận chuyển',
+  Delivered: 'Đã bàn giao',
+  Completed: 'Hoàn tất',
+  Cancelled: 'Đã hủy',
+  Failed: 'Không thành công'
+};
+
 const TEMPLATES = {
   order_confirmed: (p) => ({
     subject: `[SIGMACAR] Xác nhận đơn hàng ${p.orderNumber || p.orderId}`,
     textBody: `Xin chào ${p.buyerName || 'Quý khách'}, đơn hàng ${p.orderNumber || p.orderId} cho mẫu xe ${p.vehicleName || 'SIGMACAR'} tại ${p.branchName || 'Showroom SIGMACAR'} đã được ghi nhận.`
   }),
+  // PLAN T2.1: order status changes (order_confirmed ignores the status, so every change produced the same text).
+  order_status_updated: (p) => {
+    const label = p.statusLabel || ORDER_STATUS_LABELS_VI[p.status] || p.status || 'cập nhật trạng thái';
+    return {
+      subject: `[SIGMACAR] Đơn hàng ${p.orderNumber || p.orderId}: ${label}`,
+      textBody: `Xin chào ${p.buyerName || 'Quý khách'}, đơn hàng ${p.orderNumber || p.orderId} (${p.vehicleName || 'SIGMACAR'}) đã chuyển sang trạng thái "${label}".`
+    };
+  },
   payment_settled: (p) => ({
     subject: `[SIGMACAR] Biên nhận thanh toán đơn ${p.orderNumber || p.orderId}`,
     textBody: `Thanh toán số tiền ${Number(p.amount || 0).toLocaleString('vi-VN')} VNĐ cho đơn ${p.orderNumber || p.orderId} đã được đối soát hợp lệ.`

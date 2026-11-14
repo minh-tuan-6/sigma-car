@@ -6,6 +6,7 @@ const { dbState, runInTransaction } = require('../infrastructure/storage-engine'
 const Security = require('../infrastructure/security');
 const VehicleRepository = require('../infrastructure/repositories/vehicle-repository');
 const FinancingService = require('./financing-service');
+const AdvisorFitRules = require('./advisor-fit-rules'); // PLAN T3.1
 const AIService = require('./ai-service');
 const MediaService = require('./media-service');
 
@@ -74,6 +75,13 @@ function normalizePreferences(input = {}, existing = {}) {
   const dailyKm = src.dailyKm !== undefined
     ? toNullableNonNegativeNumber(src.dailyKm, 'dailyKm', 2000)
     : (existing.dailyKm ?? null);
+  // PLAN T3.1: optional driver profile (advisory only — see advisor-fit-rules.js)
+  const heightCm = src.heightCm !== undefined
+    ? toNullableNonNegativeNumber(src.heightCm, 'heightCm', 250)
+    : (existing.heightCm ?? null);
+  const weightKg = src.weightKg !== undefined
+    ? toNullableNonNegativeNumber(src.weightKg, 'weightKg', 300)
+    : (existing.weightKg ?? null);
 
   let usage = src.usage !== undefined ? String(src.usage || '').trim().toLowerCase() : (existing.usage || null);
   if (usage && !ALLOWED_USAGES.has(usage)) usage = null;
@@ -93,6 +101,8 @@ function normalizePreferences(input = {}, existing = {}) {
     termMonths,
     passengers,
     dailyKm,
+    heightCm,
+    weightKg,
     usage: usage || null,
     chargingAccess,
     retentionDays,
@@ -238,6 +248,12 @@ function scoreAndConstrainVehicles(vehicles, prefs = {}, queryHints = {}) {
       score += 20;
     }
     if (Number(v.stockQuantity ?? v.stock ?? 0) > 0) score += 5;
+
+    // PLAN T3.1: daily distance vs. EV range; height/weight advisory notes (never a hard filter)
+    const fit = AdvisorFitRules.evaluateFit(v, prefs);
+    score += fit.scoreDelta;
+    reasons.push(...fit.reasons);
+    missingData.push(...fit.notes);
 
     return {
       carId: v.id,

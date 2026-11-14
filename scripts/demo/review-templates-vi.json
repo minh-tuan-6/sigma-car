@@ -1,0 +1,37 @@
+{
+  "_note": "Synthetic review / Q&A texts for SIGMACAR demo data (PLAN.md §I). {car} is replaced by the vehicle name.",
+  "realistic": [
+    { "title": "Vận hành êm, đáng tiền", "content": "Đi {car} được vài tháng, xe vận hành êm, cách âm tốt và chi phí sạc thấp hơn hẳn xe xăng cũ của mình." },
+    { "title": "Phù hợp gia đình", "content": "Khoang cabin {car} rộng rãi, ghế sau thoải mái cho cả nhà, cốp đủ chỗ cho chuyến đi cuối tuần." },
+    { "title": "Thủ tục nhanh gọn", "content": "Nhân viên showroom tư vấn kỹ, thủ tục trả góp và đăng ký biển số cho {car} xong trong khoảng hai tuần." },
+    { "title": "Tăng tốc ấn tượng", "content": "{car} tăng tốc rất dứt khoát, vào cua chắc chắn. Hệ thống hỗ trợ lái hoạt động ổn định trên cao tốc." },
+    { "title": "Bảo dưỡng đúng hẹn", "content": "Đặt lịch bảo dưỡng {car} qua ứng dụng, xưởng làm đúng giờ và giải thích rõ từng hạng mục." },
+    { "title": "Còn vài điểm cần cải thiện", "content": "{car} nhìn chung tốt nhưng màn hình trung tâm đôi lúc phản hồi chậm, mong bản cập nhật phần mềm sớm khắc phục." },
+    { "title": "Tiết kiệm chi phí", "content": "So với xe cũ, mỗi tháng mình tiết kiệm đáng kể tiền nhiên liệu khi chuyển sang {car}." }
+  ],
+  "humorous": [
+    { "title": "Vợ cấm đi nhanh", "content": "Mua {car} xong mới biết vấn đề lớn nhất không phải tốc độ mà là ánh mắt của vợ mỗi lần mình đạp ga." },
+    { "title": "Sạc đầy, ví cạn", "content": "Pin {car} đầy lúc nào không hay, ví thì cạn từ hôm đặt cọc. Nhưng nói thật là vẫn vui!" },
+    { "title": "Hàng xóm ghé xem mỗi ngày", "content": "Từ ngày có {car}, hàng xóm sang 'hỏi thăm' còn nhiều hơn dịp Tết. Đề nghị hãng tặng kèm ghế mời khách." },
+    { "title": "Chạy deadline cũng kịp", "content": "Nhờ {car} tăng tốc nhanh, mình nộp báo cáo kịp giờ lần đầu tiên trong năm. Sếp tưởng mình đổi tính." },
+    { "title": "Con mèo cũng thích", "content": "Ghế {car} êm tới mức con mèo nhà mình chiếm chỗ ghế phụ, giờ mình phải xin phép nó mỗi lần chở người yêu." },
+    { "title": "Một vạch pin vẫn bình tĩnh", "content": "Đi {car} còn một vạch pin mà vẫn về tới nhà, cảm giác hồi hộp như xem phim hành động." }
+  ],
+  "questions": [
+    "{car} sạc nhanh từ 10% lên 80% mất khoảng bao lâu ạ?",
+    "{car} có hỗ trợ lái thử tận nhà ở quận mình không ạ?",
+    "Bảo hành pin của {car} áp dụng bao nhiêu năm và bao nhiêu km?",
+    "Trả góp {car} cần trả trước tối thiểu bao nhiêu phần trăm ạ?",
+    "{car} có bản màu nào mới cho năm nay không ạ?"
+  ],
+  "answers": [
+    "Chào anh/chị, thông tin chi tiết đã có tại trang sản phẩm; showroom sẽ liên hệ tư vấn thêm theo nhu cầu cụ thể ạ.",
+    "Dạ, anh/chị vui lòng để lại số điện thoại, chuyên viên SIGMACAR sẽ gọi lại xác nhận trong ngày làm việc ạ."
+  ],
+  "tickets": [
+    { "subject": "Hỏi lịch giao xe {car}", "category": "Đơn hàng & Giao xe" },
+    { "subject": "Ứng dụng không hiện mức pin {car}", "category": "Kỹ thuật & Phần mềm" },
+    { "subject": "Đổi lịch bảo dưỡng {car}", "category": "Bảo hành & Bảo dưỡng" },
+    { "subject": "Xuất hóa đơn VAT cho {car}", "category": "Thanh toán & Hóa đơn" }
+  ]
+}

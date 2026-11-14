@@ -340,6 +340,23 @@ const InventoryRepository = {
     };
   },
 
+  // PLAN T4.4: stock movement history for staff, newest first, limited to branches the user may access.
+  listMovements(user, { vehicleId, branchId, limit } = {}) {
+    const max = Math.min(500, Math.max(1, parseInt(limit, 10) || 100));
+    let rows = Array.isArray(dbState.inventoryMovements) ? [...dbState.inventoryMovements] : [];
+    if (user && user.role !== 'admin') rows = rows.filter(m => Authorization.hasBranchAccess(user, m.branchId));
+    if (vehicleId) rows = rows.filter(m => m.vehicleId === vehicleId);
+    if (branchId && branchId !== 'all') rows = rows.filter(m => m.branchId === branchId);
+    return rows
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+      .slice(0, max)
+      .map(m => {
+        const found = findVehicleRecordInState(dbState, m.vehicleId);
+        const branch = SHOWROOM_BRANCHES.find(b => b.id === m.branchId);
+        return { ...m, vehicleName: found?.record?.name || m.vehicleId, branchName: branch ? branch.name : m.branchId };
+      });
+  },
+
   async listInventory(user, filters = {}) {
     let rows = (dbState.branchInventory || []).map(r => {
       const found = findVehicleRecordInState(dbState, r.vehicleId);
@@ -372,7 +389,7 @@ const InventoryRepository = {
       throw createError('Bạn không có quyền điều chỉnh tồn kho.', 403, 'FORBIDDEN');
     }
     Authorization.assertAuthorized(
-      Authorization.canAccessBranchResource(user, branchId),
+      Authorization.canAccessBranchResource(user, { branchId }), // T1.8: expects a record, not a bare id
       'Bạn không có quyền điều chỉnh kho của chi nhánh khác.',
       403,
       'BRANCH_FORBIDDEN'

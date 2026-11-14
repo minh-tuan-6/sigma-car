@@ -787,7 +787,9 @@ const EcommerceService = {
         throw err;
       }
 
-      if ([ORDER_STATUS.PENDING, ORDER_STATUS.CANCELLED, ORDER_STATUS.FAILED].includes(matchedOrder.orderStatus)) {
+      // T1.14: a warranty starts at handover, so only delivered/completed orders qualify (previously Confirmed,
+      // Preparing and Shipped orders could be activated before the car was handed over).
+      if (![ORDER_STATUS.DELIVERED, ORDER_STATUS.COMPLETED].includes(matchedOrder.orderStatus)) {
         const err = new Error(`Đơn hàng ${matchedOrder.orderNumber || matchedOrder.id} đang ở trạng thái "${matchedOrder.orderStatus}" nên chưa đủ điều kiện kích hoạt bảo hành.`);
         err.statusCode = 409;
         err.code = 'ORDER_NOT_ELIGIBLE';
@@ -1219,6 +1221,7 @@ const EcommerceService = {
       authorName: review.authorName,
       authorTier: review.authorTier || 'Thành viên SIGMACAR',
       verifiedPurchase: Boolean(review.verifiedPurchase),
+      ...(review.isDemo ? { isDemo: true } : {}), // PLAN T5.3: synthetic demo reviews are labelled "· Demo" in the UI
       rating: Number(review.rating),
       criteria: review.criteria || {},
       title: review.title,

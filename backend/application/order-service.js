@@ -82,7 +82,21 @@ const OrderService = {
       'FORBIDDEN'
     );
 
-    return await OrderRepository.markPaymentComplete(order.id, user, paymentDetails);
+    // T0.1: never trust client-supplied settlement evidence. Gateway webhooks settle orders in payment-service, not here,
+    // so `verifiedByWebhook` is always dropped. Only an admin may supply a settlement amount/reference; everyone else is
+    // limited to a verified payment intent (amount taken from the intent) and a display payment method.
+    const isAdmin = Boolean(user && user.role === 'admin');
+    const src = paymentDetails && typeof paymentDetails === 'object' ? paymentDetails : {};
+    const safeDetails = {};
+    if (src.paymentIntentId !== undefined) safeDetails.paymentIntentId = String(src.paymentIntentId);
+    if (src.paymentMethod !== undefined) safeDetails.paymentMethod = Security.sanitizeString(String(src.paymentMethod));
+    if (isAdmin) {
+      if (src.amount !== undefined) safeDetails.amount = src.amount;
+      if (src.transactionRef !== undefined) safeDetails.transactionRef = src.transactionRef;
+      if (src.adminVerified !== undefined) safeDetails.adminVerified = src.adminVerified;
+    }
+
+    return await OrderRepository.markPaymentComplete(order.id, user, safeDetails);
   },
 
   async updateOrderStatus(orderId, targetStatus, user, note = '') {

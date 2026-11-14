@@ -1,8 +1,56 @@
 // backend/application/accessory-service.js
 // Normalized Accessory & EV Component Catalog with Typed Compatibility Matrix (SIG-P3-010)
 
-const { dbState } = require('../infrastructure/storage-engine');
+const { dbState, runInTransaction } = require('../infrastructure/storage-engine');
 const Security = require('../infrastructure/security');
+
+// PLAN T4.3: admin catalog management (create / update / archive). Shared field normaliser.
+function accessoryError(message, statusCode = 400, code = 'ACCESSORY_ERROR') {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  err.code = code;
+  return err;
+}
+
+function normalizeAccessoryInput(data = {}, { partial = false } = {}) {
+  const out = {};
+  const str = (v, max) => Security.sanitizeString(String(v)).slice(0, max);
+  if (!partial || data.name !== undefined) {
+    if (!data.name || String(data.name).trim().length < 3) throw accessoryError('Tên phụ kiện tối thiểu 3 ký tự.', 400, 'VALIDATION_ERROR');
+    out.name = str(data.name, 160);
+  }
+  if (!partial || data.price !== undefined) {
+    const price = Number(data.price);
+    if (!Number.isFinite(price) || price <= 0 || price > 10000000000) throw accessoryError('Giá phụ kiện phải là số dương hợp lệ.', 400, 'VALIDATION_ERROR');
+    out.price = Math.round(price);
+    out.priceFormatted = `${out.price.toLocaleString('vi-VN')} VNĐ`;
+  }
+  if (data.quantity !== undefined || !partial) {
+    const qty = data.quantity === undefined ? 0 : Number(data.quantity);
+    if (!Number.isInteger(qty) || qty < 0 || qty > 100000) throw accessoryError('Số lượng tồn phải là số nguyên >= 0.', 400, 'VALIDATION_ERROR');
+    out.quantity = qty;
+  }
+  for (const [k, max] of [['brand', 80], ['category', 80], ['specs', 400], ['color', 60], ['badge', 40]]) {
+    if (data[k] !== undefined) out[k] = str(data[k], max);
+  }
+  if (data.image !== undefined) {
+    if (data.image && !/^(?:\/)?assets\/[A-Za-z0-9_\-./]+\.(jpg|jpeg|png|webp)$/i.test(String(data.image))) {
+      throw accessoryError('Ảnh phụ kiện phải là tệp trong thư mục assets/.', 400, 'VALIDATION_ERROR');
+    }
+    out.image = data.image || 'assets/garage-car-detail.jpg';
+  }
+  if (data.compatibility !== undefined) {
+    const list = Array.isArray(data.compatibility) ? data.compatibility : [data.compatibility];
+    out.compatibility = list.map(x => str(x, 80)).filter(Boolean).slice(0, 50);
+    if (out.compatibility.length === 0) out.compatibility = ['all'];
+  }
+  if (data.warrantyMonths !== undefined) {
+    const w = Number(data.warrantyMonths);
+    if (!Number.isInteger(w) || w < 0 || w > 120) throw accessoryError('Bảo hành (tháng) không hợp lệ.', 400, 'VALIDATION_ERROR');
+    out.warrantyMonths = w;
+  }
+  return out;
+}
 
 const TYPED_COMPATIBILITY_RULES = {
   'ACC-001': { anyVehicle: true, note: 'Tương thích phổ thông mọi xe sử dụng nguồn tẩu / USB-C 12V' },
@@ -138,7 +186,7 @@ const AccessoryService = {
       ? ((dbState.vehicles || []).find(v => v.id === vehicleId) || (dbState.certifiedVehicles || []).find(v => v.id === vehicleId) || null)
       : null;
 
-    const rawItems = (dbState.accessories || []).map(a => {
+    const rawItems = (dbState.accessories || []).filter(a => !a.archived).map(a => { // PLAN T4.3: archived SKUs hidden
       const rule = a.compatibilityRule || TYPED_COMPATIBILITY_RULES[a.id] || null;
       const fit = evaluateFitForVehicle(a, vehicle);
       const stockQty = Number.isFinite(Number(a.quantity)) ? Number(a.quantity) : Number(a.stock || 0);
@@ -205,6 +253,49 @@ const AccessoryService = {
       compatibilityRule: item.compatibilityRule || TYPED_COMPATIBILITY_RULES[item.id] || null,
       ...fit
     };
+  },
+
+  // PLAN T4.3: admin-only catalog management. Typed compatibility rules of seeded SKUs are never touched.
+  async createAccessory(data = {}, user) {
+    if (!user || user.role !== 'admin') throw accessoryError('Chỉ Quản trị viên được thêm phụ kiện.', 403, 'FORBIDDEN');
+    const fields = normalizeAccessoryInput(data);
+    const rawSku = data.sku || data.id;
+    return runInTransaction(async (state) => {
+      this.ensureSkusInState(state);
+      const sku = rawSku
+        ? String(rawSku).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 40)
+        : `ACC-${Date.now().toString(36).toUpperCase()}`;
+      if (sku.length < 3) throw accessoryError('Mã SKU tối thiểu 3 ký tự chữ/số.', 400, 'VALIDATION_ERROR');
+      if ((state.accessories || []).some(a => a.id === sku)) throw accessoryError(`Mã SKU "${sku}" đã tồn tại.`, 409, 'DUPLICATE_SKU');
+      const created = {
+        id: sku,
+        brand: 'SIGMACAR',
+        category: 'Phụ kiện',
+        image: 'assets/garage-car-detail.jpg',
+        compatibility: ['all'],
+        ...fields,
+        itemKind: 'accessory',
+        createdBy: user.userId,
+        createdAt: new Date().toISOString()
+      };
+      state.accessories.push(created);
+      return created;
+    });
+  },
+
+  async updateAccessory(sku, data = {}, user) {
+    if (!user || user.role !== 'admin') throw accessoryError('Chỉ Quản trị viên được sửa phụ kiện.', 403, 'FORBIDDEN');
+    const fields = normalizeAccessoryInput(data, { partial: true });
+    return runInTransaction(async (state) => {
+      this.ensureSkusInState(state);
+      const item = (state.accessories || []).find(a => a.id === String(sku || '').trim());
+      if (!item) throw accessoryError(`Không tìm thấy mã phụ kiện "${sku}".`, 404, 'ACCESSORY_NOT_FOUND');
+      Object.assign(item, fields);
+      if (data.archived !== undefined) item.archived = Boolean(data.archived);
+      item.updatedBy = user.userId;
+      item.updatedAt = new Date().toISOString();
+      return { ...item, sku: item.id };
+    });
   }
 };
 

@@ -291,9 +291,62 @@ const ApiClient = {
       const downPaymentAmount = Math.round(price * (downPercent / 100));
       const financedPrincipal = price - downPaymentAmount;
       const monthlyRate = (rate / 100) / 12;
-      const monthlyPayment = monthlyRate === 0
-        ? Math.round(financedPrincipal / months)
-        : Math.round(financedPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1));
+      // T1.18: mirror backend FinancingService.calculateLoan (same rounding) so the offline demo shows the first-month
+      // figures, honours the repayment method and evaluates DTI like the server.
+      const method = body.repaymentMethod === 'equal_principal' ? 'equal_principal' : (body.repaymentMethod === 'flat' ? 'flat' : 'annuity');
+      const basePrincipal = Math.floor(financedPrincipal / months);
+      let monthlyPayment;
+      let firstMonthPayment;
+      let lastMonthPayment;
+      let totalInterest;
+      if (monthlyRate === 0) {
+        monthlyPayment = Math.round(financedPrincipal / months);
+        firstMonthPayment = monthlyPayment;
+        lastMonthPayment = monthlyPayment;
+        totalInterest = 0;
+      } else if (method === 'flat') {
+        const flatInterest = Math.round(financedPrincipal * monthlyRate);
+        firstMonthPayment = (months === 1 ? financedPrincipal : basePrincipal) + flatInterest;
+        lastMonthPayment = (financedPrincipal - basePrincipal * (months - 1)) + flatInterest;
+        monthlyPayment = firstMonthPayment;
+        totalInterest = flatInterest * months;
+      } else if (method === 'equal_principal') {
+        firstMonthPayment = (months === 1 ? financedPrincipal : basePrincipal) + Math.round(financedPrincipal * monthlyRate);
+        const lastOpening = financedPrincipal - basePrincipal * (months - 1);
+        lastMonthPayment = lastOpening + Math.round(lastOpening * monthlyRate);
+        monthlyPayment = firstMonthPayment;
+        totalInterest = Math.round(financedPrincipal * monthlyRate * (months + 1) / 2);
+      } else {
+        monthlyPayment = Math.round(financedPrincipal * (monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1));
+        firstMonthPayment = monthlyPayment;
+        lastMonthPayment = monthlyPayment;
+        totalInterest = Math.max(0, (monthlyPayment * months) - financedPrincipal);
+      }
+      const firstMonthPrincipal = method === 'equal_principal' && monthlyRate !== 0
+        ? (months === 1 ? financedPrincipal : basePrincipal)
+        : basePrincipal;
+      let affordability = null;
+      const income = Number(body.monthlyIncome);
+      if (body.monthlyIncome !== undefined && body.monthlyIncome !== null && body.monthlyIncome !== '' && Number.isFinite(income) && income > 0) {
+        const obligation = Math.max(0, Number(body.monthlyObligation || 0)) || 0;
+        const totalDebt = firstMonthPayment + obligation;
+        const dtiPercent = Math.round((totalDebt / income) * 1000) / 10;
+        const riskBand = dtiPercent > 50 ? 'stretched' : (dtiPercent > 40 ? 'moderate' : 'comfortable');
+        affordability = {
+          monthlyIncome: income,
+          monthlyObligation: obligation,
+          proposedVehicleInstallment: firstMonthPayment,
+          totalMonthlyDebt: totalDebt,
+          dtiPercent,
+          riskBand,
+          eligibleForStandardLender: dtiPercent <= 50,
+          advisory: riskBand === 'stretched'
+            ? 'Tỷ lệ trả nợ vượt 50% thu nhập — ngân hàng có thể yêu cầu tăng tỷ lệ trả trước hoặc đồng vay.'
+            : (riskBand === 'moderate'
+              ? 'Tỷ lệ trả nợ ở mức trung bình khá (40% - 50% thu nhập). Cần chứng minh nguồn thu ổn định.'
+              : 'Tỷ lệ trả nợ trên thu nhập (DTI) ở mức an toàn (<= 40%).')
+        };
+      }
       return {
         success: true,
         staticReadOnly: true,
@@ -304,9 +357,15 @@ const ApiClient = {
           financedPrincipal,
           annualInterestRate: rate,
           termMonths: months,
+          repaymentMethod: method,
           monthlyPayment,
-          totalInterest: Math.max(0, (monthlyPayment * months) - financedPrincipal),
-          totalCostOfLoan: price + Math.max(0, (monthlyPayment * months) - financedPrincipal)
+          firstMonthPayment,
+          firstMonthPrincipal,
+          lastMonthPayment,
+          totalInterest,
+          totalCostOfLoan: price + totalInterest,
+          isEstimateOnly: true,
+          ...(affordability ? { affordability } : {})
         }
       };
     }
@@ -449,6 +508,16 @@ const ApiClient = {
       return res.data;
     },
 
+    // T1.3: set (not flip) a favourite on the server. The endpoint only toggles, so if the server ends up in the other
+    // state (the UI and server had drifted apart), toggle once more.
+    async setSavedCar(vehicleId, wantSaved) {
+      let result = await this.toggleSavedCar(vehicleId);
+      if (result && typeof result.saved === 'boolean' && result.saved !== Boolean(wantSaved)) {
+        result = await this.toggleSavedCar(vehicleId);
+      }
+      return result;
+    },
+
     async unsubscribe(payload = {}) {
       const res = await ApiClient.request('/unsubscribe', {
         method: 'POST',
@@ -583,6 +652,10 @@ const ApiClient = {
       const res = await ApiClient.request('/financing/applications');
       return res.data || [];
     },
+    // T1.2: the seller dashboard and buyer profile call listApplications().
+    async listApplications() {
+      return this.getApplications();
+    },
     async reviewApplication(id, payload) {
       const res = await ApiClient.request(`/financing/applications/${encodeURIComponent(id)}/review`, {
         method: 'PATCH',
@@ -614,7 +687,21 @@ const ApiClient = {
 
     async getTimeline(orderId) {
       const res = await ApiClient.request(`/orders/${encodeURIComponent(orderId)}/timeline`);
-      return res.data;
+      const data = res.data || {};
+      // T1.4: order history entries are {status, paymentStatus, note, timestamp}; the timeline modals render
+      // {label, detail, at}. Add those display fields and keep the original ones.
+      const raw = Array.isArray(data.events) ? data.events : (Array.isArray(data.timeline) ? data.timeline : []);
+      const fmt = (iso) => {
+        const t = Date.parse(iso);
+        return Number.isFinite(t) ? new Date(t).toLocaleString('vi-VN') : (iso || '');
+      };
+      const events = raw.map(ev => ({
+        ...ev,
+        label: ev.label || ev.type || [ev.status, ev.paymentStatus].filter(Boolean).join(' · ') || 'Cập nhật',
+        detail: ev.detail || ev.note || '',
+        at: ev.at || fmt(ev.timestamp || ev.createdAt)
+      }));
+      return { ...data, events };
     },
 
     async updateStatus(orderId, status, note = '') {
@@ -642,7 +729,17 @@ const ApiClient = {
       if (date) params.set('date', date);
       if (category) params.set('category', category);
       const res = await ApiClient.request(`/appointments/slots?${params.toString()}`);
-      return res.data;
+      const data = res.data || {};
+      // T1.7: the booking form reads slot.timeSlot / slot.remaining and branch.homeServiceDistricts; the server sends
+      // remainingCapacity / isAvailable and a top-level homeServiceDistricts (the offline demo sends `time`).
+      const slots = (Array.isArray(data.slots) ? data.slots : []).map(s => {
+        const remaining = typeof s.remainingCapacity === 'number'
+          ? s.remainingCapacity
+          : (typeof s.remaining === 'number' ? s.remaining : (s.isAvailable === false || s.available === false ? 0 : 1));
+        return { ...s, timeSlot: s.timeSlot || s.time, remaining: s.isAvailable === false ? 0 : remaining };
+      });
+      const homeServiceDistricts = data.homeServiceDistricts || data.branch?.homeServiceDistricts || [];
+      return { ...data, slots, branch: { ...(data.branch || {}), homeServiceDistricts } };
     },
 
     async reschedule(apptId, payload) {
@@ -996,8 +1093,14 @@ const ApiClient = {
         wrong_spec: 'mismatch_spec',
         change_of_mind: 'exchange_model'
       };
+      // T1.5: uploaded evidence is sent as mediaIds (the server verifies ownership/scan status and rebuilds the photo
+      // list). Signed /api/v1/media/... URLs have no file extension, so they must not also be sent as photos.
+      const mediaIds = Array.isArray(payload.mediaIds) ? payload.mediaIds.filter(Boolean) : [];
+      const isOwnMediaUrl = (u) => /\/api\/v1\/media\//.test(String(u || ''));
       const photos = Array.isArray(payload.photos)
-        ? payload.photos.map(p => (typeof p === 'string' ? { name: p.split('/').pop() || 'photo.jpg', url: p, sizeKb: 300 } : p))
+        ? payload.photos
+          .filter(p => !(mediaIds.length > 0 && typeof p === 'string' && isOwnMediaUrl(p)))
+          .map(p => (typeof p === 'string' ? { name: p.split('?')[0].split('/').pop() || 'photo.jpg', url: p, sizeKb: 300 } : p))
         : [];
       const res = await ApiClient.request('/returns', {
         method: 'POST',
@@ -1009,6 +1112,7 @@ const ApiClient = {
           actualCondition: payload.vehicleConditionNote || payload.actualCondition,
           currentOdoKm: payload.odoKm ?? payload.currentOdoKm ?? 100,
           photos,
+          ...(mediaIds.length > 0 ? { mediaIds } : {}),
           pickupDate: payload.pickupDate,
           pickupTimeSlot: payload.pickupSlot || payload.pickupTimeSlot,
           pickupAddress: payload.pickupAddress,
@@ -1056,6 +1160,11 @@ const ApiClient = {
 
   // Section 3: Digital Warranty & Maintenance Lifecycle
   warranties: {
+    // PLAN T2.4: warranty coverage by VIN (owner / branch staff / admin).
+    async lookup(vin) {
+      const res = await ApiClient.request(`/warranties/lookup?vin=${encodeURIComponent(String(vin || '').trim())}`);
+      return res.data;
+    },
     async getOverview() {
       const res = await ApiClient.request('/warranties');
       return res.data;
@@ -1122,7 +1231,8 @@ const ApiClient = {
           maxOdo: c.maxOdo || c.limit || '160.000 km',
           condition: c.condition || c.scope || 'Bảo hành chính hãng'
         })),
-        maintenanceMilestones: data.maintenanceMilestones || []
+        maintenanceMilestones: data.maintenanceMilestones || [],
+        reminders: Array.isArray(data.reminders) ? data.reminders : [] // T1.14: server-computed maintenance reminders
       };
     },
 
@@ -1208,6 +1318,30 @@ const ApiClient = {
 
   // Section 4: Verified Reviews & Community Q&A
   reviews: {
+    // T1.1: the product page (app.js loadAndRenderVehicleReviews) calls getForVehicle({vehicleId, star, verifiedOnly,
+    // sort}) and reads the server's raw shape (stats, reviews, questions, currentUserEligibility).
+    async getForVehicle({ vehicleId, star, verifiedOnly, sort } = {}) {
+      const params = new URLSearchParams();
+      if (vehicleId) params.set('vehicleId', vehicleId);
+      if (star && star !== 'all') params.set('star', star);
+      if (verifiedOnly) params.set('verifiedOnly', 'true');
+      if (sort) params.set('sort', sort);
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const res = await ApiClient.request(`/reviews${qs}`);
+      return res.data || {};
+    },
+
+    // T1.1 aliases used by app.js; they keep the server message for the toast.
+    async delete(reviewId) {
+      const res = await ApiClient.request(`/reviews/${encodeURIComponent(reviewId)}`, { method: 'DELETE' });
+      return { message: res.message, ...(res.data || {}) };
+    },
+
+    async toggleHelpful(reviewId) {
+      const res = await ApiClient.request(`/reviews/${encodeURIComponent(reviewId)}/helpful`, { method: 'POST' });
+      return { message: res.message, ...(res.data || {}) };
+    },
+
     async getByVehicle(vehicleId, filters = {}) {
       const params = new URLSearchParams();
       if (vehicleId) params.set('vehicleId', vehicleId);
@@ -1327,11 +1461,14 @@ const ApiClient = {
     },
 
     async answerQuestion(questionId, payload) {
+      // T1.1: app.js passes the answer text as a plain string.
+      const content = typeof payload === 'string' ? payload : (payload && (payload.answer || payload.content));
       const res = await ApiClient.request(`/questions/${encodeURIComponent(questionId)}/answer`, {
         method: 'POST',
-        body: JSON.stringify({ content: payload.answer || payload.content })
+        body: JSON.stringify({ content })
       });
-      return res.data || res;
+      const data = res.data || res;
+      return data && typeof data === 'object' && !Array.isArray(data) ? { message: res.message, ...data } : data;
     },
 
     async updateQuestion(questionId, payload) {
@@ -1366,6 +1503,24 @@ const ApiClient = {
 
   // Section 5: Customer Support Center & Ticketing
   support: {
+    // T1.6: guest tickets are readable only with the accessToken returned at creation. Remember it for this browser
+    // session (by ticket id and code) and send it on lookup / reply / rate.
+    _guestTokens() {
+      try { return JSON.parse(sessionStorage.getItem('sigmacar_ticket_tokens') || '{}') || {}; } catch (e) { return {}; }
+    },
+    _rememberGuestToken(ticket) {
+      if (!ticket || !ticket.accessToken) return;
+      try {
+        const map = this._guestTokens();
+        if (ticket.id) map[ticket.id] = ticket.accessToken;
+        if (ticket.ticketCode) map[ticket.ticketCode] = ticket.accessToken;
+        sessionStorage.setItem('sigmacar_ticket_tokens', JSON.stringify(map));
+      } catch (e) {}
+    },
+    _guestTokenFor(key) {
+      return key ? (this._guestTokens()[key] || null) : null;
+    },
+
     async getCenterData(filters = {}) {
       const params = new URLSearchParams();
       if (filters.faqCategory && filters.faqCategory !== 'all') params.set('faqCategory', filters.faqCategory);
@@ -1402,8 +1557,9 @@ const ApiClient = {
       return d.kpis || {};
     },
 
-    async lookupTicket(code) {
-      const res = await ApiClient.request(`/support/tickets/lookup?code=${encodeURIComponent(code)}`);
+    async lookupTicket(code, accessToken) {
+      const token = accessToken || this._guestTokenFor(code);
+      const res = await ApiClient.request(`/support/tickets/lookup?code=${encodeURIComponent(code)}${token ? `&accessToken=${encodeURIComponent(token)}` : ''}`);
       const t = res.data;
       return {
         ...t,
@@ -1416,7 +1572,7 @@ const ApiClient = {
 
     async createTicket(payload) {
       const attachments = Array.isArray(payload.attachments)
-        ? payload.attachments.map(a => ({ name: a.name || 'file.png', url: a.url, sizeKb: Math.round((a.sizeBytes || 200000) / 1024) }))
+        ? payload.attachments.map(a => ({ name: String(a.name || 'file.png').split('?')[0] || 'file.png', url: a.url, sizeKb: Math.round((a.sizeBytes || 200000) / 1024) })) // T1.6: no query string in the file name
         : [];
       const res = await ApiClient.request('/support/tickets', {
         method: 'POST',
@@ -1427,13 +1583,15 @@ const ApiClient = {
           attachments
         })
       });
+      this._rememberGuestToken(res.data);
       return res.data || res;
     },
 
     async replyTicket(ticketId, payload) {
+      const token = (payload && payload.accessToken) || this._guestTokenFor(ticketId);
       const res = await ApiClient.request(`/support/tickets/${encodeURIComponent(ticketId)}/reply`, {
         method: 'POST',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(token ? { ...payload, accessToken: token } : payload)
       });
       return res.data || res;
     },
@@ -1455,9 +1613,10 @@ const ApiClient = {
     },
 
     async rate(ticketId, payload) {
+      const token = (payload && payload.accessToken) || this._guestTokenFor(ticketId);
       const res = await ApiClient.request(`/support/tickets/${encodeURIComponent(ticketId)}/rate`, {
         method: 'POST',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(token ? { ...payload, accessToken: token } : payload)
       });
       return res.data || res;
     }
@@ -1621,6 +1780,10 @@ const ApiClient = {
       const qStr = qs.toString() ? `?${qs.toString()}` : '';
       const res = await ApiClient.request(`/inventory${qStr}`);
       return res.data || [];
+    },
+    // T1.8: the seller dashboard loads branch stock through inventory.list().
+    async list(params = {}) {
+      return this.getAll(params);
     },
     async adjust(vehicleId, payload) {
       const res = await ApiClient.request(`/inventory/${encodeURIComponent(vehicleId)}`, {
@@ -2126,6 +2289,25 @@ const ApiClient = {
     }
   },
 
+  // PLAN T2.7: My Garage extras (kind = 'tco-results' | 'recommendations'), owner-only.
+  garageExtras: {
+    async list(kind) {
+      const res = await ApiClient.request(`/garage/${encodeURIComponent(kind)}`);
+      return res.data || [];
+    },
+    async save(kind, payload) {
+      const res = await ApiClient.request(`/garage/${encodeURIComponent(kind)}`, {
+        method: 'POST',
+        body: JSON.stringify(payload || {})
+      });
+      return res.data;
+    },
+    async remove(kind, id) {
+      const res = await ApiClient.request(`/garage/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return res.data;
+    }
+  },
+
   charging: {
     async findStations(params = {}) {
       const qs = new URLSearchParams();
@@ -2137,6 +2319,34 @@ const ApiClient = {
       const qStr = qs.toString() ? `?${qs.toString()}` : '';
       const res = await ApiClient.request(`/charging/stations${qStr}`);
       return res.data;
+    },
+
+    // PLAN T2.5: battery swap stations & rental policy. Without the API (static/offline), read the same public
+    // reference file the server uses (data/battery-ecosystem.json).
+    async _batteryReferenceFile() {
+      const r = await fetch('data/battery-ecosystem.json', { headers: { Accept: 'application/json' } });
+      if (!r.ok) throw new Error('Không tải được dữ liệu đổi pin & thuê pin.');
+      return r.json();
+    },
+    async getSwapStations(params = {}) {
+      try {
+        const qs = new URLSearchParams();
+        if (params.province) qs.set('province', params.province);
+        const res = await ApiClient.request(`/charging/swap-stations${qs.toString() ? `?${qs}` : ''}`);
+        return res.data;
+      } catch (err) {
+        const ref = await this._batteryReferenceFile();
+        return { source: ref.source, lastReviewed: ref.lastReviewed, liveAvailabilitySupported: false, disclaimer: ref.disclaimer, stations: ref.swapStations || [] };
+      }
+    },
+    async getBatteryRental() {
+      try {
+        const res = await ApiClient.request('/charging/battery-rental');
+        return res.data;
+      } catch (err) {
+        const ref = await this._batteryReferenceFile();
+        return { source: ref.source, lastReviewed: ref.lastReviewed, disclaimer: ref.disclaimer, plans: ref.rentalPlans || [], policies: ref.policies || [] };
+      }
     }
   }
 };

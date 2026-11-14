@@ -143,6 +143,7 @@
         <div id="chg-results-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap:18px;">
           <div style="grid-column:1/-1; padding:36px; text-align:center; color:#64748B;">Đang tải dữ liệu trạm sạc từ hệ thống...</div>
         </div>
+        <div id="chg-battery-mount"></div>
       </section>
     `;
 
@@ -263,6 +264,11 @@
     });
 
     await fetchAndRender();
+
+    // PLAN T2.5: battery swap stations & battery rental, rendered below the station grid (js/battery-view.js).
+    if (window.SigmaBatteryView && typeof window.SigmaBatteryView.mount === 'function') {
+      window.SigmaBatteryView.mount(document.getElementById('chg-battery-mount'));
+    }
   }
 
   window.SigmaChargingView = {

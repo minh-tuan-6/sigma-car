@@ -9,6 +9,7 @@ const InventoryRepository = require('../infrastructure/repositories/inventory-re
 const PricingService = require('./pricing-service');
 const PromotionService = require('./promotion-service');
 const NotificationService = require('./notification-service');
+const AnalyticsHooks = require('./analytics-hooks'); // PLAN T4.9
 
 function createError(message, statusCode = 400, code = 'CHECKOUT_ERROR', extra = {}) {
   const err = new Error(message);
@@ -249,6 +250,7 @@ const CheckoutService = {
       };
 
       state.orders.push(newOrder);
+      AnalyticsHooks.trackInState(state, { type: 'checkout', aggregateId: newOrder.id, userId: newOrder.userId, targetId: newOrder.vehicleId, branchId: newOrder.branchId, promoCode: newOrder.promoCode }); // PLAN T4.9
 
       if (userCart) {
         userCart.items = [];

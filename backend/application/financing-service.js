@@ -51,6 +51,27 @@ function buildAmortizationSchedule({ financedPrincipal, annualInterestRatePercen
     return { schedule, totalInterest: 0, totalPrincipal: principalP };
   }
 
+  // PLAN T3.10: flat rate ("lãi phẳng") — interest on the ORIGINAL principal every month; principal split evenly.
+  if (repaymentMethod === 'flat') {
+    const basePrincipal = Math.floor(principalP / months);
+    const flatInterest = Math.round(principalP * monthlyRate);
+    for (let m = 1; m <= months; m++) {
+      const principalPaid = m === months ? balance : basePrincipal;
+      const closing = Math.max(0, balance - principalPaid);
+      totalInterest += flatInterest;
+      schedule.push({
+        month: m,
+        openingBalance: balance,
+        principalPaid,
+        interestPaid: flatInterest,
+        payment: principalPaid + flatInterest,
+        closingBalance: closing
+      });
+      balance = closing;
+    }
+    return { schedule, totalInterest, totalPrincipal: principalP };
+  }
+
   if (repaymentMethod === 'equal_principal') {
     const basePrincipal = Math.floor(principalP / months);
     for (let m = 1; m <= months; m++) {
@@ -164,7 +185,7 @@ const FinancingService = {
       throw createValidationError('Kỳ hạn vay phải tối thiểu 1 tháng (tối đa 120 tháng).');
     }
 
-    const method = repaymentMethod === 'equal_principal' ? 'equal_principal' : 'annuity';
+    const method = repaymentMethod === 'equal_principal' ? 'equal_principal' : (repaymentMethod === 'flat' ? 'flat' : 'annuity');
     const downPaymentAmount = Math.round(price * (downPct / 100));
     const principalP = Math.max(0, price - downPaymentAmount);
 
@@ -179,6 +200,18 @@ const FinancingService = {
       firstMonthPayment = monthlyPayment;
       lastMonthPayment = monthlyPayment;
       totalInterest = 0;
+      if (includeSchedule) {
+        schedule = buildAmortizationSchedule({ financedPrincipal: principalP, annualInterestRatePercent: ratePct, termMonths: months, repaymentMethod: method }).schedule;
+      }
+    } else if (method === 'flat') {
+      // PLAN T3.10: flat rate — fixed interest on the original principal; first month carries floor(P/m) principal.
+      const monthlyRateR = (ratePct / 100) / 12;
+      const flatInterest = Math.round(principalP * monthlyRateR);
+      const basePrincipal = Math.floor(principalP / months);
+      firstMonthPayment = (months === 1 ? principalP : basePrincipal) + flatInterest;
+      lastMonthPayment = (principalP - basePrincipal * (months - 1)) + flatInterest;
+      monthlyPayment = firstMonthPayment;
+      totalInterest = flatInterest * months;
       if (includeSchedule) {
         schedule = buildAmortizationSchedule({ financedPrincipal: principalP, annualInterestRatePercent: ratePct, termMonths: months, repaymentMethod: method }).schedule;
       }

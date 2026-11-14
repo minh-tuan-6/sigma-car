@@ -54,7 +54,7 @@ if (externalUsdz.length) {
 const publicDataDir = path.join(distDir, 'data');
 fs.mkdirSync(publicDataDir, { recursive: true });
 
-const publicDataWhitelist = ['ar-manifest.json'];
+const publicDataWhitelist = ['ar-manifest.json', 'battery-ecosystem.json']; // battery-ecosystem.json: PLAN T2.5 public reference data
 publicDataWhitelist.forEach(file => {
   const src = path.join(rootDir, 'data', file);
   if (fs.existsSync(src)) {

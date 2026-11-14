@@ -134,6 +134,11 @@
         };
         const canEdit = !currentCase || currentCase.status === 'draft' || currentCase.status === 'documents_pending' || currentCase.status === 'Nháp (Chưa nộp)';
         const statusDisplay = currentCase ? (REG_STATUS_LABELS[currentCase.status] || currentCase.status) : 'Chưa khởi tạo hồ sơ';
+        // PLAN T2.6: staff progression (same order as backend VALID_CASE_TRANSITIONS; the server enforces it).
+        const STAFF_NEXT_STATUS = { submitted: 'tax_filing', tax_filing: 'plate_issuance', plate_issuance: 'completed' };
+        const viewer = (typeof ApiClient !== 'undefined' && ApiClient.getCurrentUser) ? ApiClient.getCurrentUser() : null;
+        const isStaffViewer = Boolean(viewer && ['seller', 'admin'].includes(viewer.role));
+        const staffNextStatus = isStaffViewer && currentCase ? (STAFF_NEXT_STATUS[currentCase.status] || null) : null;
 
         body.innerHTML = `
           <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:14px; margin-bottom:16px;">
@@ -179,6 +184,16 @@
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
               <button type="button" id="btn-save-reg-draft" class="btn-secondary" style="padding:10px 16px;">💾 Lưu nháp hồ sơ</button>
               <button type="button" id="btn-submit-reg-case" class="btn-primary" style="padding:10px 18px;">📤 Nộp hồ sơ đăng ký</button>
+            </div>
+          ` : ''}
+
+          ${staffNextStatus ? `
+            <div style="border:1px dashed #93C5FD; background:#EFF6FF; border-radius:10px; padding:14px; margin-top:12px;">
+              <label class="filter-label">NHÂN VIÊN — CẬP NHẬT TIẾN ĐỘ HỒ SƠ</label>
+              <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                ${staffNextStatus === 'plate_issuance' ? `<input type="text" id="reg-staff-plate" class="filter-input" placeholder="Biển số, VD: 30K-123.45" style="max-width:220px;">` : ''}
+                <button type="button" id="btn-reg-staff-advance" class="btn-primary" style="padding:10px 16px;">➡️ Chuyển sang: ${escapeHtml(REG_STATUS_LABELS[staffNextStatus] || staffNextStatus)}</button>
+              </div>
             </div>
           ` : ''}
 
@@ -243,6 +258,19 @@
             });
             await ApiClient.registration.submitCase(saved.id);
             if (showToast) showToast('Đã nộp hồ sơ đăng ký biển số thành công!', '🎉');
+            await loadAndRender();
+            if (onUpdated) onUpdated();
+          } catch (err) {
+            if (showToast) showToast(err.message, '⚠️');
+          }
+        });
+
+        body.querySelector('#btn-reg-staff-advance')?.addEventListener('click', async () => {
+          try {
+            const payload = { status: staffNextStatus };
+            if (staffNextStatus === 'plate_issuance') payload.plateNumber = (body.querySelector('#reg-staff-plate')?.value || '').trim();
+            await ApiClient.registration.updateStatus(currentCase.id, payload);
+            if (showToast) showToast(`Đã cập nhật hồ sơ: ${REG_STATUS_LABELS[staffNextStatus] || staffNextStatus}`, '✓');
             await loadAndRender();
             if (onUpdated) onUpdated();
           } catch (err) {
