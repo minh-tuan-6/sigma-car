@@ -37,3 +37,28 @@
 /js/libs/draco/*.wasm
   Content-Type: application/wasm
   Cache-Control: public, max-age=31536000, immutable
+
+/ar
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/ar/*
+  Cache-Control: no-cache, no-store, must-revalidate
+  Permissions-Policy: camera=(self), xr-spatial-tracking=(self), gyroscope=(self), accelerometer=(self), magnetometer=(self)
+
+/js/ar/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/vendor/*
+  Cache-Control: public, max-age=86400
+
+/js/vendor/three/addons/libs/*.wasm
+  Content-Type: application/wasm
+
+/js/vendor/three/addons/libs/draco/gltf/*.wasm
+  Content-Type: application/wasm
+
+/js/vendor/three/addons/libs/basis/*.wasm
+  Content-Type: application/wasm
+
+/data/ar/*
+  Cache-Control: public, max-age=300

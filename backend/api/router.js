@@ -2,7 +2,8 @@
 // Versioned RESTful API Route Dispatcher for SIGMACAR (/api/v1/...)
 
 const url = require('url');
-const { ensureRequestId, sendJSON, sendError, authenticate, authorize, checkRateLimit, parseBody } = require('./middleware');
+const { ensureRequestId, sendJSON, sendError, authenticate, authorize, checkRateLimit, enforceProxySecret, parseBody } = require('./middleware');
+const ArManifestService = require('../application/ar-manifest-service');
 const AuthService = require('../application/auth-service');
 const VehicleRepository = require('../infrastructure/repositories/vehicle-repository');
 const InventoryRepository = require('../infrastructure/repositories/inventory-repository');
@@ -65,6 +66,9 @@ async function handleApiRequest(req, res) {
       }
     });
   }
+
+  // Reject direct traffic that bypasses the Cloudflare proxy when PROXY_SHARED_SECRET is configured
+  if (!enforceProxySecret(req, res)) return;
 
   // Rate Limiting
   if (!checkRateLimit(req, res)) return;
@@ -158,6 +162,22 @@ async function handleApiRequest(req, res) {
       const id = decodeURIComponent(pathname.replace('/api/v1/vehicles/', '').replace('/related', ''));
       const related = await VehicleRepository.findRelated(id, 3);
       return sendJSON(res, 200, { success: true, data: related });
+    }
+
+    if (pathname.startsWith('/api/v1/vehicles/') && pathname.endsWith('/ar-manifest') && method === 'GET') {
+      const id = decodeURIComponent(pathname.slice('/api/v1/vehicles/'.length, -'/ar-manifest'.length));
+      if (!id || id.includes('/')) {
+        return sendError(res, 400, 'Mã xe không hợp lệ.', 'BAD_REQUEST');
+      }
+      const vehicle = await VehicleRepository.findById(id);
+      if (!vehicle) {
+        return sendError(res, 404, `Không tìm thấy thông tin xe với mã "${id}".`, 'NOT_FOUND');
+      }
+      const manifest = ArManifestService.buildArManifest(vehicle);
+      if (!manifest) {
+        return sendError(res, 404, `Xe "${id}" chưa có mô hình 3D hỗ trợ AR.`, 'AR_MODEL_UNAVAILABLE');
+      }
+      return sendJSON(res, 200, { success: true, data: manifest }, { 'Cache-Control': 'public, max-age=60' });
     }
 
     if (pathname.startsWith('/api/v1/vehicles/') && method === 'GET') {

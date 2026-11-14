@@ -82,6 +82,16 @@ function buildConfig(envOverrides = {}) {
   const dataFile = envOverrides.SIGMACAR_DATA_FILE || process.env.SIGMACAR_DATA_FILE || defaultStoreFile;
   const allowDevSeed = nodeEnv !== 'production' && (envOverrides.SIGMACAR_ALLOW_DEV_SEED ?? process.env.SIGMACAR_ALLOW_DEV_SEED) !== 'false';
 
+  // Reverse-proxy trust (Cloudflare Pages Function → this backend).
+  // TRUST_PROXY=true makes the rate limiter key on the forwarded client IP instead of the proxy's IP.
+  // PROXY_SHARED_SECRET (optional, >= 32 chars) must then match the X-Sigma-Proxy-Secret header sent by the
+  // Pages Function; when set, /api/v1/* requests without it are rejected (except the health probe).
+  const trustProxy = (envOverrides.TRUST_PROXY ?? process.env.TRUST_PROXY) === 'true';
+  const proxySharedSecret = String(envOverrides.PROXY_SHARED_SECRET ?? process.env.PROXY_SHARED_SECRET ?? '').trim();
+  if (proxySharedSecret && proxySharedSecret.length < 32) {
+    throw new Error('[FATAL] PROXY_SHARED_SECRET must be at least 32 characters when set.');
+  }
+
   return {
     port: parseInt(envOverrides.PORT || process.env.PORT || '3000', 10),
     nodeEnv,
@@ -96,6 +106,24 @@ function buildConfig(envOverrides = {}) {
     cors: {
       allowedOrigins: parsedOrigins.length > 0 ? parsedOrigins : (nodeEnv === 'production' ? [] : defaultDevOrigins),
       allowWildcardInDev: nodeEnv !== 'production' && parsedOrigins.length === 0
+    },
+
+    // HTTP / proxy settings (server.js & middleware read config.http.*)
+    http: {
+      maxJsonBodyBytes: parseInt(process.env.MAX_JSON_BODY_BYTES || String(1024 * 1024), 10),
+      requestTimeoutMs: parseInt(process.env.REQUEST_TIMEOUT_MS || '30000', 10),
+      enableLegacyOllamaProxy: process.env.ENABLE_LEGACY_OLLAMA_PROXY === 'true',
+      trustProxy,
+      proxySharedSecret
+    },
+
+    // Storage runtime consumed by backend/infrastructure/storage-engine.js.
+    // (Previously missing: the engine reads config.storage, so SIGMACAR_DATA_FILE was silently ignored and dev
+    //  seeding stayed enabled in production.) `mode` is intentionally not exported here: the engine keeps its
+    //  historical default ('json' at module load) and tests switch modes explicitly via configureStorage().
+    storage: {
+      dataFile,
+      allowDevSeed
     },
 
     // Database Configuration
@@ -157,5 +185,7 @@ function buildConfig(envOverrides = {}) {
 
 const config = buildConfig();
 config.buildConfig = buildConfig;
+// server.js historically reads config.env; keep it in sync with nodeEnv.
+config.env = config.nodeEnv;
 
 module.exports = config;

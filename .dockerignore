@@ -1,0 +1,19 @@
+node_modules
+dist
+.git
+.github
+.env
+.env.*
+tests
+docs
+assets
+!assets/models/manifests
+vehicle-template
+about car
+Dự án thương mại điện tử
+Dự án thương mại điện tử 2
+Dự án thương mại điện tử 3
+*.exe
+*.mov
+*.MOV
+*.mp4

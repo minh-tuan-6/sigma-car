@@ -1,1 +1,9 @@
-/*    /index.html   200
+# Cloudflare Pages routing.
+# /api/v1/* is handled by the Pages Function in functions/api/v1/[[path]].js (Functions run before these rules).
+#
+# Dedicated AR page: /ar/<vehicleId> is served by ar.html (Pages serves ar.html at /ar).
+# The target must not be /ar/index.html: Pages strips index/.html, re-matches /ar/* and ignores the rule as a loop.
+/ar/*  /ar  200
+#
+# SPA shell: no rule needed. Without a top-level 404.html, Pages serves index.html for unknown paths.
+# (The former "/* /index.html 200" rule was reported by `wrangler pages dev` as an infinite loop and ignored.)

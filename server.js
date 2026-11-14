@@ -23,12 +23,14 @@ const MIME_TYPES = {
   '.pdf': 'application/pdf',
   '.glb': 'model/gltf-binary',
   '.gltf': 'model/gltf+json',
-  '.usdz': 'model/vnd.usdz+zip'
+  '.usdz': 'model/vnd.usdz+zip',
+  '.wasm': 'application/wasm'
 };
 
 const ROOT_DIR = fs.realpathSync(__dirname);
 const ALLOWED_PUBLIC_FILES = new Set([
   '/index.html',
+  '/ar.html',
   '/data/ar-manifest.json',
   '/data/public-catalog.json',
   '/favicon.ico'
@@ -142,7 +144,11 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const targetReqPath = decodedPathname === '/' ? '/index.html' : decodedPathname;
+  let targetReqPath = decodedPathname === '/' ? '/index.html' : decodedPathname;
+  // Dedicated AR page: /ar and /ar/:vehicleId are served by ar.html (mirrors the Cloudflare `_redirects` rewrite)
+  if (/^\/ar(\/[^/]*)?\/?$/.test(targetReqPath)) {
+    targetReqPath = '/ar.html';
+  }
   if (!isPublicAssetPath(targetReqPath)) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('404 Not Found');

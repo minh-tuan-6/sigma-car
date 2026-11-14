@@ -23,7 +23,6 @@ it('All JavaScript modules compile without syntax errors', () => {
     'scripts/build_dist.js',
     'scripts/normalize_cybertruck_ar.js',
     'js/ar-manifest.js',
-    'js/ar-adapter.js',
     'js/car-3d-viewer.js',
     'js/data.js'
   ];
@@ -124,13 +123,12 @@ it('AR Manifest provides accurate vehicle verification and dynamic configuration
 });
 
 // 4. Phase 3 - AR Core Integration & Adapter API
-it('SigmaARAdapter exists and exposes lifecycle, AR activation and material APIs', () => {
-  const adapter = require(path.resolve('js/ar-adapter.js'));
-  assert(typeof adapter.init === 'function', 'init must be a function');
-  assert(typeof adapter.activateAR === 'function', 'activateAR must be a function');
-  assert(typeof adapter.setVehicleColor === 'function', 'setVehicleColor must be a function');
-  assert(typeof adapter.dispose === 'function', 'dispose must be a function');
-  assert(typeof adapter.isSupported === 'function', 'isSupported must be a function');
+// The legacy SigmaARAdapter (js/ar-adapter.js) was replaced by the modular WebXR engine in js/ar/ served on
+// the dedicated page /ar/:vehicleId. Its behaviour is covered by tests/unit/ar_*.test.js and tests/e2e/.
+it('Dedicated AR page and modular WebXR engine are present', () => {
+  assert(fs.existsSync(path.resolve('ar.html')), 'ar.html must exist');
+  assert(fs.existsSync(path.resolve('js/ar/ar-app.js')), 'js/ar/ar-app.js must exist');
+  assert(!fs.existsSync(path.resolve('js/ar-adapter.js')), 'legacy js/ar-adapter.js must be removed');
 
   // Verify model-viewer library is self-hosted locally
   assert(fs.existsSync(path.resolve('js/libs/model-viewer.min.js')), 'js/libs/model-viewer.min.js must exist');
@@ -151,8 +149,9 @@ it('AppState and router functions in js/app.js synchronize vehicle configuration
   // Check router deep-link targetHash handling
   assert(appCode.includes("route === 'detail' || route === 'vehicle-detail' || route === 'vr-ar' || route === 'ar-live'"), 'Router must handle carId hash parameter');
 
-  // Check renderCurrentRoute disposal
-  assert(appCode.includes('window.SigmaARAdapter.dispose()'), 'renderCurrentRoute must dispose SigmaARAdapter when leaving ar-live');
+  // AR CTAs open the dedicated AR page with the persisted configuration
+  assert(appCode.includes("window.location.assign('/ar/' + encodeURIComponent(id)"), 'openArLive must navigate to /ar/:vehicleId');
+  assert(appCode.includes("VEHICLE_CONFIG_STORAGE_KEY = 'sigmacar_vehicle_configs_v1'"), 'vehicle configuration must be persisted for the AR page');
 });
 
 // 6. Phase 5 - Mobile Optimization & CSS Integrity
@@ -172,7 +171,11 @@ it('scripts/build_dist.js bundles all AR assets, models, libraries and manifests
   assert(fs.existsSync(path.join(distDir, 'index.html')), 'dist/index.html missing');
   assert(fs.existsSync(path.join(distDir, '_headers')), 'dist/_headers missing');
   assert(fs.existsSync(path.join(distDir, 'js/ar-manifest.js')), 'dist/js/ar-manifest.js missing');
-  assert(fs.existsSync(path.join(distDir, 'js/ar-adapter.js')), 'dist/js/ar-adapter.js missing');
+  assert(fs.existsSync(path.join(distDir, 'ar.html')), 'dist/ar.html missing');
+  assert(fs.existsSync(path.join(distDir, 'js/ar/ar-app.js')), 'dist/js/ar/ar-app.js missing');
+  assert(fs.existsSync(path.join(distDir, 'js/vendor/three/three.module.min.js')), 'vendored three.js missing');
+  assert(fs.existsSync(path.join(distDir, 'data/ar/tesla-cybertruck.json')), 'static AR manifest snapshot missing');
+  assert(!fs.existsSync(path.join(distDir, 'js/ar-adapter.js')), 'retired ar-adapter.js must not ship');
   assert(fs.existsSync(path.join(distDir, 'js/libs/model-viewer.min.js')), 'dist/js/libs/model-viewer.min.js missing');
   assert(fs.existsSync(path.join(distDir, 'data/ar-manifest.json')), 'dist/data/ar-manifest.json missing');
 

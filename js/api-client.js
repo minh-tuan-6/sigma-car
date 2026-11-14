@@ -34,6 +34,40 @@ const ApiClient = {
 
   staticHostDetected: false,
 
+  // Last reason the live API was considered unavailable ({ code, status }), for diagnostics UI.
+  lastBackendIssue: null,
+
+  // Error codes emitted by the Pages Function proxy when the backend itself is unavailable.
+  PROXY_OUTAGE_CODES: ['BACKEND_NOT_CONFIGURED', 'BACKEND_ORIGIN_INVALID', 'BACKEND_UNREACHABLE', 'UPSTREAM_TIMEOUT', 'UPSTREAM_INVALID_RESPONSE'],
+
+  getApiBase() {
+    return API_BASE;
+  },
+
+  // Probes GET /health and classifies the result. Never throws.
+  // → { status: 'online' | 'static-host' | 'proxy-outage' | 'offline' | 'error', code?, httpStatus?, data? }
+  async checkHealth(timeoutMs = 6000) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+      const res = await fetch(`${API_BASE}/health`, { headers: { Accept: 'application/json' }, signal: controller ? controller.signal : undefined });
+      const ctype = res.headers.get('content-type') || '';
+      if (ctype.includes('text/html')) return { status: 'static-host', code: 'STATIC_HOST_NO_API', httpStatus: res.status };
+      const proxyCode = res.headers.get('x-sigma-proxy-error');
+      if (proxyCode) return { status: 'proxy-outage', code: proxyCode, httpStatus: res.status };
+      let data = null;
+      try { data = await res.json(); } catch (_) { data = null; }
+      if (res.ok && data && data.success && data.data && data.data.status === 'ok') {
+        return { status: 'online', httpStatus: res.status, data: data.data };
+      }
+      return { status: 'error', code: (data && data.error && data.error.code) || 'INVALID_HEALTH_RESPONSE', httpStatus: res.status };
+    } catch (err) {
+      return { status: 'offline', code: err && err.name === 'AbortError' ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR' };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  },
+
   setDemoMode(enabled) {
     try {
       const next = Boolean(enabled);
@@ -110,6 +144,15 @@ const ApiClient = {
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('text/html') && res.ok) {
         // Static CDN SPA rewrite returned index.html instead of an API server
+        this.lastBackendIssue = { code: 'STATIC_HOST_NO_API', status: res.status };
+        return this.handleStaticFallback(endpoint, options);
+      }
+
+      // The Cloudflare Pages Function proxy (functions/api/v1/[[path]].js) is up but the backend is not:
+      // degrade exactly like a static host (public reads from the bundled catalog, writes fail loudly).
+      const proxyErrorCode = res.headers.get('x-sigma-proxy-error');
+      if (proxyErrorCode && this.PROXY_OUTAGE_CODES.includes(proxyErrorCode)) {
+        this.lastBackendIssue = { code: proxyErrorCode, status: res.status };
         return this.handleStaticFallback(endpoint, options);
       }
 

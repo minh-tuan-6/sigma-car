@@ -14,7 +14,7 @@ if (fs.existsSync(distDir)) {
 }
 fs.mkdirSync(distDir, { recursive: true });
 
-const filesToCopy = ['index.html', '_headers', '_redirects'];
+const filesToCopy = ['index.html', 'ar.html', '_headers', '_redirects'];
 filesToCopy.forEach(f => {
   const src = path.join(rootDir, f);
   if (fs.existsSync(src)) {
@@ -55,8 +55,23 @@ if (fs.existsSync(storePath)) {
       faqs: Array.isArray(store.faqs) ? store.faqs : []
     };
     fs.writeFileSync(path.join(publicDataDir, 'public-catalog.json'), JSON.stringify(publicCatalog, null, 2), 'utf8');
+
+    // Static AR manifest snapshots (same builder as GET /api/v1/vehicles/:id/ar-manifest). Used by the AR page
+    // only when the live API is unreachable; the page labels the data source.
+    const { buildArManifest } = require('../backend/application/ar-manifest-service');
+    const arDir = path.join(publicDataDir, 'ar');
+    fs.mkdirSync(arDir, { recursive: true });
+    let arCount = 0;
+    for (const v of publicCatalog.vehicles) {
+      const manifest = buildArManifest(v);
+      if (manifest && /^[a-z0-9][a-z0-9-]{0,79}$/.test(manifest.vehicleId)) {
+        fs.writeFileSync(path.join(arDir, `${manifest.vehicleId}.json`), JSON.stringify(manifest), 'utf8');
+        arCount++;
+      }
+    }
+    console.log(`🧭 Emitted ${arCount} static AR manifest snapshots to dist/data/ar/`);
   } catch (err) {
-    console.warn('⚠️ Could not generate public-catalog.json from store:', err.message);
+    console.warn('⚠️ Could not generate public-catalog.json / AR snapshots from store:', err.message);
   }
 }
 

@@ -31,3 +31,6 @@ Thumbs.db
 npm-debug.log*
 
 dist/
+
+# Local Cloudflare wrangler state
+.wrangler/

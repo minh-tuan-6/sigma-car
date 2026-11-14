@@ -18,8 +18,9 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install production dependencies
-        run: npm ci --omit=dev
+      # Dev dependencies are required: the AR engine tests import the pinned three.js vendored in js/vendor/
+      - name: Install dependencies
+        run: npm ci
 
       - name: Syntax check core JS files
         run: |
@@ -27,6 +28,8 @@ jobs:
           node --check backend/api/router.js
           node --check js/api-client.js
           node --check js/app.js
+          node --check "functions/api/v1/[[path]].js"
+          for f in $(find js/ar -name "*.js"); do node --check "$f"; done
 
       - name: Data integrity audit
         run: node scripts/audit-data-integrity.js

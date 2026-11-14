@@ -77,9 +77,49 @@ function authorize(req, res, allowedRoles) {
   return user;
 }
 
+function safeEqual(a, b) {
+  const ab = Buffer.from(String(a || ''), 'utf8');
+  const bb = Buffer.from(String(b || ''), 'utf8');
+  if (ab.length !== bb.length || ab.length === 0) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
+// True when the request carries the shared secret injected by the Cloudflare Pages Function proxy.
+function hasValidProxySecret(req) {
+  const secret = config.http && config.http.proxySharedSecret;
+  if (!secret) return false;
+  return safeEqual(req.headers && req.headers['x-sigma-proxy-secret'], secret);
+}
+
+// When PROXY_SHARED_SECRET is configured, only the proxy may call the API directly.
+// Returns false (and responds 403) for requests that bypass the proxy.
+function enforceProxySecret(req, res) {
+  const secret = config.http && config.http.proxySharedSecret;
+  if (!secret) return true;
+  if (hasValidProxySecret(req)) return true;
+  sendError(res, 403, 'Yêu cầu phải đi qua cổng API SIGMACAR.', 'PROXY_SECRET_REQUIRED');
+  return false;
+}
+
+// Resolve the real client IP. Forwarded headers are only honoured when the operator opted in (TRUST_PROXY=true)
+// or the request is authenticated as coming from our proxy; otherwise they are attacker-controlled.
+function getClientIp(req) {
+  const socketIp = (req.socket && req.socket.remoteAddress) || '127.0.0.1';
+  const trust = (config.http && config.http.trustProxy) || hasValidProxySecret(req);
+  if (!trust || !req.headers) return socketIp;
+  const cfIp = req.headers['cf-connecting-ip'];
+  if (typeof cfIp === 'string' && cfIp.trim() && cfIp.length <= 64) return cfIp.trim();
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.trim()) {
+    const first = xff.split(',')[0].trim();
+    if (first && first.length <= 64) return first;
+  }
+  return socketIp;
+}
+
 // Rate limiter check
 function checkRateLimit(req, res) {
-  const ip = (req.socket && req.socket.remoteAddress) || '127.0.0.1';
+  const ip = getClientIp(req);
   const check = Security.checkRateLimit(ip);
   if (!check.allowed) {
     sendError(res, 429, 'Quá nhiều yêu cầu trong thời gian ngắn. Vui lòng thử lại sau giây lát.', 'RATE_LIMITED');
@@ -166,5 +206,7 @@ module.exports = {
   authenticate,
   authorize,
   checkRateLimit,
+  getClientIp,
+  enforceProxySecret,
   parseBody
 };

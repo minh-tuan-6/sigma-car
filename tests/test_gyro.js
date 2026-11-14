@@ -530,24 +530,13 @@ function getSpherical(viewer) {
     vMot.dispose();
   });
 
-  test('10. AR Adapter exports & App UI controls match exact requirements', () => {
-    const adapterCode = fs.readFileSync(path.resolve('js/ar-adapter.js'), 'utf8');
+  // The gyro-driven "AR Live" camera overlay (js/ar-adapter.js) was retired in favour of real WebXR AR on
+  // /ar/:vehicleId; gyro control remains a 3D showroom feature (car-3d-viewer.js), checked here.
+  test('10. Showroom gyro controls remain wired after the AR engine replacement', () => {
     const appCode = fs.readFileSync(path.resolve('js/app.js'), 'utf8');
     const htmlCode = fs.readFileSync(path.resolve('index.html'), 'utf8');
-
-    assert(adapterCode.includes('resetGyroOrientation'), 'ar-adapter.js must expose resetGyroOrientation');
-    assert(adapterCode.includes('calibrateGyro'), 'ar-adapter.js must expose calibrateGyro');
-    assert(adapterCode.includes('setGyroTrackingMode'), 'ar-adapter.js must expose setGyroTrackingMode');
-    assert(appCode.includes('btn-ar-dock-gyro'), 'app.js must include AR dock Gyro button');
-    assert(appCode.includes('btn-ar-dock-gyro-recenter'), 'app.js must include AR dock Recenter button');
     assert(appCode.includes('btn-vr-gyro'), 'app.js must include VR Showroom Gyro button');
-    assert(appCode.includes('ar-gyro-status-indicator'), 'app.js must include AR Gyro status indicator');
-    assert(appCode.includes('btn-mode-world-lock'), 'app.js must include AR World-Lock Motion Tracking switch');
-    assert(appCode.includes('GYRO ACTIVE'), 'app.js must display GYRO ACTIVE status');
-    assert(appCode.includes('Motion Tracking Enabled'), 'app.js must display Motion Tracking Enabled status');
-    assert(appCode.includes('GYRO NOT AVAILABLE'), 'app.js must display GYRO NOT AVAILABLE status');
-    assert(appCode.includes('MOTION PERMISSION REQUIRED'), 'app.js must display MOTION PERMISSION REQUIRED status');
-    assert(appCode.includes('Invert Horizontal') && appCode.includes('Invert Vertical'), 'app.js must include Invert controls');
+    assert(!htmlCode.includes('js/ar-adapter.js'), 'index.html must not load the retired AR adapter');
     assert(htmlCode.includes('js/car-3d-viewer.js?v=20.0'), 'index.html cache buster must be updated to v=20.0');
   });
 
