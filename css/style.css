@@ -2761,6 +2761,21 @@ img {
   z-index: 2;
 }
 
+/* Text on the dark banner must stay light (global p / heading colours are dark). */
+.dashboard-banner-header h1,
+.dashboard-banner-header h2,
+.dashboard-banner-header h3,
+.dashboard-banner-header h4 {
+  color: #FFFFFF;
+}
+
+.dashboard-banner-header p,
+.dashboard-banner-header li,
+.dashboard-banner-header small,
+.dashboard-banner-header span:not([class*="tag"]):not([class*="badge"]) {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
 /* Detail Gallery Thumbnails Strip */
 .detail-gallery-strip {
   display: flex;
