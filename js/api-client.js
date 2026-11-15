@@ -44,6 +44,161 @@ const ApiClient = {
     return API_BASE;
   },
 
+  // ---- Connectivity state ------------------------------------------------------------------------------------
+  // Backend availability is tracked separately from authentication (401/403 are answers from a live API) and from
+  // Demo Sandbox (opt-in only, never enabled here):
+  //   'unknown'      page just loaded, nothing confirmed yet
+  //   'online'       a response matching the SIGMACAR API contract was received (see isApiContractResponse)
+  //   'static-host'  /api/v1 returned the SPA shell or a non-JSON 404/405: no API behind this host
+  //   'proxy-outage' the Pages proxy answered but reports the backend unavailable (X-Sigma-Proxy-Error)
+  //   'offline'      network error, request timeout, browser offline event or failed health check
+  // staticHostDetected (the "Static Preview" banner) is true only for 'static-host' / 'proxy-outage'.
+  // Every request / health check takes a sequence number when it starts; an observation is applied only if no
+  // later-started one has already decided, so a slow stale failure cannot overwrite a newer confirmed 'online'.
+  connectivity: 'unknown',
+  _connSeq: 0,
+  _stateSeq: 0,
+  _retryTimer: null,
+  _retryDelayMs: 0,
+  _healthInFlight: null,
+  _autoRetry: false,
+  RETRY_MIN_MS: 5000,
+  RETRY_MAX_MS: 60000,
+
+  _nextSeq() {
+    this._connSeq += 1;
+    return this._connSeq;
+  },
+
+  _emit(type, detail) {
+    try {
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent(type, { detail }));
+      }
+    } catch (_) {}
+  },
+
+  _isCrossOriginApi() {
+    if (!/^https?:\/\//i.test(API_BASE)) return false;
+    try {
+      return typeof window === 'undefined' || !window.location || new URL(API_BASE).origin !== window.location.origin;
+    } catch (_) {
+      return true;
+    }
+  },
+
+  // True only for responses produced by the SIGMACAR API (not a CDN page, captive portal or arbitrary JSON):
+  // JSON content type + the API envelope ({ success: true } or { success: false, error: { code: 'UPPER_CASE' } })
+  // + the backend's X-Request-Id or the Pages proxy marker (X-Sigma-Proxy: 1). A cross-origin API base cannot read
+  // those headers without CORS exposure, so only the envelope is checked there.
+  isApiContractResponse(res, data) {
+    if (!res || !res.headers || typeof res.headers.get !== 'function') return false;
+    const ctype = String(res.headers.get('content-type') || '').toLowerCase();
+    if (!ctype.includes('application/json')) return false;
+    if (!data || typeof data !== 'object' || Array.isArray(data) || typeof data.success !== 'boolean') return false;
+    if (data.success === false) {
+      const e = data.error;
+      if (!e || typeof e !== 'object' || typeof e.code !== 'string' || !/^[A-Z][A-Z0-9_]{1,63}$/.test(e.code)) return false;
+    }
+    if (this._isCrossOriginApi()) return true;
+    const requestId = res.headers.get('x-request-id');
+    return Boolean((requestId && /^[A-Za-z0-9._-]{4,64}$/.test(requestId)) || res.headers.get('x-sigma-proxy') === '1');
+  },
+
+  // fetch() rejects with these when the network (not the server) failed. Other TypeErrors are programming errors
+  // and must surface instead of silently switching the site to the static catalog.
+  isNetworkError(err) {
+    const msg = String((err && err.message) || '');
+    return /failed to fetch|networkerror|load failed|network connection was lost|fetch failed|network request failed|internet connection appears to be offline/i.test(msg);
+  },
+
+  // Applies a connectivity observation unless a later-started request / health check already decided.
+  _applyConnectivity(seq, state, issue = null) {
+    if (seq < this._stateSeq) return false;
+    this._stateSeq = seq;
+    const prevState = this.connectivity;
+    const prevStatic = this.staticHostDetected;
+    const prevCode = this.lastBackendIssue && this.lastBackendIssue.code;
+    this.connectivity = state;
+    this.staticHostDetected = state === 'static-host' || state === 'proxy-outage';
+    this.lastBackendIssue = state === 'online' ? null : (issue || { code: 'UNKNOWN' });
+    if (state === 'online') this._clearRetry();
+    else this._scheduleRetry();
+    const nextCode = this.lastBackendIssue && this.lastBackendIssue.code;
+    if (prevState !== state || prevCode !== nextCode) {
+      this._emit('sigmacar:connectivity-changed', { state, previous: prevState, issue: this.lastBackendIssue });
+    }
+    if (state === 'online' && prevState !== 'online') this._emit('sigmacar:backend-online', { previous: prevState });
+    if (this.staticHostDetected && !prevStatic) this._emit('sigmacar:static-host-detected', { code: nextCode });
+    return true;
+  },
+
+  // At most one retry timer; exponential backoff 5 s → 60 s; cleared as soon as connectivity is confirmed.
+  _scheduleRetry() {
+    if (!this._autoRetry || this._retryTimer) return;
+    const delay = this._retryDelayMs ? Math.min(this._retryDelayMs * 2, this.RETRY_MAX_MS) : this.RETRY_MIN_MS;
+    this._retryDelayMs = delay;
+    this._retryTimer = setTimeout(() => {
+      this._retryTimer = null;
+      this.verifyConnectivity();
+    }, delay);
+  },
+
+  _clearRetry() {
+    if (this._retryTimer) clearTimeout(this._retryTimer);
+    this._retryTimer = null;
+    this._retryDelayMs = 0;
+  },
+
+  // Health probe that updates the connectivity state. Concurrent calls share one in-flight probe.
+  verifyConnectivity() {
+    if (this._healthInFlight) return this._healthInFlight;
+    const seq = this._nextSeq();
+    this._healthInFlight = (async () => {
+      try {
+        const r = await this.checkHealth();
+        const state = r.status === 'online' ? 'online'
+          : (r.status === 'static-host' || r.status === 'proxy-outage') ? r.status : 'offline';
+        this._applyConnectivity(seq, state, state === 'online' ? null : { code: r.code || 'HEALTH_CHECK_FAILED', status: r.httpStatus });
+        return r;
+      } finally {
+        this._healthInFlight = null;
+        // A stale result may have been ignored: keep retrying while the current state is not confirmed online.
+        if (this.connectivity !== 'online' && this.connectivity !== 'unknown') this._scheduleRetry();
+      }
+    })();
+    return this._healthInFlight;
+  },
+
+  // Browser wiring (called once from this file in the browser): online/offline events, one startup probe if no
+  // API call has decided yet, retry while not online. Returns false when there is no window (tests, workers).
+  initConnectivity({ startupDelayMs = 2500 } = {}) {
+    if (this._connInit || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return false;
+    this._connInit = true;
+    this._autoRetry = true;
+    window.addEventListener('online', () => {
+      this._clearRetry();
+      this.verifyConnectivity();
+    });
+    window.addEventListener('offline', () => {
+      this._applyConnectivity(this._nextSeq(), 'offline', { code: 'BROWSER_OFFLINE' });
+    });
+    this._startupTimer = setTimeout(() => {
+      this._startupTimer = null;
+      if (this.connectivity === 'unknown') this.verifyConnectivity();
+    }, startupDelayMs);
+    if (this.connectivity !== 'online' && this.connectivity !== 'unknown') this._scheduleRetry();
+    return true;
+  },
+
+  // Stops timers and listeners' effects (tests / teardown).
+  stopConnectivity() {
+    this._autoRetry = false;
+    this._clearRetry();
+    if (this._startupTimer) clearTimeout(this._startupTimer);
+    this._startupTimer = null;
+  },
+
   // Probes GET /health and classifies the result. Never throws.
   // → { status: 'online' | 'static-host' | 'proxy-outage' | 'offline' | 'error', code?, httpStatus?, data? }
   async checkHealth(timeoutMs = 6000) {
@@ -58,6 +213,8 @@ const ApiClient = {
       let data = null;
       try { data = await res.json(); } catch (_) { data = null; }
       if (res.ok && data && data.success && data.data && data.data.status === 'ok') {
+        // HTTP 200 + {status:'ok'} is not enough: it must come from the SIGMACAR API.
+        if (!this.isApiContractResponse(res, data)) return { status: 'error', code: 'UNVERIFIED_HEALTH_RESPONSE', httpStatus: res.status };
         return { status: 'online', httpStatus: res.status, data: data.data };
       }
       return { status: 'error', code: (data && data.error && data.error.code) || 'INVALID_HEALTH_RESPONSE', httpStatus: res.status };
@@ -119,6 +276,7 @@ const ApiClient = {
       return this.handleStaticFallback(endpoint, options);
     }
 
+    const seq = this._nextSeq();
     const url = `${API_BASE}${endpoint}`;
     const headers = {
       'Content-Type': 'application/json',
@@ -132,7 +290,8 @@ const ApiClient = {
 
     const timeoutMs = options.timeoutMs || 15000;
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    let timedOut = false;
+    const timer = controller ? setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs) : null;
 
     try {
       const fetchOpts = { ...options, headers };
@@ -144,7 +303,7 @@ const ApiClient = {
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('text/html') && res.ok) {
         // Static CDN SPA rewrite returned index.html instead of an API server
-        this.lastBackendIssue = { code: 'STATIC_HOST_NO_API', status: res.status };
+        this._applyConnectivity(seq, 'static-host', { code: 'STATIC_HOST_NO_API', status: res.status });
         return this.handleStaticFallback(endpoint, options);
       }
 
@@ -152,7 +311,7 @@ const ApiClient = {
       // degrade exactly like a static host (public reads from the bundled catalog, writes fail loudly).
       const proxyErrorCode = res.headers.get('x-sigma-proxy-error');
       if (proxyErrorCode && this.PROXY_OUTAGE_CODES.includes(proxyErrorCode)) {
-        this.lastBackendIssue = { code: proxyErrorCode, status: res.status };
+        this._applyConnectivity(seq, 'proxy-outage', { code: proxyErrorCode, status: res.status });
         return this.handleStaticFallback(endpoint, options);
       }
 
@@ -169,6 +328,7 @@ const ApiClient = {
       if (!data) {
         if (res.status === 404 || res.status === 405) {
           // Pure static hosting (e.g. Cloudflare Pages) without Node backend
+          this._applyConnectivity(seq, 'static-host', { code: 'NON_JSON_RESPONSE', status: res.status });
           return this.handleStaticFallback(endpoint, options);
         }
         const err = new Error(`Máy chủ phản hồi không đúng định dạng (${res.status}).`);
@@ -176,6 +336,9 @@ const ApiClient = {
         err.code = 'INVALID_SERVER_RESPONSE';
         throw err;
       }
+
+      // Any genuine API answer — including 401/403/4xx errors — proves the backend is reachable.
+      if (this.isApiContractResponse(res, data)) this._applyConnectivity(seq, 'online');
 
       if (!res.ok || data.success === false) {
         const errorMsg = data.error?.message || `Lỗi máy chủ (${res.status})`;
@@ -188,6 +351,8 @@ const ApiClient = {
       return data;
     } catch (err) {
       if (err && err.name === 'AbortError') {
+        // Only our own timer means "the server did not answer"; a caller-supplied signal aborting is not an outage.
+        if (timedOut && !options.signal) this._applyConnectivity(seq, 'offline', { code: 'REQUEST_TIMEOUT' });
         const timeoutErr = new Error('Kết nối tới máy chủ quá thời gian chờ. Vui lòng thử lại.');
         timeoutErr.code = 'REQUEST_TIMEOUT';
         timeoutErr.status = 504;
@@ -196,13 +361,9 @@ const ApiClient = {
       if (err && (err.status || err.code === 'API_ERROR')) {
         throw err;
       }
-      const isNetworkOffline = err && err.message && (
-        err.message.includes('Failed to fetch') ||
-        err.message.includes('NetworkError') ||
-        err.message.includes('Load failed') ||
-        err.name === 'TypeError'
-      );
-      if (isNetworkOffline) {
+      if (this.isNetworkError(err)) {
+        // Temporary network failure: record it (banner + automatic retry); public reads keep the bundled catalog.
+        this._applyConnectivity(seq, 'offline', { code: 'NETWORK_ERROR' });
         return this.handleStaticFallback(endpoint, options);
       }
       console.warn(`[ApiClient Error] ${options.method || 'GET'} ${url}:`, err.message);
@@ -221,12 +382,8 @@ const ApiClient = {
       try { body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body; } catch (e) {}
     }
 
-    this.staticHostDetected = true;
-    try {
-      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-        window.dispatchEvent(new CustomEvent('sigmacar:static-host-detected', { detail: { endpoint: path, method } }));
-      }
-    } catch (_) {}
+    // Connectivity state is set by the caller (request → _applyConnectivity); serving fallback data, including
+    // the opt-in Demo Sandbox, does not by itself mean "no backend".
 
     const staticData = (typeof SIGMA_DATA !== 'undefined' && SIGMA_DATA)
       ? SIGMA_DATA
@@ -2361,4 +2518,5 @@ const ApiClient = {
 
 if (typeof window !== 'undefined') {
   window.ApiClient = ApiClient;
+  ApiClient.initConnectivity();
 }

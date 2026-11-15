@@ -11648,6 +11648,23 @@ if (typeof window !== 'undefined') {
       return;
     }
 
+    // Temporary loss of connection (network error / timeout): same bar, accurate message, retried automatically.
+    if (ApiClient.connectivity === 'offline' && !hiddenBanner) {
+      bar.innerHTML = `
+        <div style="background:linear-gradient(90deg,#0F172A,#1E3A8A); color:#E0F2FE; font-size:12.5px; padding:8px 16px; display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; text-align:center;">
+          <span>📡 <strong>Mất kết nối tới máy chủ</strong> — Đang tự động thử lại. Một số dữ liệu có thể là bản tham khảo cho tới khi kết nối được khôi phục.</span>
+          <span style="display:inline-flex; gap:6px; align-items:center;">
+            <button type="button" id="btn-static-banner-dismiss" aria-label="Đóng thông báo" style="background:transparent; color:#BAE6FD; border:none; font-size:14px; cursor:pointer; padding:2px 6px;">✕</button>
+          </span>
+        </div>
+      `;
+      document.getElementById('btn-static-banner-dismiss')?.addEventListener('click', () => {
+        try { sessionStorage.setItem('sigmacar_hide_static_banner', '1'); } catch (_) {}
+        bar.innerHTML = '';
+      });
+      return;
+    }
+
     bar.innerHTML = '';
   }
 
@@ -11711,6 +11728,11 @@ if (typeof window !== 'undefined') {
     renderAuthDemoHelper();
   });
   window.addEventListener('sigmacar:static-host-detected', () => {
+    renderDemoStatusBar();
+    renderAuthDemoHelper();
+  });
+  // Online / offline / static-host transitions (incl. automatic recovery): refresh the status bar and auth helper.
+  window.addEventListener('sigmacar:connectivity-changed', () => {
     renderDemoStatusBar();
     renderAuthDemoHelper();
   });
