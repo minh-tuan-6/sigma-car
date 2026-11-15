@@ -1,5 +1,5 @@
 // js/ar/core/scene-manager.js — renderer, camera, studio lighting and render loop for the full-screen vehicle view.
-// This is a 3D view of the model, never a camera view: the AR camera is AR Quick Look's (native ARKit).
+// A 3D view of the model; on Android the same scene is rendered into a WebXR immersive-ar session (ARCore).
 
 import {
   WebGLRenderer, Scene, PerspectiveCamera, HemisphereLight, DirectionalLight, Mesh, PlaneGeometry,
@@ -104,10 +104,11 @@ export class SceneManager extends Emitter {
     if (this._running) return;
     this._running = true;
     this.clock.start();
-    this.renderer.setAnimationLoop(() => {
+    // three.js passes the XRFrame while a WebXR AR session (Android ARCore) is running.
+    this.renderer.setAnimationLoop((time, frame) => {
       if (this.contextLost) return;
       const dt = this.clock.getDelta();
-      if (this._loop) this._loop(dt);
+      if (this._loop) this._loop(dt, frame);
       this.renderer.render(this.scene, this.camera);
     });
   }

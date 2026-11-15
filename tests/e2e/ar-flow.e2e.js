@@ -130,17 +130,19 @@ function appleInit({ quickLook = true, touchPoints = 5 } = {}) {
   };
 }
 
-// Android with a WebXR runtime that *claims* immersive-ar: the page must ignore it.
+// Android with a WebXR runtime that supports immersive-ar (ARCore). requestSession is recorded and then refused
+// (headless Chromium has no AR runtime), so the page must report the failure gracefully.
 function androidInit() {
   return () => {
     window.__qlLaunches = [];
-    window.__xrCalls = 0;
+    window.__xrSupportedCalls = 0;
+    window.__xrSessions = [];
     window.__gumCalls = 0;
     Object.defineProperty(navigator, 'xr', {
       configurable: true,
       value: {
-        isSessionSupported: async () => { window.__xrCalls++; return true; },
-        requestSession: async () => { window.__xrCalls++; throw new Error('must not be called'); }
+        isSessionSupported: async (mode) => { window.__xrSupportedCalls++; return mode === 'immersive-ar'; },
+        requestSession: async (mode, init) => { window.__xrSessions.push({ mode, required: init && init.requiredFeatures }); throw new DOMException('no AR runtime in test', 'NotSupportedError'); }
       }
     });
     if (navigator.mediaDevices) {
@@ -294,8 +296,8 @@ async function readBytes(page, url) {
     assert.strictEqual(st.support.canLaunchAr, false);
     assert.strictEqual(st.support.reason, 'DESKTOP');
     assert.strictEqual(st.ar.state, 'unsupported');
-    assert.match(await page.locator('#ar-notice-text').textContent(), /AR Camera chỉ khả dụng trên iPhone\/iPad tương thích/);
-    assert.strictEqual(await page.locator('#ar-qr svg path').count(), 1, 'QR code to open the page on an iPhone/iPad');
+    assert.match(await page.locator('#ar-notice-text').textContent(), /iPhone\/iPad \(ARKit\).*Android \(ARCore\)/);
+    assert.strictEqual(await page.locator('#ar-qr svg path').count(), 1, 'QR code to open the page on an iPhone/iPad or Android phone');
     assert.ok(!(await page.locator('#ar-launch').isVisible()), 'no AR button on desktop');
     await page.waitForTimeout(300);
     const calls = await page.evaluate(() => ({ ql: window.__qlLaunches.length, gum: window.__gumCalls }));
@@ -501,23 +503,28 @@ async function readBytes(page, url) {
     await ctx.close();
   });
 
-  await step('Android (even with a WebXR runtime claiming immersive-ar): no ARCore/WebXR/Scene Viewer, simple message', async () => {
+  await step('Android with WebXR immersive-ar: detected as ARCore, "Xem AR" requests a hit-test AR session', async () => {
     const ctx = await newContext('android');
     const p = await ctx.newPage();
-    const navigations = [];
-    p.on('framenavigated', (f) => { if (f === p.mainFrame()) navigations.push(f.url()); });
     await p.goto(`${base}/ar/tesla-cybertruck`);
     const s = await waitForAr(p, 'ar-settled');
-    assert.strictEqual(s.support.reason, 'ANDROID');
-    assert.strictEqual(s.ar.state, 'unsupported');
-    assert.strictEqual(await p.locator('#ar-notice-text').textContent(), 'AR Camera chỉ khả dụng trên iPhone/iPad tương thích.');
-    assert.ok(!(await p.locator('#ar-launch').isVisible()));
+    assert.strictEqual(s.support.platform, 'android');
+    assert.deepStrictEqual(s.support.engines, ['webxr', 'scene-viewer']);
+    assert.strictEqual(s.ar.state, 'ready');
+    assert.strictEqual(s.ar.kind, 'webxr');
+    assert.ok(await p.locator('#ar-launch').isVisible());
+    assert.match(await p.locator('#ar-launch-note').textContent(), /ARCore/);
     assert.ok(!(await p.locator('#ar-qr-wrap').isVisible()), 'no QR on a phone');
+    // Scene Viewer needs a public https model URL: not offered on the http://localhost test server.
+    assert.ok(!(await p.locator('#ar-launch-alt').isVisible()));
     await p.locator('#ar-colors .ar-swatch').nth(1).tap();
     await p.waitForFunction(() => window.__sigmaAr.colorIdx === 1, null, { timeout: 30000 });
-    const calls = await p.evaluate(() => ({ xr: window.__xrCalls, gum: window.__gumCalls, ql: window.__qlLaunches.length }));
-    assert.deepStrictEqual(calls, { xr: 0, gum: 0, ql: 0 });
-    assert.ok(navigations.every(u => !u.startsWith('intent:')), 'no Scene Viewer intent');
+    await p.locator('#ar-launch').tap();
+    await p.waitForFunction(() => window.__xrSessions.length === 1, null, { timeout: 10000 });
+    const calls = await p.evaluate(() => ({ sessions: window.__xrSessions, gum: window.__gumCalls, ql: window.__qlLaunches.length }));
+    assert.deepStrictEqual(calls, { sessions: [{ mode: 'immersive-ar', required: ['hit-test'] }], gum: 0, ql: 0 });
+    await p.waitForFunction(() => /WebXR/.test(document.getElementById('ar-notice-text').textContent), null, { timeout: 10000 });
+    assert.strictEqual(await p.locator('#ar-root').getAttribute('data-state'), 'ready', 'failure leaves the 3D view usable');
     await ctx.close();
   });
 

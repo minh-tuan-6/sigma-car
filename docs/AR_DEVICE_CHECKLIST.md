@@ -33,3 +33,12 @@ Fill in one row per device and vehicle.
 
 Only after a passing row exists for a vehicle on both iPhone and iPad should `arScaleCertified: true` be proposed for
 it in `data/ar-manifest.json`. That is a protected file, so the change needs a separate approved task.
+
+## Android (ARCore) and iOS Safari hand-off (added with PLAN N.17)
+
+- [ ] Android Chrome (ARCore-supported phone): "Xem AR" note says "Google ARCore (WebXR)"; tap → camera opens, reticle with car footprint appears on the floor; tap places the car at real scale; drag rotates; "Đặt lại" re-scans; "Thoát AR" returns to the 3D view.
+- [ ] Android: change colour before and during AR — the placed car changes colour.
+- [ ] Android: "Mở bằng Google Scene Viewer" opens Scene Viewer in AR; without ARCore / Google app the page returns with the "Không mở được Google Scene Viewer" notice.
+- [ ] Android in an in-app browser (Zalo/Facebook): AR either works or shows a clear message.
+- [ ] iPhone: scan the desktop QR with the Camera app while Chrome is the default browser → page jumps to Safari; Quick Look opens there.
+- [ ] iPhone in Zalo/Facebook in-app browser: "Mở bằng Safari" panel; button opens Safari (iOS 17+), copy-link works otherwise.

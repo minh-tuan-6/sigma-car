@@ -11,9 +11,15 @@ export class AppleArUi {
       progress: $('ar-progress'), progressBar: $('ar-progress-bar'), retry: $('ar-retry'),
       notice: $('ar-notice'), noticeText: $('ar-notice-text'), qrWrap: $('ar-qr-wrap'), qr: $('ar-qr'),
       dock: $('ar-dock'), colorName: $('ar-color-name'), colors: $('ar-colors'),
-      launch: $('ar-launch'), launchLabel: $('ar-launch-label'), launchNote: $('ar-launch-note')
+      launch: $('ar-launch'), launchLabel: $('ar-launch-label'), launchNote: $('ar-launch-note'),
+      launchAlt: $('ar-launch-alt'),
+      xrBar: $('ar-xr-bar'), xrHint: $('ar-xr-hint'), xrReset: $('ar-xr-reset'), xrExit: $('ar-xr-exit'),
+      safari: $('ar-safari'), safariText: $('ar-safari-text'), safariOpen: $('ar-safari-open'),
+      safariCopy: $('ar-safari-copy'), safariHelp: $('ar-safari-help')
     };
     this._launchHandler = null;
+    this._altHandler = null;
+    if (this.el.launchAlt) this.el.launchAlt.addEventListener('click', (ev) => { if (this._altHandler) this._altHandler(ev); });
     this.el.launch.addEventListener('click', (ev) => {
       // Runs synchronously inside the tap: AR Quick Look only opens from a user gesture.
       if (this._launchHandler && !this.el.launch.disabled) this._launchHandler(ev);
@@ -119,5 +125,36 @@ export class AppleArUi {
     e.launchNote.textContent = note;
     e.launchNote.hidden = !note;
     this._launchHandler = state === 'ready' ? onLaunch : null;
+  }
+
+  /** Secondary AR engine button (Android: Scene Viewer when WebXR is the primary). */
+  launchAlt({ label = '', onLaunch = null } = {}) {
+    if (!this.el.launchAlt) return;
+    this.el.launchAlt.hidden = !onLaunch;
+    this.el.launchAlt.textContent = label;
+    this._altHandler = onLaunch;
+  }
+
+  /** WebXR (ARCore) session controls. */
+  xr({ visible, hint = '', placed = false } = {}) {
+    const e = this.el;
+    if (!e.xrBar) return;
+    e.xrBar.hidden = !visible;
+    e.xrHint.textContent = hint;
+    e.xrReset.hidden = !placed;
+  }
+
+  /** iOS non-Safari hand-off panel. */
+  safari({ visible, text = '', href = '', help = '', onCopy = null } = {}) {
+    const e = this.el;
+    if (!e.safari) return;
+    e.safari.hidden = !visible;
+    e.safariText.textContent = text;
+    e.safariHelp.textContent = help;
+    e.safariHelp.hidden = !help;
+    if (href) e.safariOpen.setAttribute('href', href);
+    e.safariOpen.hidden = !href;
+    e.safariCopy.hidden = !onCopy;
+    e.safariCopy.onclick = onCopy;
   }
 }

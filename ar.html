@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <title>Xem AR — SIGMACAR</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
-  <link rel="stylesheet" href="/css/ar.css?v=2.0">
+  <link rel="stylesheet" href="/css/ar.css?v=2.1">
   <script type="importmap">
     {
       "imports": {
@@ -18,12 +18,13 @@
       }
     }
   </script>
-  <script type="module" src="/js/ar/ar-app.js?v=2.0"></script>
+  <script type="module" src="/js/ar/ar-app.js?v=2.1"></script>
 </head>
 <body>
   <!--
     Dedicated AR page (/ar/:vehicleId). The canvas is a full-screen 3D view of the vehicle (not a camera).
-    The AR camera itself is Apple AR Quick Look (native ARKit), opened from #ar-launch on iPhone / iPad.
+    The AR camera is chosen per device (js/ar/device/ar-device.js): Apple AR Quick Look (ARKit) on iPhone / iPad,
+    WebXR AR or Google Scene Viewer (ARCore) on Android, a QR code on desktop.
   -->
   <main id="ar-root" class="ar-root" data-state="boot">
     <div id="ar-stage" class="ar-stage" aria-hidden="true"></div>
@@ -56,7 +57,25 @@
         <span id="ar-launch-label">Xem AR</span>
       </button>
       <p id="ar-launch-note" class="ar-launch-note" hidden></p>
+      <button id="ar-launch-alt" class="ar-launch-alt" type="button" hidden></button>
     </footer>
+
+    <!-- Android WebXR (ARCore) session controls: shown through the WebXR DOM overlay while AR is running. -->
+    <section id="ar-xr-bar" class="ar-xr-bar" hidden>
+      <p id="ar-xr-hint" class="ar-xr-hint" role="status" aria-live="polite"></p>
+      <div class="ar-xr-actions">
+        <button id="ar-xr-reset" class="ar-xr-btn" type="button">Đặt lại</button>
+        <button id="ar-xr-exit" class="ar-xr-btn ar-xr-btn--exit" type="button">Thoát AR</button>
+      </div>
+    </section>
+
+    <!-- iPhone/iPad opened in a non-Safari browser: hand the page over to Safari (ARKit / AR Quick Look). -->
+    <section id="ar-safari" class="ar-safari" hidden>
+      <p id="ar-safari-text" class="ar-safari__text"></p>
+      <a id="ar-safari-open" class="ar-launch ar-safari__open" href="#">Mở bằng Safari</a>
+      <button id="ar-safari-copy" class="ar-launch-alt" type="button">Sao chép liên kết</button>
+      <p id="ar-safari-help" class="ar-launch-note"></p>
+    </section>
   </main>
   <noscript>
     <p style="padding:24px;font-family:sans-serif">Trang AR cần JavaScript. <a href="/">Quay lại SIGMACAR</a></p>

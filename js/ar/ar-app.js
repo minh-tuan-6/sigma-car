@@ -1,11 +1,14 @@
-// js/ar/ar-app.js — SIGMACAR dedicated AR page controller (/ar/:vehicleId). Apple AR Quick Look only.
+// js/ar/ar-app.js — SIGMACAR dedicated AR page controller (/ar/:vehicleId). Device-aware AR.
 //
 // Flow:
-//   detect Apple AR support (feature detection, no permission prompt) → AR manifest → load the GLB with progress
-//   → full-screen 3D vehicle view + colour bar → [iPhone/iPad] prepare the USDZ for the selected colour
-//   (declared file, or on-device conversion of the shown model) → user taps "Xem AR" → AR Quick Look (ARKit).
-// Android, desktop and Mac never launch an AR camera: they get the 3D view and a one-line compatibility notice.
-// Quick Look is a native viewer: the page cannot draw a colour bar inside it, so colour is chosen here first.
+//   detect the device + AR engine (js/ar/device/ar-device.js, no permission prompt) → AR manifest → load the GLB
+//   → full-screen 3D vehicle view + colour bar → "Xem AR":
+//     iPhone / iPad → Apple ARKit via AR Quick Look (USDZ for the selected colour, declared or converted on device).
+//                     Opened in another iOS browser (e.g. after scanning the QR code) → handed over to Safari.
+//     Android       → Google ARCore: WebXR immersive-ar in this page (keeps the colour, real scale, DOM overlay UI),
+//                     or Google Scene Viewer through an intent when WebXR AR is not available.
+//     Desktop / Mac → no AR camera: compatibility notice + QR code for a phone.
+// Quick Look / Scene Viewer are native viewers: the page cannot draw UI inside them, so colour is chosen here first.
 
 import { ResourceTracker } from './core/resource-tracker.js';
 import { SceneManager } from './core/scene-manager.js';
@@ -15,7 +18,10 @@ import { VehicleController } from './vehicle/vehicle-controller.js';
 import { fetchArManifest } from './manifest/manifest-client.js';
 import { isValidVehicleId } from './manifest/manifest-schema.js';
 import { readConfig, writeConfig, buildReturnUrl } from './config/config-sync.js';
-import { detectAppleArSupport, SUPPORT_MESSAGES } from './apple/apple-ar-support.js';
+import { SUPPORT_MESSAGES } from './apple/apple-ar-support.js';
+import { detectArSupport, AR_ENGINE, DEVICE_MESSAGES, buildOpenInSafariUrl } from './device/ar-device.js';
+import { buildSceneViewerIntent, launchSceneViewer } from './android/scene-viewer.js';
+import { WebXrArSession } from './android/webxr-ar.js';
 import { buildQuickLookHref, launchQuickLook } from './apple/quick-look.js';
 import { UsdzResolver } from './apple/usdz-resolver.js';
 import { renderQrCode } from './ui/qr-code.js';
@@ -60,8 +66,9 @@ class ArApp {
 
   // ------------------------------------------------------------------ boot
   async boot() {
-    this.support = detectAppleArSupport();
+    this.support = await detectArSupport();
     this.vehicleId = parseVehicleIdFromLocation(window.location);
+    if (this.vehicleId) this._maybeHandOffToSafari();
     this.tracker.listen(this.ui.el.retry, 'click', () => window.location.reload());
     this.tracker.listen(this.ui.el.close, 'click', (ev) => {
       ev.preventDefault();
@@ -114,9 +121,14 @@ class ArApp {
     return buildReturnUrl(this.vehicleId, { returnParam: this._returnParam(), colorIdx: Number.isInteger(this.colorIdx) ? this.colorIdx : null });
   }
 
-  _pageUrl() {
+  _pageUrl(extra = {}) {
     const u = new URL(`/ar/${encodeURIComponent(this.vehicleId)}`, window.location.origin);
-    u.searchParams.set('color', String(this.colorIdx));
+    if (Number.isInteger(this.colorIdx)) u.searchParams.set('color', String(this.colorIdx));
+    else {
+      const c = new URLSearchParams(window.location.search).get('color');
+      if (c && /^\d{1,2}$/.test(c)) u.searchParams.set('color', c);
+    }
+    for (const [k, v] of Object.entries(extra)) u.searchParams.set(k, v);
     return u.toString();
   }
 
@@ -178,7 +190,11 @@ class ArApp {
     this.controls.update();
   }
 
-  _tick() {
+  _tick(dt, frame) {
+    if (this.xr && this.xr.active) {
+      this.xr.onFrame(frame);
+      return;
+    }
     if (this.controls) this.controls.update();
   }
 
@@ -209,7 +225,8 @@ class ArApp {
       writeConfig(this.vehicleId, { colorIdx: idx, colorHex: color ? color.hex : undefined, colorName: color ? color.name : undefined });
       this.ui.setCloseUrl(this._backUrl());
       if (this._qrShown) this._renderQr();
-      if (this.support.canLaunchAr) this._prepareAr();
+      if (this.support.engine === AR_ENGINE.QUICK_LOOK) this._prepareAr();
+      else if (this.support.platform === 'android') this._refreshAndroidLaunch();
     } catch (err) {
       if (token !== this._colorToken) return;
       this.metrics.warnings.push(`COLOR_CHANGE_FAILED: ${err.message}`);
@@ -223,16 +240,63 @@ class ArApp {
     }
   }
 
-  // ------------------------------------------------------------------ Apple AR Quick Look
+  // ------------------------------------------------------------------ engine selection per device
   _setupArAvailability() {
     const s = this.support;
-    if (!s.canLaunchAr) {
-      // Android / desktop / Mac / unsupported iOS browser: no AR camera of any kind is launched.
+    if (s.platform === 'ios') return this._setupApple();
+    if (s.platform === 'android') return this._setupAndroid();
+    // Desktop / Mac / other: no AR camera; a QR code hands the page to an iPhone/iPad or Android phone.
+    this.ar.state = 'unsupported';
+    this.ui.launch({ state: 'hidden' });
+    const qr = !s.device.mobile;
+    this.ui.notice(DEVICE_MESSAGES[s.reason] || DEVICE_MESSAGES.OTHER_MOBILE, { qr });
+    if (qr) this._renderQr();
+  }
+
+  // ------------------------------------------------------------------ iPhone / iPad: Apple ARKit (AR Quick Look)
+  /** iOS outside Safari (Chrome/Firefox/Edge/in-app, e.g. after scanning the QR code): open this page in Safari once. */
+  _maybeHandOffToSafari() {
+    const s = this.support;
+    if (!s.needsSafari) return;
+    const target = buildOpenInSafariUrl(this._pageUrl({ via: 'safari' }));
+    if (!target) return;
+    const key = `sigma-ar-safari:${this.vehicleId}`;
+    let tried = false;
+    try { tried = sessionStorage.getItem(key) === '1'; sessionStorage.setItem(key, '1'); } catch (_) { /* storage blocked */ }
+    if (tried) return;
+    this.metrics.safariHandoff = 'auto';
+    try { window.location.href = target; } catch (_) { /* scheme refused: the panel offers a button */ }
+  }
+
+  _showSafariPanel({ blocking }) {
+    const href = buildOpenInSafariUrl(this._pageUrl({ via: 'safari' }));
+    this.ui.el.safari.dataset.blocking = String(Boolean(blocking));
+    this.ui.safari({
+      visible: true,
+      text: `${DEVICE_MESSAGES.SAFARI_NEEDED} (đang dùng ${(this.support.iosBrowser && this.support.iosBrowser.name) || 'trình duyệt khác'})`,
+      href,
+      help: DEVICE_MESSAGES.SAFARI_MANUAL,
+      onCopy: async () => {
+        try {
+          await navigator.clipboard.writeText(this._pageUrl());
+          this.ui.el.safariHelp.textContent = 'Đã sao chép liên kết — mở Safari và dán vào thanh địa chỉ.';
+        } catch (_) {
+          this.ui.el.safariHelp.textContent = this._pageUrl();
+        }
+        this.ui.el.safariHelp.hidden = false;
+      }
+    });
+  }
+
+  _setupApple() {
+    const s = this.support;
+    const quickLook = s.engines.includes(AR_ENGINE.QUICK_LOOK);
+    if (s.needsSafari) this._showSafariPanel({ blocking: !quickLook });
+    if (!quickLook) {
+      // In-app browser / old iOS / insecure context: no AR camera here.
       this.ar.state = 'unsupported';
       this.ui.launch({ state: 'hidden' });
-      const qr = !s.device.mobile;
-      this.ui.notice(SUPPORT_MESSAGES[s.reason] || SUPPORT_MESSAGES.OTHER_MOBILE, { qr });
-      if (qr) this._renderQr();
+      this.ui.notice(SUPPORT_MESSAGES[s.reason] || SUPPORT_MESSAGES.APPLE_NO_QUICK_LOOK, { qr: false });
       return;
     }
     this.ui.notice('');
@@ -290,6 +354,142 @@ class ArApp {
     }
   }
 
+  // ------------------------------------------------------------------ Android: Google ARCore (WebXR / Scene Viewer)
+  _setupAndroid() {
+    const s = this.support;
+    if (!s.canLaunchAr) {
+      this.ar.state = 'unsupported';
+      this.ui.launch({ state: 'hidden' });
+      this.ui.notice(DEVICE_MESSAGES.ANDROID_INSECURE, { qr: false });
+      return;
+    }
+    const failed = new URLSearchParams(window.location.search).get('arfail');
+    this.ui.notice(failed === 'scene-viewer'
+      ? 'Không mở được Google Scene Viewer. Hãy cài / cập nhật "Dịch vụ Google Play cho AR" (ARCore) và ứng dụng Google.'
+      : '', { qr: false });
+    if (s.engine === AR_ENGINE.WEBXR) {
+      this.xr = new WebXrArSession({ sceneMgr: this.sceneMgr, overlayRoot: this.ui.el.root, sizeMeters: this.sizeMeters });
+      this.tracker.add(() => this.xr.dispose());
+      this._wireXr();
+    }
+    this._refreshAndroidLaunch();
+  }
+
+  /** Public https URL of the GLB for the selected colour (Scene Viewer downloads it itself). */
+  _sceneViewerModel() {
+    const variant = this.manifest.variants.find(v => v.colorIndex === this.colorIdx);
+    let url = null;
+    try { url = new URL(variant ? variant.glbUrl : this.manifest.model.glbUrl, siteBase()).toString(); } catch (_) { url = null; }
+    const tinted = !variant && this.manifest.colors.length > 1 && this.vehicle.capabilities.changeColor;
+    return { url: url && /^https:\/\//i.test(url) ? url : null, colorMatch: !tinted };
+  }
+
+  _refreshAndroidLaunch() {
+    const s = this.support;
+    const sv = this._sceneViewerModel();
+    const svOk = s.engines.includes(AR_ENGINE.SCENE_VIEWER) && Boolean(sv.url);
+    if (s.engine === AR_ENGINE.WEBXR) {
+      this.ar = { ...this.ar, state: 'ready', kind: 'webxr', url: null, colorMatch: true, colorIdx: this.colorIdx, error: null };
+      this.ui.launch({ state: 'ready', label: 'Xem AR', note: 'Android • Google ARCore (WebXR)', onLaunch: () => this.openWebXr() });
+      this.ui.launchAlt(svOk ? { label: 'Mở bằng Google Scene Viewer', onLaunch: () => this.openSceneViewer() } : {});
+    } else if (svOk) {
+      this.ar = { ...this.ar, state: 'ready', kind: 'scene-viewer', url: sv.url, colorMatch: sv.colorMatch, colorIdx: this.colorIdx, error: null };
+      this.ui.launch({
+        state: 'ready',
+        label: 'Xem AR',
+        note: sv.colorMatch ? 'Android • Google ARCore (Scene Viewer)' : 'Android • Google ARCore (Scene Viewer) — hiển thị màu gốc của mô hình.',
+        onLaunch: () => this.openSceneViewer()
+      });
+      this.ui.launchAlt({});
+    } else {
+      this.ar = { ...this.ar, state: 'unavailable', kind: null, error: 'SCENE_VIEWER_NEEDS_HTTPS' };
+      this.ui.launch({ state: 'unavailable', label: 'Xem AR', note: 'Google Scene Viewer cần mô hình 3D trên HTTPS công khai.' });
+      this.ui.launchAlt({});
+    }
+    this._publishDiagnostics();
+  }
+
+  /** Called synchronously from the tap: Scene Viewer intent (ARCore). */
+  openSceneViewer() {
+    const sv = this._sceneViewerModel();
+    if (!sv.url) return;
+    const intent = buildSceneViewerIntent(sv.url, {
+      title: this.manifest.name,
+      link: this._pageUrl(),
+      fallbackUrl: this._pageUrl({ arfail: 'scene-viewer' })
+    });
+    this.metrics.launches++;
+    this.metrics.lastLaunch = { engine: AR_ENGINE.SCENE_VIEWER, url: sv.url };
+    this._publishDiagnostics();
+    launchSceneViewer(intent);
+  }
+
+  _wireXr() {
+    const xr = this.xr;
+    const ui = this.ui;
+    const L = this.sizeMeters && this.sizeMeters.length ? this.sizeMeters.length.toFixed(1).replace('.', ',') : null;
+    const hints = {
+      scanning: 'Di chuyển điện thoại chậm, hướng camera xuống sàn để dò mặt phẳng…',
+      ready: `Chạm để đặt xe${L ? ` (kích thước thật, dài ${L} m)` : ''}`,
+      placed: 'Kéo ngang để xoay • chạm chỗ khác trên sàn để di chuyển xe'
+    };
+    xr.on('start', () => {
+      ui.setState('xr');
+      if (this.controls) this.controls.enabled = false;
+      ui.xr({ visible: true, hint: hints.scanning });
+      this.ar.state = 'presenting';
+      this._publishDiagnostics();
+    });
+    xr.on('state', (st) => {
+      if (st in hints) ui.xr({ visible: true, hint: hints[st], placed: st === 'placed' });
+    });
+    xr.on('end', () => {
+      ui.xr({ visible: false });
+      ui.setState('ready');
+      if (this.controls) this.controls.enabled = true;
+      this.sceneMgr.resize();
+      this._frameCamera();
+      this.ar.state = 'ready';
+      this._publishDiagnostics();
+    });
+    this.tracker.listen(ui.el.xrReset, 'click', () => xr.reset());
+    this.tracker.listen(ui.el.xrExit, 'click', () => xr.end());
+    // Taps on overlay controls must not also place the car (WebXR DOM overlay contract).
+    for (const el of [ui.el.xrBar, ui.el.dock]) this.tracker.listen(el, 'beforexrselect', (ev) => ev.preventDefault());
+    // One-finger horizontal drag rotates the placed car.
+    let lastX = null;
+    let moved = 0;
+    this.tracker.listen(ui.el.root, 'touchstart', (ev) => {
+      if (!xr.active || ev.touches.length !== 1 || ui.el.dock.contains(ev.target) || ui.el.xrBar.contains(ev.target)) { lastX = null; return; }
+      lastX = ev.touches[0].clientX;
+      moved = 0;
+    }, { passive: true });
+    this.tracker.listen(ui.el.root, 'touchmove', (ev) => {
+      if (lastX === null || !xr.active || ev.touches.length !== 1) return;
+      const x = ev.touches[0].clientX;
+      const dx = x - lastX;
+      lastX = x;
+      moved += Math.abs(dx);
+      if (moved > 10 && xr.state === 'placed') {
+        if (moved - Math.abs(dx) <= 10) xr.suppressNextSelect();
+        xr.rotateBy(dx * 0.012);
+      }
+    }, { passive: true });
+    this.tracker.listen(ui.el.root, 'touchend', () => { lastX = null; }, { passive: true });
+  }
+
+  /** Called from the tap on #ar-launch (Android with WebXR AR). */
+  openWebXr() {
+    if (!this.xr || this.xr.active) return;
+    this.metrics.launches++;
+    this.metrics.lastLaunch = { engine: AR_ENGINE.WEBXR };
+    this.xr.start().catch((err) => {
+      this.metrics.warnings.push(`${err.code || 'WEBXR_FAILED'}: ${err.message}`);
+      this.ui.notice('Không mở được AR (WebXR). Hãy thử "Mở bằng Google Scene Viewer".', { qr: false });
+      this._publishDiagnostics();
+    });
+  }
+
   /** Called synchronously from the tap on #ar-launch. */
   openQuickLook() {
     if (this.ar.state !== 'ready' || !this.ar.url) return;
@@ -302,7 +502,7 @@ class ArApp {
   async _renderQr() {
     this._qrShown = true;
     try {
-      await renderQrCode(this.ui.el.qr, this._pageUrl());
+      await renderQrCode(this.ui.el.qr, this._pageUrl({ src: 'qr' }));
     } catch (_) {
       this.ui.el.qrWrap.hidden = true;
     }
@@ -311,7 +511,9 @@ class ArApp {
   // ------------------------------------------------------------------ lifecycle & cleanup
   _setupLifecycle() {
     this.tracker.listen(document, 'visibilitychange', () => {
-      // Quick Look covers the page; pause rendering while hidden to save battery.
+      // Quick Look / Scene Viewer cover the page; pause rendering while hidden to save battery
+      // (never while a WebXR session renders through the same loop).
+      if (this.xr && this.xr.active) return;
       if (document.hidden) this.sceneMgr.stop();
       else this.sceneMgr.start((dt) => this._tick(dt));
     });
@@ -324,7 +526,7 @@ class ArApp {
         await this.vehicle.load(this.colorIdx);
         if (this.resolver) this.resolver.clearGenerated();
         this.ui.hideStatus();
-        if (this.support.canLaunchAr) this._prepareAr();
+        if (this.support.engine === AR_ENGINE.QUICK_LOOK) this._prepareAr();
       } catch (err) {
         this.fail(err);
       }

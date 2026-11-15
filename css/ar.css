@@ -1,4 +1,4 @@
-/* css/ar.css — dedicated full-screen AR page (/ar/:vehicleId). iPhone/iPad-first, safe-area aware.
+/* css/ar.css — dedicated full-screen AR page (/ar/:vehicleId). iPhone/iPad (ARKit) and Android (ARCore), safe-area aware.
    The vehicle is the focus: one close button, one compact colour bar, one AR button. Nothing else. */
 
 :root {
@@ -132,3 +132,52 @@ html, body {
   .ar-progress__bar { transition: none; }
   .ar-launch[data-state="preparing"] svg { animation: none; }
 }
+
+/* ---- Android: secondary engine button (Scene Viewer) ---- */
+.ar-launch-alt {
+  min-height: 40px; padding: 0 18px; border-radius: 999px; cursor: pointer;
+  background: var(--ar-glass); color: var(--ar-text); border: 1px solid var(--ar-border);
+  font: inherit; font-size: 13.5px; font-weight: 600;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+
+/* ---- Android WebXR session (DOM overlay over the camera passthrough) ---- */
+.ar-root[data-state="xr"] { background: transparent; }
+.ar-root[data-state="xr"] .ar-stage,
+.ar-root[data-state="xr"] .ar-close,
+.ar-root[data-state="xr"] .ar-status,
+.ar-root[data-state="xr"] .ar-notice,
+.ar-root[data-state="xr"] .ar-launch,
+.ar-root[data-state="xr"] .ar-launch-alt,
+.ar-root[data-state="xr"] .ar-launch-note { display: none !important; }
+:root:has(.ar-root[data-state="xr"]), :root:has(.ar-root[data-state="xr"]) body { background: transparent; }
+.ar-xr-bar {
+  position: absolute; z-index: 4;
+  top: calc(var(--safe-top) + 12px); left: calc(var(--safe-left) + 12px); right: calc(var(--safe-right) + 12px);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 10px 12px; border-radius: 16px;
+  background: var(--ar-glass); border: 1px solid var(--ar-border);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.ar-xr-hint { margin: 0; font-size: 13.5px; font-weight: 600; flex: 1 1 180px; }
+.ar-xr-actions { display: flex; gap: 8px; }
+.ar-xr-btn {
+  min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--ar-border);
+  background: rgba(255, 255, 255, 0.14); color: var(--ar-text); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.ar-xr-btn--exit { background: #fff; color: #0b1220; border-color: #fff; }
+
+/* ---- iPhone/iPad in a non-Safari browser: open in Safari ---- */
+.ar-safari {
+  position: absolute; z-index: 5; inset: auto 12px calc(var(--safe-bottom) + 16px) 12px;
+  margin: 0 auto; max-width: 440px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  padding: 16px; border-radius: 18px;
+  background: rgba(15, 23, 42, 0.86); border: 1px solid var(--ar-border);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+}
+.ar-safari__text { margin: 0; font-size: 14.5px; font-weight: 700; }
+.ar-safari__open { text-decoration: none; background: var(--ar-accent); color: #fff; }
+.ar-root:has(.ar-safari[data-blocking="true"]:not([hidden])) .ar-dock { display: none; }
+/* Quick Look also works in this browser: keep the AR button, show the Safari hint at the top instead. */
+.ar-safari[data-blocking="false"] { inset: calc(var(--safe-top) + 64px) 12px auto 12px; padding: 12px; }

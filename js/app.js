@@ -847,7 +847,7 @@ if (typeof window !== 'undefined') {
     navigateTo('vr-ar', { carId: AppState.currentDetailCar });
   };
 
-  // Opens the dedicated AR page (/ar/:vehicleId, see ar.html + js/ar/): AR Quick Look on iPhone/iPad, a
+  // Opens the dedicated AR page (/ar/:vehicleId, see ar.html + js/ar/): ARKit (AR Quick Look) on iPhone/iPad, ARCore (WebXR / Scene Viewer) on Android, a
   // compatibility notice elsewhere. The current configuration
   // is persisted first and passed in the URL; ?return= brings the user back to the page they came from.
   window.openArLive = function(carId, config) {

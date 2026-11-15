@@ -2062,7 +2062,8 @@
 
     async enterWebXR(opts = {}) {
       const preferAR = opts.ar !== undefined ? !!opts.ar : !!(this.options.arMode || this.options.transparent || this.isCameraActive);
-      // AR camera is Apple AR Quick Look only (dedicated page /ar/:vehicleId, js/ar/). The showroom viewer never
+      // The AR camera runs on the dedicated page /ar/:vehicleId (js/ar/: ARKit on iPhone/iPad, ARCore on Android;
+      // the mode token below is kept for API compatibility). The showroom viewer never
       // starts a WebXR immersive-ar session; only the VR-headset path (immersive-vr) remains here.
       if (preferAR) {
         return {
@@ -2070,7 +2071,7 @@
           supported: false,
           immersiveActive: false,
           active: false,
-          message: 'AR Camera chỉ khả dụng trên iPhone/iPad tương thích qua trang AR riêng.'
+          message: 'AR Camera mở trên trang AR riêng (iPhone/iPad: ARKit • Android: ARCore).'
         };
       }
       this.setVRStudioMode(true);
@@ -2760,7 +2761,7 @@
     }
 
     async checkWebXRSupport() {
-      // WebXR AR is intentionally not used (Apple AR Quick Look only, see js/ar/apple/). Kept for API compatibility.
+      // WebXR AR is not used by the showroom viewer (the dedicated AR page handles ARKit / ARCore). Kept for API compatibility.
       return { supported: false, type: 'immersive-ar', reason: 'APPLE_QUICK_LOOK_ONLY' };
     }
 

@@ -1,4 +1,4 @@
-// Unit tests for the Apple-only AR engine (js/ar/**). Browser ES modules are imported dynamically; `three`
+// Unit tests for the device-aware AR engine (js/ar/**: Apple ARKit / Android ARCore). Browser ES modules are imported dynamically; `three`
 // resolves to the same pinned version that is vendored for the browser (node_modules/three@0.170.0).
 // AR Quick Look / ARKit behaviour itself cannot run here; see tests/e2e/ar-flow.e2e.js and docs/AR_TEST_REPORT.md.
 
@@ -662,7 +662,7 @@ describe('AR: obsolete AR integrations are removed from the active flow', () => 
   const walk = (dir) => fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })
     .flatMap(d => (d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)]));
 
-  it('WebXR / ARCore / Scene Viewer / camera-overlay modules no longer exist', () => {
+  it('the old camera-overlay / legacy WebXR engine modules no longer exist', () => {
     for (const f of [
       'js/ar-adapter.js', 'js/ar/core/session-manager.js', 'js/ar/core/hit-test-manager.js', 'js/ar/core/placement-reticle.js',
       'js/ar/core/placement-controller.js', 'js/ar/core/interaction-manager.js', 'js/ar/core/capability-detector.js',
@@ -671,12 +671,21 @@ describe('AR: obsolete AR integrations are removed from the active flow', () => 
     ]) assert.ok(!fs.existsSync(path.join(ROOT, f)), `${f} should be removed`);
   });
 
-  it('the AR page code never touches WebXR, the camera or Android intents', () => {
+  it('WebXR / Android intents live only in the Android modules; nothing opens the camera directly', () => {
     const files = [...walk('js/ar'), 'ar.html'];
+    const norm = (p) => p.replace(/\\/g, '/');
+    const androidOnly = {
+      'requestSession': ['js/ar/android/webxr-ar.js'],
+      'hit-test': ['js/ar/android/webxr-ar.js'],
+      'intent://': ['js/ar/android/scene-viewer.js'],
+      'immersive-ar': ['js/ar/android/webxr-ar.js', 'js/ar/device/ar-device.js'],
+      'navigator.xr': ['js/ar/device/ar-device.js']
+    };
     for (const f of files) {
       const src = read(f).replace(/\/\/.*$/gm, '');
-      for (const banned of ['navigator.xr', 'requestSession', 'immersive-ar', 'intent://', 'scene-viewer', 'getUserMedia', 'XREstimatedLight', 'hit-test']) {
-        assert.ok(!src.includes(banned), `${f} contains ${banned}`);
+      for (const banned of ['getUserMedia', 'XREstimatedLight']) assert.ok(!src.includes(banned), `${f} contains ${banned}`);
+      for (const [token, allowed] of Object.entries(androidOnly)) {
+        if (src.includes(token)) assert.ok(allowed.includes(norm(f)), `${f} must not contain ${token}`);
       }
     }
   });
@@ -801,5 +810,148 @@ describe('AR: manifest (schema v2), source fallback and configuration sync', () 
       assert.strictEqual(configSync.buildReturnUrl('tesla-cybertruck', { returnParam: evil }), '/#detail?carId=tesla-cybertruck', evil);
     }
     assert.strictEqual(configSync.buildCheckoutUrl('tesla-cybertruck', { colorName: 'Xanh Rêu' }), '/#checkout?source=ar&vehicleId=tesla-cybertruck&colorName=Xanh+R%C3%AAu');
+  });
+});
+
+// ---------------------------------------------------------------- device-aware engine selection (ARKit / ARCore)
+describe('AR: device detection picks ARKit on Apple, ARCore on Android', () => {
+  let device;
+  let sceneViewer;
+  let WebXrArSession;
+  before(async () => {
+    device = await mod('js/ar/device/ar-device.js');
+    sceneViewer = await mod('js/ar/android/scene-viewer.js');
+    ({ WebXrArSession } = await mod('js/ar/android/webxr-ar.js'));
+  });
+  const doc = (relAr) => ({ createElement: (tag) => (tag === 'a' ? { relList: { supports: (t) => relAr && t === 'ar' } } : { getContext: () => ({}) }) });
+  const UA = {
+    safari: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1',
+    chromeIos: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.73 Mobile/15E148 Safari/604.1',
+    zalo: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Zalo iOS/24.11',
+    android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+    windows: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+  };
+  const detect = (ua, { relAr = false, xr = null, secure = true, touch = 5 } = {}) => device.detectArSupport({
+    navigator: { userAgent: ua, maxTouchPoints: touch, ...(xr ? { xr } : {}) },
+    document: doc(relAr),
+    window: { isSecureContext: secure }
+  });
+  const xrYes = { isSessionSupported: async (m) => m === 'immersive-ar' };
+  const xrNo = { isSessionSupported: async () => false };
+
+  it('iPhone in Safari → ARKit (AR Quick Look), no Safari hand-off', async () => {
+    const s = await detect(UA.safari, { relAr: true });
+    assert.deepStrictEqual([s.platform, s.engine, s.needsSafari, s.iosBrowser.name], ['ios', 'quick-look', false, 'Safari']);
+    assert.match(s.engineLabel, /ARKit/);
+  });
+
+  it('iPhone in Chrome / an in-app browser (e.g. after scanning the QR code) → must open in Safari', async () => {
+    const chrome = await detect(UA.chromeIos, { relAr: true });
+    assert.deepStrictEqual([chrome.needsSafari, chrome.iosBrowser.name], [true, 'Chrome']);
+    const zalo = await detect(UA.zalo, { relAr: false });
+    assert.deepStrictEqual([zalo.needsSafari, zalo.canLaunchAr, zalo.iosBrowser.name], [true, false, 'Zalo']);
+    assert.strictEqual(device.buildOpenInSafariUrl('https://sigma-car.pages.dev/ar/vinfast-vf9?color=1'), 'x-safari-https://sigma-car.pages.dev/ar/vinfast-vf9?color=1');
+    assert.strictEqual(device.buildOpenInSafariUrl('javascript:alert(1)'), null);
+  });
+
+  it('Android Chrome with WebXR immersive-ar → ARCore WebXR first, Scene Viewer as the alternative', async () => {
+    const s = await detect(UA.android, { xr: xrYes });
+    assert.deepStrictEqual([s.platform, s.engines, s.canLaunchAr], ['android', ['webxr', 'scene-viewer'], true]);
+    assert.match(s.engineLabel, /ARCore/);
+  });
+
+  it('Android without WebXR AR → ARCore Scene Viewer; insecure context → no AR', async () => {
+    const s = await detect(UA.android, { xr: xrNo });
+    assert.deepStrictEqual(s.engines, ['scene-viewer']);
+    const noXr = await detect(UA.android);
+    assert.strictEqual(noXr.engine, 'scene-viewer');
+    const insecure = await detect(UA.android, { xr: xrYes, secure: false });
+    assert.deepStrictEqual([insecure.canLaunchAr, insecure.reason], [false, 'INSECURE_CONTEXT']);
+  });
+
+  it('desktop never launches AR (QR hand-off to a phone instead)', async () => {
+    const s = await detect(UA.windows, { touch: 0, xr: xrYes });
+    assert.deepStrictEqual([s.platform, s.engine, s.canLaunchAr], ['desktop', 'none', false]);
+    assert.match(device.DEVICE_MESSAGES.DESKTOP, /iPhone\/iPad \(ARKit\).*Android \(ARCore\)/);
+  });
+
+  it('builds a valid Scene Viewer intent (real scale, fallback back to the page) and rejects non-https files', () => {
+    const intent = sceneViewer.buildSceneViewerIntent('https://sigma-car.pages.dev/assets/models/vf9.glb', {
+      title: 'VinFast VF 9', link: 'https://sigma-car.pages.dev/ar/vinfast-vf9', fallbackUrl: 'https://sigma-car.pages.dev/ar/vinfast-vf9?arfail=scene-viewer'
+    });
+    assert.ok(intent.startsWith('intent://arvr.google.com/scene-viewer/1.0?file=https%3A%2F%2Fsigma-car.pages.dev%2Fassets%2Fmodels%2Fvf9.glb&mode=ar_preferred&resizable=false&title=VinFast+VF+9'));
+    assert.match(intent, /#Intent;scheme=https;package=com\.google\.android\.googlequicksearchbox;action=android\.intent\.action\.VIEW;S\.browser_fallback_url=https%3A%2F%2Fsigma-car\.pages\.dev%2Far%2Fvinfast-vf9%3Farfail%3Dscene-viewer;end;$/);
+    for (const bad of ['blob:https://x/1', 'http://localhost/a.glb', 'javascript:1']) assert.throws(() => sceneViewer.buildSceneViewerIntent(bad), bad);
+  });
+
+  it('WebXR session: hit-test reticle → tap places the car at real scale → exit restores the 3D scene', async () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b1220);
+    const anchor = new THREE.Group();
+    const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
+    const sun = new THREE.DirectionalLight();
+    sun.position.set(4, 8, 3);
+    scene.add(anchor, shadowCatcher, sun, sun.target);
+    const listeners = {};
+    const session = {
+      domOverlayState: { type: 'screen' },
+      addEventListener: (t, fn) => { listeners[t] = fn; },
+      removeEventListener: (t) => { delete listeners[t]; },
+      requestReferenceSpace: async () => ({ type: 'viewer' }),
+      requestHitTestSource: async () => ({ cancel() {} }),
+      end: async () => { listeners.end && listeners.end(); }
+    };
+    const xrCam = new THREE.PerspectiveCamera();
+    xrCam.position.set(0, 1.5, 2);
+    xrCam.updateMatrixWorld();
+    let requested = null;
+    const renderer = { xr: { enabled: false, setReferenceSpaceType() {}, setSession: async () => {}, getReferenceSpace: () => ({}), getCamera: () => xrCam } };
+    const xr = new WebXrArSession({
+      sceneMgr: { renderer, scene, anchor, shadowCatcher, sun },
+      overlayRoot: { id: 'ar-root' },
+      sizeMeters: { length: 5.118, width: 2.254 },
+      navigator: { xr: { requestSession: async (mode, init) => { requested = { mode, init }; return session; } } }
+    });
+    const states = [];
+    xr.on('state', (st) => states.push(st));
+    await xr.start();
+    assert.strictEqual(requested.mode, 'immersive-ar');
+    assert.deepStrictEqual(requested.init.requiredFeatures, ['hit-test']);
+    assert.ok(requested.init.optionalFeatures.includes('dom-overlay'));
+    assert.strictEqual(scene.background, null, 'camera passthrough');
+    assert.strictEqual(anchor.visible, false, 'car hidden until placed');
+    assert.ok(xr.domOverlay);
+
+    const m = new THREE.Matrix4().makeTranslation(1, 0, -2);
+    const frame = { getHitTestResults: () => [{ getPose: () => ({ transform: { matrix: m.toArray() } }) }] };
+    xr.onFrame(frame);
+    assert.strictEqual(xr.state, 'ready');
+    listeners.select();
+    assert.strictEqual(xr.state, 'placed');
+    assert.deepStrictEqual(anchor.position.toArray(), [1, 0, -2]);
+    assert.strictEqual(anchor.scale.x, 1, 'real-world scale (no resizing)');
+    assert.ok(anchor.visible && shadowCatcher.visible);
+    xr.rotateBy(0.5);
+    xr.suppressNextSelect();
+    listeners.select();
+    assert.deepStrictEqual(anchor.position.toArray(), [1, 0, -2], 'a drag does not move the car');
+
+    await xr.end();
+    assert.deepStrictEqual([xr.active, renderer.xr.enabled], [false, false]);
+    assert.ok(scene.background && scene.background.isColor, 'background restored');
+    assert.deepStrictEqual(anchor.position.toArray(), [0, 0, 0]);
+    assert.strictEqual(anchor.rotation.y, 0, 'identity transform restored for the USDZ exporter');
+    assert.deepStrictEqual(sun.position.toArray(), [4, 8, 3]);
+    assert.ok(!scene.getObjectByName('SigmaArReticle'), 'reticle disposed');
+    assert.deepStrictEqual(states, ['scanning', 'ready', 'placed', 'idle']);
+  });
+
+  it('WebXR start failure is reported, not thrown into the page', async () => {
+    const xr = new WebXrArSession({
+      sceneMgr: {},
+      navigator: { xr: { requestSession: async () => { throw new Error('NotSupportedError'); } } }
+    });
+    await assert.rejects(xr.start(), (e) => e.code === 'WEBXR_START_FAILED');
+    assert.strictEqual(xr.state, 'idle');
   });
 });

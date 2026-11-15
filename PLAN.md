@@ -1090,3 +1090,16 @@ verdicts; per-attribute spec answers from the live catalog (never invented); loa
 affordability check; running cost via `TcoService`; EV / financing / site-help knowledge. ~0.3 ms per answer.
 Tests: `tests/unit/local_ai_brain.test.js` (16). `npm test` 381/381, `test:worker-runtime` 110 + 1 skipped.
 Needs a staging Worker redeploy to go live.
+
+### N.17 Device-aware AR: Android (ARCore) back, iOS forced to Safari (user request)
+
+The user explicitly asked to change the AR engine. New: `js/ar/device/ar-device.js` (engine per device),
+`js/ar/android/webxr-ar.js` (WebXR immersive-ar + hit-test, footprint reticle, tap to place, drag to rotate, DOM
+overlay with colour bar / reset / exit; restores the scene on exit so the USDZ exporter is unaffected),
+`js/ar/android/scene-viewer.js` (Google Scene Viewer intent, `ar_preferred`, `resizable=false`, fallback back to the
+page with `?arfail=scene-viewer`). iPhone/iPad keep AR Quick Look (ARKit); iOS non-Safari browsers (Chrome, Firefox,
+Edge, Zalo/Facebook/… in-app) are redirected once to `x-safari-https://…` with a "Mở bằng Safari" / copy-link panel as
+backup. Desktop QR now encodes `?src=qr` and mentions both platforms. `SceneManager` passes the XRFrame to the loop.
+Tests: `ar_engine.test.js` (guard rewritten: WebXR/intents only in `js/ar/android/*`, never `getUserMedia`; +8 device /
+intent / WebXR-session tests), `ar-flow.e2e.js` Android step now expects ARCore WebXR. `npm test` 389/389,
+`test:e2e` 19/19, `test:worker-runtime` 110 + 1 skipped. Real-device checks still needed (see AR_DEVICE_CHECKLIST.md).
