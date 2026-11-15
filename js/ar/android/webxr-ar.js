@@ -10,6 +10,8 @@
 import { Mesh, RingGeometry, MeshBasicMaterial, Group, Vector3, Matrix4, Quaternion, BufferGeometry, Float32BufferAttribute, LineLoop, LineBasicMaterial } from 'three';
 import { Emitter } from '../core/emitter.js';
 
+const FALLBACK_AFTER_MS = 3000;
+
 export class WebXrArSession extends Emitter {
   /**
    * @param {{ sceneMgr: SceneManager, overlayRoot?: HTMLElement, sizeMeters?: {length:number,width:number}, navigator?: Navigator }} opts
@@ -22,8 +24,9 @@ export class WebXrArSession extends Emitter {
     this.nav = nav;
     this.session = null;
     this.hitSource = null;
-    this.state = 'idle'; // idle | starting | scanning | ready | placed
+    this.state = 'idle'; // idle | starting | scanning | ready | estimated | placed
     this._lastHit = null;
+    this._noHitSince = null;
     this._yaw = 0;
     this._suppressSelect = false;
     this._tmp = { m: new Matrix4(), p: new Vector3(), q: new Quaternion(), s: new Vector3(), cam: new Vector3() };
@@ -81,6 +84,7 @@ export class WebXrArSession extends Emitter {
     anchor.visible = false;
     shadowCatcher.visible = false;
     this._buildReticle();
+    this._noHitSince = null;
     this._setState('scanning');
     this.emit('start', { domOverlay: this.domOverlay });
   }
@@ -100,16 +104,41 @@ export class WebXrArSession extends Emitter {
       t.cam.setFromMatrixPosition(cam.matrixWorld);
       const yaw = Math.atan2(t.cam.x - t.p.x, t.cam.z - t.p.z);
       this._lastHit = { position: t.p.clone(), yaw };
-      if (this.state !== 'placed') {
+      if (this.state !== 'placed' && this.reticle) {
         this.reticle.visible = true;
         this.reticle.position.copy(t.p);
         this.reticle.rotation.set(0, yaw, 0);
         if (this.state !== 'ready') this._setState('ready');
       }
+      this._noHitSince = null;
     } else {
-      this._lastHit = null;
-      if (this.reticle) this.reticle.visible = false;
-      if (this.state === 'ready') this._setState('scanning');
+      // No floor found yet (dim room, plain floor, slow ARCore start): after a few seconds offer an estimated spot
+      // ~3 m ahead, ~1.4 m below the phone, so a tap still places the car instead of nothing happening.
+      const now = Date.now();
+      if (this._noHitSince == null) this._noHitSince = now;
+      if (this.state !== 'placed' && now - this._noHitSince > FALLBACK_AFTER_MS) {
+        const cam = this.sceneMgr.renderer.xr.getCamera();
+        cam.updateMatrixWorld();
+        t.cam.setFromMatrixPosition(cam.matrixWorld);
+        const fwd = new Vector3(0, 0, -1).applyQuaternion(t.q.setFromRotationMatrix(cam.matrixWorld));
+        fwd.y = 0;
+        if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1);
+        fwd.normalize();
+        const pos = t.cam.clone().addScaledVector(fwd, 3);
+        pos.y = t.cam.y - 1.4;
+        const yaw = Math.atan2(t.cam.x - pos.x, t.cam.z - pos.z);
+        this._lastHit = { position: pos, yaw, estimated: true };
+        if (this.reticle) {
+          this.reticle.visible = true;
+          this.reticle.position.copy(pos);
+          this.reticle.rotation.set(0, yaw, 0);
+        }
+        if (this.state !== 'estimated') this._setState('estimated');
+      } else {
+        this._lastHit = null;
+        if (this.reticle) this.reticle.visible = false;
+        if (this.state === 'ready') this._setState('scanning');
+      }
     }
   }
 

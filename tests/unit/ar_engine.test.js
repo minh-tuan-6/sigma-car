@@ -955,3 +955,57 @@ describe('AR: device detection picks ARKit on Apple, ARCore on Android', () => {
     assert.strictEqual(xr.state, 'idle');
   });
 });
+
+describe('AR: Android WebXR regressions', () => {
+  let WebXrArSession;
+  before(async () => { ({ WebXrArSession } = await mod('js/ar/android/webxr-ar.js')); });
+
+  it('every render-loop start forwards the XRFrame (otherwise hit-test never runs and the car is never placed)', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'js/ar/ar-app.js'), 'utf8');
+    const starts = src.match(/sceneMgr\.start\([^;]*\)\);/g) || [];
+    assert.ok(starts.length >= 2);
+    for (const s of starts) assert.match(s, /\(dt, frame\) => this\._tick\(dt, frame\)/, s);
+    const sm = fs.readFileSync(path.join(ROOT, 'js/ar/core/scene-manager.js'), 'utf8');
+    assert.match(sm, /setAnimationLoop\(\(time, frame\)[\s\S]*this\._loop\(dt, frame\)/);
+  });
+
+  it('no floor detected for 3 s → an estimated spot ahead of the phone, and a tap still places the car', async () => {
+    const scene = new THREE.Scene();
+    const anchor = new THREE.Group();
+    const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial());
+    const sun = new THREE.DirectionalLight();
+    scene.add(anchor, shadowCatcher, sun, sun.target);
+    const listeners = {};
+    const session = {
+      addEventListener: (t, fn) => { listeners[t] = fn; }, removeEventListener() {},
+      requestReferenceSpace: async () => ({}), requestHitTestSource: async () => ({ cancel() {} }),
+      end: async () => listeners.end && listeners.end()
+    };
+    const cam = new THREE.PerspectiveCamera();
+    cam.position.set(0, 1.5, 0);
+    const xr = new WebXrArSession({
+      sceneMgr: { renderer: { xr: { setReferenceSpaceType() {}, setSession: async () => {}, getReferenceSpace: () => ({}), getCamera: () => cam } }, scene, anchor, shadowCatcher, sun },
+      navigator: { xr: { requestSession: async () => session } }
+    });
+    await xr.start();
+    const realNow = Date.now;
+    let now = 1000;
+    Date.now = () => now;
+    try {
+      const noHits = { getHitTestResults: () => [] };
+      xr.onFrame(noHits);
+      assert.strictEqual(xr.state, 'scanning');
+      now += 3500;
+      xr.onFrame(noHits);
+      assert.strictEqual(xr.state, 'estimated');
+      listeners.select();
+      assert.strictEqual(xr.state, 'placed');
+      assert.ok(anchor.visible);
+      const p = anchor.position;
+      assert.ok(Math.abs(p.z + 3) < 1e-6 && Math.abs(p.y - 0.1) < 1e-6, `placed 3 m ahead, ~1.4 m below the phone: ${p.toArray()}`);
+    } finally {
+      Date.now = realNow;
+      await xr.end();
+    }
+  });
+});

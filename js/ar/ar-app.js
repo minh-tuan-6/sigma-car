@@ -109,7 +109,7 @@ class ArApp {
     this._setupArAvailability();
     this.ui.hideStatus();
     this.ui.setState('ready');
-    this.sceneMgr.start((dt) => this._tick(dt));
+    this.sceneMgr.start((dt, frame) => this._tick(dt, frame));
     this._publishDiagnostics();
   }
 
@@ -431,7 +431,8 @@ class ArApp {
     const hints = {
       scanning: 'Di chuyển điện thoại chậm, hướng camera xuống sàn để dò mặt phẳng…',
       ready: `Chạm để đặt xe${L ? ` (kích thước thật, dài ${L} m)` : ''}`,
-      placed: 'Kéo ngang để xoay • chạm chỗ khác trên sàn để di chuyển xe'
+      placed: 'Kéo ngang để xoay • chạm chỗ khác trên sàn để di chuyển xe',
+      estimated: 'Chưa dò rõ mặt sàn — chạm để đặt xe ở vị trí ước lượng, hoặc tiếp tục quét sàn'
     };
     xr.on('start', () => {
       ui.setState('xr');
@@ -515,7 +516,7 @@ class ArApp {
       // (never while a WebXR session renders through the same loop).
       if (this.xr && this.xr.active) return;
       if (document.hidden) this.sceneMgr.stop();
-      else this.sceneMgr.start((dt) => this._tick(dt));
+      else this.sceneMgr.start((dt, frame) => this._tick(dt, frame));
     });
     this.tracker.listen(window, 'pagehide', (ev) => {
       if (!ev.persisted) this.dispose();
